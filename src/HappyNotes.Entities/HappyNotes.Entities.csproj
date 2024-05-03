@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="SqlSugar">
+      <HintPath>..\..\..\..\.nuget\packages\sqlsugarcore\5.0.0.15\lib\netstandard2.0\SqlSugar.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Api.Framework\Api.Framework.csproj" />
+  </ItemGroup>
+
+</Project>

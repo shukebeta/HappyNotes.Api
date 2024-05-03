@@ -1,0 +1,6 @@
+@HappyNotes_HostAddress = http://localhost:5012
+
+GET {{HappyNotes_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
