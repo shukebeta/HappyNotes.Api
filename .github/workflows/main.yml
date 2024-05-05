@@ -30,7 +30,11 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release --no-restore
 
-      # We will output publish files to the folder we previously created
+      - name: Replace database password
+        run: |
+          sed -i "s/password-place-holder/${{ secrets.STAGING_MYSQL_PASSWORD }}/g" /src/HappyNotes.Api/bin/Release/net8.0/appsettings.json
+          sed -i "s/symmetric-security-key-place-holder/${{ secrets.STAGING_SYMMETRIC_SECURITY_KEY }}/g" /src/HappyNotes.Api/bin/Release/net8.0/appsettings.json
+      
       - name: Publish
         run: dotnet publish -c Release --property:PublishDir=/var/www/HappyNotes.Api
       - name: Restart the app
