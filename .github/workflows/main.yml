@@ -30,14 +30,15 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release --no-restore
       
+      - name: Publish
+        run: dotnet publish -c Release --property:PublishDir=/var/www/HappyNotes.Api
+ 
       - name: Replace credentials
         run: |
           pwd
-          sed -i "s/password-placeholder/${{ secrets.STAGING_MYSQL_PASSWORD }}/g" ./src/HappyNotes.Api/bin/Release/net8.0/appsettings.json
-          sed -i "s/symmetric-security-key-placeholder/${{ secrets.STAGING_SYMMETRIC_SECURITY_KEY }}/g" ./src/HappyNotes.Api/bin/Release/net8.0/appsettings.json
+          sed -i "s/password-placeholder/${{ secrets.STAGING_MYSQL_PASSWORD }}/g" /var/www/HappyNotes.Api/appsettings.json
+          sed -i "s/symmetric-security-key-placeholder/${{ secrets.STAGING_SYMMETRIC_SECURITY_KEY }}/g" /var/www/HappyNotes.Api/appsettings.json
       
-      - name: Publish
-        run: dotnet publish -c Release --property:PublishDir=/var/www/HappyNotes.Api
       - name: Restart the app
         run: |
           echo $XDG_RUNTIME_DIR
