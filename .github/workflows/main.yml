@@ -25,6 +25,12 @@ jobs:
           dotnet-version: ${{ matrix.dotnet-version }}
 
       - name: Install dependencies
+        run: dotnet restore
+ 
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+      
+      - name: Replace credentials
         run: |
           pwd
           sed -i "s/password-placeholder/${{ secrets.STAGING_MYSQL_PASSWORD }}/g" ./src/HappyNotes.Api/bin/Release/net8.0/appsettings.json
