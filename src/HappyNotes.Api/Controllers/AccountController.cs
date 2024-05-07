@@ -4,6 +4,8 @@ using Api.Framework.Extensions;
 using Api.Framework.Helper;
 using Api.Framework.Models;
 using Api.Framework.Result;
+using AutoMapper;
+using HappyNotes.Dto;
 using HappyNotes.Entities;
 using HappyNotes.Models;
 using HappyNotes.Services;
@@ -18,6 +20,7 @@ namespace HappyNotes.Api.Controllers
         IOptions<JwtConfig> jwtConfig,
         IRepositoryBase<User> userRepository,
         IAccountService accountService,
+        IMapper mapper,
         User currentUser)
         : BaseController
     {
@@ -118,6 +121,14 @@ namespace HappyNotes.Api.Controllers
             var jwtToken = TokenHelper.JwtTokenGenerator(claims, _jwtConfig.Issuer, _jwtConfig.SymmetricSecurityKey, 7);
 
             return new SuccessfulResult<JwtToken>(new JwtToken {Token = jwtToken,});
+        }
+
+        [HttpGet]
+        public async Task<ApiResult<UserDto>> MyInformation()
+        {
+            var user = await userRepository.GetFirstOrDefaultAsync(where => where.Id == currentUser.Id);
+            var userDto = mapper.Map<UserDto>(user);
+            return new SuccessfulResult<UserDto>(userDto);
         }
 
         private static Claim[] _GetClaims(long id, string username, string email)

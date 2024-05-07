@@ -6,6 +6,7 @@ using Api.Framework;
 using Api.Framework.Database;
 using Api.Framework.Extensions;
 using Api.Framework.Models;
+using HappyNotes.Dto;
 using HappyNotes.Entities;
 using HappyNotes.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -35,6 +36,7 @@ builder.Services.AddControllers().AddJsonOptions(options =>
     options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
     // Optionally configure other serialization options here
 });
+builder.Services.AddAutoMapper(typeof(MapperProfile));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
