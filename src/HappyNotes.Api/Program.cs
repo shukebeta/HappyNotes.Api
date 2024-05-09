@@ -6,9 +6,12 @@ using Api.Framework;
 using Api.Framework.Database;
 using Api.Framework.Extensions;
 using Api.Framework.Models;
+using HappyNotes.Api;
 using HappyNotes.Dto;
 using HappyNotes.Entities;
+using HappyNotes.Models;
 using HappyNotes.Services;
+using HappyNotes.Services.interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
@@ -24,7 +27,7 @@ var logger = LoggerFactory.Create(config =>
 {
     config.AddConsole();
     config.AddConfiguration(builder.Configuration.GetSection("Logging"));
-}).CreateLogger("Program"); 
+}).CreateLogger("Program");
 
 var envName = builder.Environment.EnvironmentName;
 builder.Host.UseNLog();
@@ -72,8 +75,9 @@ builder.Services.AddSwaggerGen(c =>
 });
 builder.Services.AddSingleton(typeof(IRepositoryBase<>), typeof(RepositoryBase<>));
 builder.Services.AddSingleton(typeof(ILogger<>), typeof(Logger<>));
-builder.Services.AddSingleton<IAccountService, AccountService>();
-builder.Services.AddSingleton<User>();
+
+builder.Services.RegisterServices();
+
 builder.Services.AddSqlSugarSetup(builder.Configuration.GetSection("DatabaseConnectionOptions")
     .Get<DatabaseConnectionOptions>()!, logger);
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
@@ -101,6 +105,8 @@ app.Run();
 void ConfigAuthentication(WebApplicationBuilder b)
 {
     var services = b.Services;
+
+    services.AddSingleton<CurrentUser>();
     var configuration = b.Configuration;
     services.Configure<JwtConfig>(configuration.GetSection("Jwt"));
     var jwtConfig = configuration.GetSection("Jwt").Get<JwtConfig>();
@@ -126,7 +132,7 @@ void ConfigAuthentication(WebApplicationBuilder b)
             {
                 OnTokenValidated = context =>
                 {
-                    var userContext = context.HttpContext.RequestServices.GetService<User>() ?? new User();
+                    var userContext = context.HttpContext.RequestServices.GetService<CurrentUser>() ?? new CurrentUser();
                     var claims = context.Principal?.Claims.ToArray();
                     if (claims != null)
                     {

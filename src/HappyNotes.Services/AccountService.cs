@@ -1,6 +1,7 @@
 using Api.Framework;
 using Api.Framework.Helper;
 using HappyNotes.Entities;
+using HappyNotes.Services.interfaces;
 
 namespace HappyNotes.Services;
 

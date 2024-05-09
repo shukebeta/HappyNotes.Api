@@ -9,6 +9,7 @@ using HappyNotes.Dto;
 using HappyNotes.Entities;
 using HappyNotes.Models;
 using HappyNotes.Services;
+using HappyNotes.Services.interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -21,7 +22,7 @@ namespace HappyNotes.Api.Controllers
         IRepositoryBase<User> userRepository,
         IAccountService accountService,
         IMapper mapper,
-        User currentUser)
+        CurrentUser currentUser)
         : BaseController
     {
         private readonly JwtConfig _jwtConfig = jwtConfig.Value;

@@ -23,6 +23,7 @@
     <ProjectReference Include="..\Api.Framework\Api.Framework.csproj" />
     <ProjectReference Include="..\HappyNotes.Dto\HappyNotes.Dto.csproj" />
     <ProjectReference Include="..\HappyNotes.Entities\HappyNotes.Entities.csproj" />
+    <ProjectReference Include="..\HappyNotes.Extensions\HappyNotes.Extensions.csproj" />
     <ProjectReference Include="..\HappyNotes.Models\HappyNotes.Models.csproj" />
     <ProjectReference Include="..\HappyNotes.Repositories\HappyNotes.Repositories.csproj" />
     <ProjectReference Include="..\HappyNotes.Services\HappyNotes.Services.csproj" />

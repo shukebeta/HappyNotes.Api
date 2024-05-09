@@ -1,4 +1,4 @@
-namespace HappyNotes.Services;
+namespace HappyNotes.Services.interfaces;
 
 public interface IAccountService
 {
