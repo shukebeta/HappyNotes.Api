@@ -25,4 +25,11 @@ public class NotesController(IMapper mapper
         var noteId = await noteService.Post(request);
         return new SuccessfulResult<long>(noteId);
     }
+
+    [HttpPost("{id}")]
+    public async Task<ApiResult> Update(long id, PostNoteRequest request)
+    {
+        await noteService.Update(id, request);
+        return new SuccessfulResult<long>(id);
+    }
 }

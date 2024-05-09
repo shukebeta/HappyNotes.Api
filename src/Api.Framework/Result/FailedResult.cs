@@ -1,13 +1,14 @@
 using System.Text.Json;
+using Microsoft.VisualBasic;
 
 namespace Api.Framework.Result;
 
 public class FailedResult: ApiResult
 {
-    public FailedResult(string message): this(FrameworkConstants.DefaultErrorCode, message)
+    public FailedResult(string message=FrameworkConstants.DefaultErrorMessage): this(FrameworkConstants.DefaultErrorCode, message)
     {
     }
-    
+
     public FailedResult(int errorCode, string message)
     {
         Successful = false;

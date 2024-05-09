@@ -2,7 +2,7 @@ namespace Api.Framework.Result;
 
 public class FailedResult<T>: ApiResult<T>
 {
-    public FailedResult(string message=FrameworkConstants.DefaultErrorMessage, int errorCode=FrameworkConstants.DefaultErrorCode, T? data = default)
+    private FailedResult(string message=FrameworkConstants.DefaultErrorMessage, int errorCode=FrameworkConstants.DefaultErrorCode, T? data = default)
     {
         Successful = false;
         ErrorCode = errorCode;

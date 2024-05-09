@@ -63,13 +63,19 @@ public class NoteService(
             note.Content = fullContent.GetShort();
             note.IsPrivate = request.IsPrivate;
             note.UpdateAt = DateTime.UtcNow.ToUnixTimestamp();
-            note.IsLong = false;
+            note.IsLong = true;
             await noteRepository.UpdateAsync(note);
-            return await longNoteRepository.UpdateAsync(new LongNote()
+            var longNote = new LongNote()
             {
                 Id = id,
                 Content = fullContent
-            });
+            };
+            if (await longNoteRepository.GetFirstOrDefaultAsync(x => x.Id == id) is null)
+            {
+                return await longNoteRepository.InsertAsync(longNote);
+            }
+
+            return await longNoteRepository.UpdateAsync(longNote);
         }
 
         note.Content = fullContent;
