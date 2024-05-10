@@ -1,3 +1,4 @@
+using Api.Framework.Models;
 using AutoMapper;
 using HappyNotes.Entities;
 
@@ -7,6 +8,8 @@ public class MapperProfile: Profile
 {
     public MapperProfile()
     {
+        CreateMap(typeof(PageData<>), typeof(PageData<>));
         CreateMap<User, UserDto>();
+        CreateMap<Note, NoteDto>();
     }
 }

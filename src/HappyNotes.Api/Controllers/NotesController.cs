@@ -1,12 +1,16 @@
 using Api.Framework;
 using Api.Framework.Extensions;
 using Api.Framework.Helper;
+using Api.Framework.Models;
 using Api.Framework.Result;
 using AutoMapper;
+using HappyNotes.Common;
+using HappyNotes.Dto;
 using HappyNotes.Entities;
 using HappyNotes.Extensions;
 using HappyNotes.Models;
 using HappyNotes.Services.interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 
@@ -26,10 +30,27 @@ public class NotesController(IMapper mapper
         return new SuccessfulResult<long>(noteId);
     }
 
-    [HttpPost("{id}")]
-    public async Task<ApiResult> Update(long id, PostNoteRequest request)
+    [HttpPost("{noteId:long}")]
+    public async Task<ApiResult> Update(long noteId, PostNoteRequest request)
     {
-        await noteService.Update(id, request);
-        return new SuccessfulResult<long>(id);
+        await noteService.Update(noteId, request);
+        return new SuccessfulResult<long>(noteId);
+    }
+
+    [HttpPost("{pageSize:int}/{pageNumber:int}")]
+    [EnforcePageSizeLimit(Constants.MaxPageSize)]
+    public async Task<PageData<NoteDto>> MyLatest(int pageSize, int pageNumber)
+    {
+        var notes = await noteService.MyLatest(pageSize, pageNumber);
+        return notes;
+    }
+
+    [AllowAnonymous]
+    [HttpPost("{pageSize:int}/{pageNumber:int}")]
+    [EnforcePageSizeLimit(Constants.MaxPageSize)]
+    public async Task<PageData<NoteDto>> Latest(int pageSize, int pageNumber)
+    {
+        var notes = await noteService.Latest(pageSize, pageNumber);
+        return notes;
     }
 }

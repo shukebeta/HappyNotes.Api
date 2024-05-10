@@ -8,8 +8,6 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Api.Framework\Api.Framework.csproj" />
-      <ProjectReference Include="..\HappyNotes.Common\HappyNotes.Common.csproj" />
-      <ProjectReference Include="..\HappyNotes.Models\HappyNotes.Models.csproj" />
     </ItemGroup>
 
 </Project>

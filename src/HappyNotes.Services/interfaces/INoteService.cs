@@ -1,5 +1,8 @@
+using Api.Framework.Models;
+using HappyNotes.Dto;
 using HappyNotes.Entities;
 using HappyNotes.Models;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace HappyNotes.Services.interfaces;
 
@@ -10,4 +13,12 @@ public interface INoteService
     Task<bool> Delete(long id);
     Task<bool> Undelete(long id);
     Task<bool> Update(long id, PostNoteRequest request);
+    Task<PageData<NoteDto>> MyLatest(int pageSize, int pageNumber);
+    /// <summary>
+    /// Latest public notes / random browsing
+    /// </summary>
+    /// <param name="pageSize"></param>
+    /// <param name="pageNumber"></param>
+    /// <returns></returns>
+    Task<PageData<NoteDto>> Latest(int pageSize, int pageNumber);
 }

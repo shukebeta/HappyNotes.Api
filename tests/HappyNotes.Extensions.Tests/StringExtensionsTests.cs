@@ -1,3 +1,5 @@
+using HappyNotes.Common;
+
 namespace HappyNotes.Extensions.Tests;
 
 public class StringExtensionsTests
