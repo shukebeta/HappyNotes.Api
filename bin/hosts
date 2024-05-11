@@ -1,0 +1,6 @@
+#!/bin/bash
+typeset -A hosts
+export hosts=(
+	[xps]="v=(100.103.112.97 127.0.0.1 samplepassword)"
+	[arm]="v=(100.107.86.38 10.0.134 samplepassword)"
+)

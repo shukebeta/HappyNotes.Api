@@ -1,0 +1,15 @@
+#!/bin/bash
+# this command is mainly used to install/remove a package from a list of machines
+# for example `run-any-cmd 'sudo apt install -y vim'`
+set -x
+machines=("arm" "sydney")
+
+if [ "" == "$1" ]; then
+  echo "usage: ${0} 'your command'"
+  exit 1
+fi
+
+for vm in "${machines[@]}"
+do
+  ssh "${vm}" -- "$1"
+done
