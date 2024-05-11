@@ -1,0 +1,2 @@
+backupFile=/home/davidwei/Projects/background_shop/documents/database/latestStructure/allDb.sql
+mysqldump -d --databases IDServer YangtaoStandard YangtaoUser YangtaoOrders YangtaoCommodity YangtaoMerchant | sed 's/ AUTO_INCREMENT=[0-9]*//g' > $backupFile

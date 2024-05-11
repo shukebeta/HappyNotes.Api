@@ -1,0 +1,1 @@
+mysqldump --databases HappyNotes | gzip > ~/backups/mysql/HappyNotes/db_`date '+%Y%m%d-%H%M%S_manual'`.sql.gz
