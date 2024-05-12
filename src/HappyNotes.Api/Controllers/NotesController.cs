@@ -37,7 +37,7 @@ public class NotesController(IMapper mapper
         return new SuccessfulResult<long>(noteId);
     }
 
-    [HttpPost("{pageSize:int}/{pageNumber:int}")]
+    [HttpGet("{pageSize:int}/{pageNumber:int}")]
     [EnforcePageSizeLimit(Constants.MaxPageSize)]
     public async Task<PageData<NoteDto>> MyLatest(int pageSize, int pageNumber)
     {
@@ -46,7 +46,7 @@ public class NotesController(IMapper mapper
     }
 
     [AllowAnonymous]
-    [HttpPost("{pageSize:int}/{pageNumber:int}")]
+    [HttpGet("{pageSize:int}/{pageNumber:int}")]
     [EnforcePageSizeLimit(Constants.MaxPageSize)]
     public async Task<PageData<NoteDto>> Latest(int pageSize, int pageNumber)
     {

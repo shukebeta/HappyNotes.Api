@@ -1,0 +1,1 @@
+SELECT * FROM HappyNotes.User ORDER BY Id DESC LIMIT 1;
