@@ -26,6 +26,7 @@ namespace HappyNotes.Api.Controllers
         : BaseController
     {
         private readonly JwtConfig _jwtConfig = jwtConfig.Value;
+        private const int TokenExpiresInDays = 180;
 
         /// <summary>
         /// Refresh token
@@ -36,7 +37,7 @@ namespace HappyNotes.Api.Controllers
         {
             var claims = _GetClaims(currentUser.Id, currentUser.Username, currentUser.Email);
 
-            var token = TokenHelper.JwtTokenGenerator(claims, _jwtConfig.Issuer, _jwtConfig.SymmetricSecurityKey, 7);
+            var token = TokenHelper.JwtTokenGenerator(claims, _jwtConfig.Issuer, _jwtConfig.SymmetricSecurityKey, TokenExpiresInDays);
             return new SuccessfulResult<JwtToken>(new JwtToken {Token = token,});
         }
 
@@ -86,7 +87,7 @@ namespace HappyNotes.Api.Controllers
             var id = await userRepository.InsertReturnIdentityAsync(newUser);
 
             var claims = _GetClaims(id, request.Username, request.Email);
-            var jwtToken = TokenHelper.JwtTokenGenerator(claims, _jwtConfig.Issuer, _jwtConfig.SymmetricSecurityKey, 7);
+            var jwtToken = TokenHelper.JwtTokenGenerator(claims, _jwtConfig.Issuer, _jwtConfig.SymmetricSecurityKey, TokenExpiresInDays);
 
             return new SuccessfulResult<JwtToken>(new JwtToken {Token = jwtToken,});
         }
@@ -119,7 +120,7 @@ namespace HappyNotes.Api.Controllers
             }
 
             var claims = _GetClaims(user.Id, user.Username, user.Email);
-            var jwtToken = TokenHelper.JwtTokenGenerator(claims, _jwtConfig.Issuer, _jwtConfig.SymmetricSecurityKey, 7);
+            var jwtToken = TokenHelper.JwtTokenGenerator(claims, _jwtConfig.Issuer, _jwtConfig.SymmetricSecurityKey, TokenExpiresInDays);
 
             return new SuccessfulResult<JwtToken>(new JwtToken {Token = jwtToken,});
         }

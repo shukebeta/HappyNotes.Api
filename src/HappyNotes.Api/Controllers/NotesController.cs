@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace HappyNotes.Api.Controllers;
 
+[Authorize]
 public class NotesController(IMapper mapper
     , CurrentUser currentUser
     , INoteService noteService
@@ -19,20 +20,6 @@ public class NotesController(IMapper mapper
     , IRepositoryBase<LongNote> longNoteRepository
 ): BaseController
 {
-    [HttpPost]
-    public async Task<ApiResult<long>> Post(PostNoteRequest request)
-    {
-        var noteId = await noteService.Post(request);
-        return new SuccessfulResult<long>(noteId);
-    }
-
-    [HttpPost("{noteId:long}")]
-    public async Task<ApiResult> Update(long noteId, PostNoteRequest request)
-    {
-        await noteService.Update(noteId, request);
-        return new SuccessfulResult<long>(noteId);
-    }
-
     [HttpGet("{pageSize:int}/{pageNumber:int}")]
     [EnforcePageSizeLimit(Constants.MaxPageSize)]
     public async Task<ApiResult<PageData<NoteDto>>> MyLatest(int pageSize, int pageNumber)

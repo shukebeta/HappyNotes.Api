@@ -1,9 +1,7 @@
 using System.Linq.Expressions;
 using Api.Framework;
 using Api.Framework.Extensions;
-using Api.Framework.Helper;
 using Api.Framework.Models;
-using Api.Framework.Result;
 using AutoMapper;
 using HappyNotes.Common;
 using HappyNotes.Dto;
@@ -111,7 +109,7 @@ public class NoteService(IMapper mapper
 
     private async Task<PageData<Note>> _GetNotesByPage(long userId, int pageSize, int pageNumber, bool isAsc=false, NoteType noteType=NoteType.All)
     {
-        Expression<Func<Note, bool>> where = n => n.UserId.Equals(userId);
+        Expression<Func<Note, bool>> where = n => n.UserId.Equals(userId) && n.DeleteAt == null;
         if (noteType != NoteType.All)
         {
             where = where.And(n => n.IsPrivate.Equals(noteType == NoteType.Private));
@@ -120,11 +118,20 @@ public class NoteService(IMapper mapper
         return notes;
     }
 
-    public async Task<Note?> Get(long id)
+    public async Task<Note?> Get(long noteId)
     {
-        var note = await noteRepository.GetFirstOrDefaultAsync(x => x.Id == id);
+        var note = await noteRepository.GetFirstOrDefaultAsync(x => x.Id == noteId);
+        if (note is null)
+        {
+            throw ExceptionHelper.New(noteId, EventId._00100_NoteNotFound, noteId);
+        }
+
+        if (note.IsPrivate && _IsNotAuthor(note))
+        {
+            throw ExceptionHelper.New(noteId, EventId._00101_NoteIsPrivate, noteId);
+        }
         if (note is not {IsLong: true,}) return note;
-        var longNote = await longNoteRepository.GetFirstOrDefaultAsync(x => x.Id == id);
+        var longNote = await longNoteRepository.GetFirstOrDefaultAsync(x => x.Id == noteId);
 
         if (!string.IsNullOrWhiteSpace(longNote?.Content))
         {
@@ -132,6 +139,11 @@ public class NoteService(IMapper mapper
         }
 
         return note;
+    }
+
+    private bool _IsNotAuthor(Note note)
+    {
+        return currentUser is null || currentUser.Id != note.UserId;
     }
 
     public async Task<bool> Delete(long id)
@@ -142,6 +154,12 @@ public class NoteService(IMapper mapper
             throw new Exception($"Note with Id: {id} does not exist");
         }
 
+        if (_IsNotAuthor(note))
+        {
+            throw ExceptionHelper.New(id, EventId._00102_NoteIsNotYours, id);
+        }
+
+        // already deleted before
         if (note.DeleteAt != null)
         {
             return true;
@@ -156,12 +174,17 @@ public class NoteService(IMapper mapper
         var note = await noteRepository.GetFirstOrDefaultAsync(x => x.Id == id);
         if (note == null)
         {
-            throw new Exception($"Note with Id: {id} does not exist");
+            throw ExceptionHelper.New(id, EventId._00100_NoteNotFound, id);
         }
 
-        if (note.DeleteAt != null)
+        if (note.DeleteAt == null)
         {
-            throw new Exception($"Note with Id: {id} was not deleted at all");
+            throw ExceptionHelper.New(id, EventId._00103_NoteIsNotDeleted, id);
+        }
+
+        if (_IsNotAuthor(note))
+        {
+            throw ExceptionHelper.New(id, EventId._00102_NoteIsNotYours, id);
         }
 
         note.DeleteAt = null;
