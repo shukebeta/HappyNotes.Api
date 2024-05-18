@@ -102,7 +102,7 @@ public class NoteService(IMapper mapper
         {
             throw new Exception($"We only provide at most {Constants.PublicNotesMaxPage} page of public notes at the moment");
         }
-        Expression<Func<Note, bool>> where = n => !n.IsPrivate;
+        Expression<Func<Note, bool>> where = n => !n.IsPrivate && n.DeleteAt == null;
         var notes = await noteRepository.GetPageListAsync(pageNumber, pageSize, where, n => n.CreateAt, false);
         return mapper.Map<PageData<NoteDto>>(notes);
     }
