@@ -3,10 +3,6 @@ name: Deploy to the production env
 # Controls when the workflow will run
 on:
   workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Tag to deploy'
-        required: true
 
 jobs:
   deploy:
