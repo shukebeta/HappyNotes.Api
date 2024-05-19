@@ -82,6 +82,15 @@ builder.Services.AddSqlSugarSetup(builder.Configuration.GetSection("DatabaseConn
     .Get<DatabaseConnectionOptions>()!, logger);
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
+builder.Services.AddCors(opts =>
+{
+    string[] originList = builder.Configuration.GetSection("AllowedCorsOrigins").Get<List<string>>()?.ToArray() ?? [];
+    opts.AddPolicy("AllowOrigins", policy => policy.WithOrigins(originList)
+        .AllowCredentials()
+        .AllowAnyMethod()
+        .AllowAnyHeader()
+    );
+});
 
 ConfigAuthentication(builder);
 builder.Services.AddHttpContextAccessor();
@@ -94,7 +103,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
+app.UseCors("AllowOrigins");
 app.UseExceptionHandler();
 app.UseHttpsRedirection();
 app.UseAuthorization();

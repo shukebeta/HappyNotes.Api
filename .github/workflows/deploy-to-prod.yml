@@ -1,0 +1,49 @@
+name: Deploy to the production env
+
+# Controls when the workflow will run
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to deploy'
+        required: true
+
+jobs:
+  deploy:
+    # Our previously created self-hosted runner
+    runs-on: [self-hosted, linux, racknerd]
+
+    strategy:
+      matrix:
+        dotnet: ["8.0.x"]
+
+    # A sequence of tasks that will execute as part of the job
+    steps:
+      # Checks out repository so our job can access it
+      - uses: actions/checkout@v4
+      - name: Setup .NET Core SDK ${{ matrix.dotnet-version }}
+        uses: actions/setup-dotnet@v4
+        with:
+          ref: ${{ github.event.inputs.tag }}
+          dotnet-version: ${{ matrix.dotnet-version }}
+
+      - name: Install dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Publish
+        run: dotnet publish -c Release --property:PublishDir=/var/www/HappyNotes.Api
+
+      - name: Replace credentials
+        run: |
+          pwd
+          sed -i "s/password-placeholder/${{ secrets.STAGING_MYSQL_PASSWORD }}/g" /var/www/HappyNotes.Api/appsettings.json
+          sed -i "s/symmetric-security-key-placeholder/${{ secrets.STAGING_SYMMETRIC_SECURITY_KEY }}/g" /var/www/HappyNotes.Api/appsettings.json
+
+      - name: Restart the app
+        run: |
+          echo $XDG_RUNTIME_DIR
+          export XDG_RUNTIME_DIR=/run/user/$(id -u)
+          systemctl --user restart HappyNotes.Api.service
