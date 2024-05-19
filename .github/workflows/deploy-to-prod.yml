@@ -39,8 +39,9 @@ jobs:
       - name: Replace credentials
         run: |
           pwd
-          sed -i "s/password-placeholder/${{ secrets.STAGING_MYSQL_PASSWORD }}/g" /var/www/HappyNotes.Api/appsettings.json
-          sed -i "s/symmetric-security-key-placeholder/${{ secrets.STAGING_SYMMETRIC_SECURITY_KEY }}/g" /var/www/HappyNotes.Api/appsettings.json
+          sed -i "s/password-placeholder/${{ secrets.PRODUCTION_MYSQL_PASSWORD }}/g" /var/www/HappyNotes.Api/appsettings.json
+          sed -i "s/symmetric-security-key-placeholder/${{ secrets.PRODUCTION_SYMMETRIC_SECURITY_KEY }}/g" /var/www/HappyNotes.Api/appsettings.json
+          sed -i "s/staging-happynotes-api.dev/happynotes-api/g" /var/www/HappyNotes.Api/appsettings.json
 
       - name: Restart the app
         run: |
