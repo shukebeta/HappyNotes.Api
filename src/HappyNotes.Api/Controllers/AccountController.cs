@@ -8,7 +8,6 @@ using AutoMapper;
 using HappyNotes.Dto;
 using HappyNotes.Entities;
 using HappyNotes.Models;
-using HappyNotes.Services;
 using HappyNotes.Services.interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
