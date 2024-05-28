@@ -19,7 +19,8 @@ public class SettingsController(
     [HttpGet]
     public async Task<ApiResult<List<UserSettingsDto>>> Get()
     {
-        var settings = await userSettingsRepository.GetListAsync(s => s.UserId.Equals(currentUser.Id));
+        var userId = currentUser.Id;
+        var settings = await userSettingsRepository.GetListAsync(s => s.UserId.Equals(userId));
         if (settings.Count < DefaultValues.Settings.Count)
         {
             var userSettingDict = new Dictionary<string, string>(DefaultValues.SettingsDictionary);
@@ -30,49 +31,67 @@ public class SettingsController(
 
             settings = userSettingDict.Select(kvp => new UserSettings()
             {
-                UserId = currentUser.Id,
+                UserId = userId,
                 SettingName = kvp.Key,
                 SettingValue = kvp.Value
             }).ToList();
         }
+
         return new SuccessfulResult<List<UserSettingsDto>>(mapper.Map<List<UserSettingsDto>>(settings));
     }
 
     [HttpPost]
     public async Task<ApiResult<bool>> Setup(UserSettingsDto settingsDto)
     {
-        if (!DefaultValues.SettingsDictionary.TryGetValue(settingsDto.SettingName, out _))
+        var userId = currentUser.Id;
+        if (!DefaultValues.SettingsDictionary.ContainsKey(settingsDto.SettingName))
         {
             throw ExceptionHelper.New(settingsDto, EventId._00104_NoteIsNotDeleted, settingsDto.SettingName);
         }
 
         var now = DateTime.UtcNow.ToUnixTimestamp();
-        var oldSetting = await userSettingsRepository.GetFirstOrDefaultAsync(
-            s => s.UserId.Equals(currentUser.Id) &&
-                 s.SettingName.Equals(settingsDto.SettingName));
-        if (oldSetting != null)
+        var existingSetting = await userSettingsRepository.GetFirstOrDefaultAsync(
+            s => s.UserId == userId && s.SettingName == settingsDto.SettingName);
+
+        bool result;
+        if (existingSetting != null)
         {
-            if (settingsDto.SettingValue.Equals(oldSetting.SettingValue))
+            if (settingsDto.SettingValue == existingSetting.SettingValue)
             {
                 return new SuccessfulResult<bool>(true);
             }
 
-            var result = await userSettingsRepository.UpdateAsync(it => new UserSettings()
-            {
-                SettingValue = settingsDto.SettingValue,
-                UpdateAt = now,
-            }, w => w.UserId.Equals(currentUser.Id) && w.SettingName.Equals(settingsDto.SettingName));
-            return result > 0 ? new SuccessfulResult<bool>(true) : new FailedResult<bool>(false, "0 rows updated");
+            result = await _UpdateSetting(userId, settingsDto.SettingName, settingsDto.SettingValue, now);
+        }
+        else
+        {
+            result = await _InsertSetting(userId, settingsDto.SettingName, settingsDto.SettingValue, now);
         }
 
+        return result ? new SuccessfulResult<bool>(true) : new FailedResult<bool>(false, "0 rows updated");
+    }
+
+    private async Task<bool> _UpdateSetting(long userId, string settingName, string settingValue, long timestamp)
+    {
+        var result = await userSettingsRepository.UpdateAsync(
+            it => new UserSettings()
+            {
+                SettingValue = settingValue,
+                UpdateAt = timestamp,
+            },
+            w => w.UserId == userId && w.SettingName == settingName);
+        return result > 0;
+    }
+
+    private async Task<bool> _InsertSetting(long userId, string settingName, string settingValue, long timestamp)
+    {
         var settings = new UserSettings()
         {
-            UserId = currentUser.Id,
-            SettingName = settingsDto.SettingName,
-            SettingValue = settingsDto.SettingValue,
-            CreateAt = now,
+            UserId = userId,
+            SettingName = settingName,
+            SettingValue = settingValue,
+            CreateAt = timestamp,
         };
-        await userSettingsRepository.InsertAsync(settings);
-        return new SuccessfulResult<bool>(true);
+        return await userSettingsRepository.InsertAsync(settings);
     }
 }

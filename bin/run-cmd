@@ -34,6 +34,7 @@ runcmd() {
     echo "---------------------------"
 }
 
+echolog "$@"
 # Execute command on all remote servers
 if [ "${1}" == "all" ]; then
     source "$script_dir/hosts"

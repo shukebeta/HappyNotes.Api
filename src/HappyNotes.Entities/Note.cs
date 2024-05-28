@@ -12,5 +12,6 @@ public class Note: EntityBase
     public int FavoriteCount { get; set; } = 0;
     public int Status { get; set; } = 1;
     public bool IsLong { get; set; }
+    public bool IsMarkdown { get; set; }
     public bool IsPrivate { get; set; }
 }

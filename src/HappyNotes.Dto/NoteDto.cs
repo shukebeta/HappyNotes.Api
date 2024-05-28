@@ -8,6 +8,7 @@ public class NoteDto
     public int FavoriteCount { get; set; }
     public int Status { get; set; }
     public bool IsLong { get; set; }
+    public bool IsMarkdown { get; set; }
     public bool IsPrivate { get; set; }
     public int CreateAt { get; set; }
     public int UpdateAt { get; set; }
