@@ -7,6 +7,16 @@ namespace Api.Framework;
 public class RepositoryBase<TEntity>(ISqlSugarClient db) : IRepositoryBase<TEntity>
     where TEntity : class, new()
 {
+    public virtual async Task<bool> UpsertAsync<TKey>(TEntity entity, Expression<Func<TEntity, bool>> where)
+    {
+        var existingEntity = await GetFirstOrDefaultAsync(where);
+        if (existingEntity == null)
+        {
+            return await db.Insertable(entity).ExecuteCommandIdentityIntoEntityAsync();
+        }
+        return await db.Updateable(entity).ExecuteCommandHasChangeAsync();
+    }
+
     #region Insert && Update
 
     public virtual async Task<bool> InsertAsync(TEntity entity)

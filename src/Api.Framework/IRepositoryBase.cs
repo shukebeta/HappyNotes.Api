@@ -5,6 +5,7 @@ namespace Api.Framework;
 
 public interface IRepositoryBase<TEntity> where TEntity : class, new()
 {
+    Task<bool> UpsertAsync<TKey>(TEntity entity, Expression<Func<TEntity, bool>> @where);
     #region Insert methods
 
     Task<bool> InsertAsync(TEntity entity);

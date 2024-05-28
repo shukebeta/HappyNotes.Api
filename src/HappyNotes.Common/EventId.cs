@@ -14,6 +14,8 @@ public enum EventId
     _00101_NoteIsPrivate = 101,
     [Description("Note with id {0} is not yours")]
     _00102_NoteIsNotYours = 102,
-    [Description("Invalid operation: note with id {0} is not deleted.")]
+    [Description("Invalid operation: note with id {0} is not deleted")]
     _00103_NoteIsNotDeleted = 103,
+    [Description("Invalid setting name: {0}")]
+    _00104_NoteIsNotDeleted = 104,
 }

@@ -149,6 +149,27 @@ CREATE TABLE `User` (
   UNIQUE KEY `Email` (`Email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `UserSettings`
+--
+
+DROP TABLE IF EXISTS `UserSettings`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `UserSettings` (
+  `Id` bigint NOT NULL AUTO_INCREMENT,
+  `UserId` bigint DEFAULT NULL,
+  `SettingName` varchar(255) DEFAULT NULL,
+  `SettingValue` varchar(4096) DEFAULT NULL,
+  `CreateAt` bigint NOT NULL,
+  `UpdateAt` bigint DEFAULT NULL,
+  `DeleteAt` bigint DEFAULT NULL,
+  PRIMARY KEY (`Id`),
+  UNIQUE KEY `SettingName` (`UserId`,`SettingName`),
+  KEY `UserId` (`UserId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;

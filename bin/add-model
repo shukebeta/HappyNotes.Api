@@ -1,0 +1,37 @@
+#!/bin/bash
+# Create C# model class based on database definition
+set -e
+
+projectDir=$HOME/RiderProjects/HappyNotes.Api/
+tmplDir=$projectDir/documents/.tmpl
+modelTmplFile=$tmplDir/Model.sql
+
+if [ $# -ne 2 ] ; then
+    echo "USAGE: $0 YOUR_DB_NAME TABLE_NAME"
+    exit 1;
+fi
+
+DbName=${1}
+ModelName=${2}
+
+modelDir=$projectDir/src/HappyNotes.Entities/
+modelFile=$modelDir/$ModelName.cs
+dtoModelDir=$projectDir/src/HappyNotes.Dto
+dtoModelFile=$dtoModelDir/${ModelName}Dto.cs
+mkdir -p "$modelDir"
+mkdir -p "$dtoModelDir"
+
+# $modelTmplFile => real Model.cs
+cat $modelTmplFile \
+	| sed "s/%DB_NAME%/${DbName}/g" \
+	| sed "s/%TABLE_NAME%/${ModelName}/g" > /tmp/tmpModel.sql
+
+echo using Api.Framework\; > "$modelFile"
+echo using SqlSugar\; >> "$modelFile"
+echo >> "$modelFile"
+echo namespace HappyNotes.Entities; >> "$modelFile"
+mysql < /tmp/tmpModel.sql | sed '1d' >> "$modelFile"
+
+cat "$modelFile" | sed '/CreateTime\|CreateBy\|ModifyAt\|ModifyBy\|UpdateBy\|UpdateAt\|DeleteAt/d' \
+    | sed "s/class ${ModelName}/class ${ModelName}Dto/g" \
+    | sed 's/\.Entities/\.Dto/g' > "$dtoModelFile"
