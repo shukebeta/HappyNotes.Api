@@ -35,7 +35,7 @@ public class NotesController(IMapper mapper
         return new SuccessfulResult<List<NoteDto>>(notes);
     }
 
-    [HttpGet("{localTimezone}/{yyyyMMdd}")]
+    [HttpGet]
     public async Task<ApiResult<List<NoteDto>>> MemoriesIn(string localTimezone, string yyyyMMdd)
     {
         var notes = await noteService.MemoriesIn(localTimezone, yyyyMMdd);
