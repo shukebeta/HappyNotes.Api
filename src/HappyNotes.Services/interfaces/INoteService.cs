@@ -21,4 +21,6 @@ public interface INoteService
     /// <param name="pageNumber"></param>
     /// <returns></returns>
     Task<PageData<NoteDto>> Latest(int pageSize, int pageNumber);
+    Task<List<NoteDto>> Memories(string localTimezone);
+    Task<List<NoteDto>> MemoriesIn(string localTimezone, string yyyyMMdd);
 }

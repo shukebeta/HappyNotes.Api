@@ -80,7 +80,7 @@ namespace HappyNotes.Api.Controllers
                 Gravatar = gravatar,
                 Salt = salt,
                 Password = password,
-                CreateAt = DateTime.Now.ToUnixTimestamp(),
+                CreateAt = DateTime.Now.ToUnixTimeSeconds(),
             };
 
             var id = await userRepository.InsertReturnIdentityAsync(newUser);

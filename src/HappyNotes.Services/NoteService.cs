@@ -1,6 +1,8 @@
+using System.Globalization;
 using System.Linq.Expressions;
 using Api.Framework;
 using Api.Framework.Extensions;
+using Api.Framework.Helper;
 using Api.Framework.Models;
 using AutoMapper;
 using HappyNotes.Common;
@@ -13,10 +15,11 @@ using WeihanLi.Extensions;
 
 namespace HappyNotes.Services;
 
-public class NoteService(IMapper mapper
-    , IRepositoryBase<Note> noteRepository
-    , IRepositoryBase<LongNote> longNoteRepository
-    , CurrentUser currentUser
+public class NoteService(
+    IMapper mapper,
+    IRepositoryBase<Note> noteRepository,
+    IRepositoryBase<LongNote> longNoteRepository,
+    CurrentUser currentUser
 ) : INoteService
 {
     public async Task<long> Post(PostNoteRequest request)
@@ -31,7 +34,7 @@ public class NoteService(IMapper mapper
         {
             UserId = currentUser.Id,
             IsPrivate = request.IsPrivate,
-            CreateAt = DateTime.UtcNow.ToUnixTimestamp(),
+            CreateAt = DateTime.UtcNow.ToUnixTimeSeconds(),
             IsLong = false,
         };
 
@@ -67,7 +70,7 @@ public class NoteService(IMapper mapper
         {
             note.Content = fullContent.GetShort();
             note.IsPrivate = request.IsPrivate;
-            note.UpdateAt = DateTime.UtcNow.ToUnixTimestamp();
+            note.UpdateAt = DateTime.UtcNow.ToUnixTimeSeconds();
             note.IsLong = true;
             await noteRepository.UpdateAsync(note);
             var longNote = new LongNote()
@@ -85,7 +88,7 @@ public class NoteService(IMapper mapper
 
         note.Content = fullContent;
         note.IsPrivate = request.IsPrivate;
-        note.UpdateAt = DateTime.UtcNow.ToUnixTimestamp();
+        note.UpdateAt = DateTime.UtcNow.ToUnixTimeSeconds();
         note.IsLong = false;
         return await noteRepository.UpdateAsync(note);
     }
@@ -100,20 +103,137 @@ public class NoteService(IMapper mapper
     {
         if (pageNumber > Constants.PublicNotesMaxPage)
         {
-            throw new Exception($"We only provide at most {Constants.PublicNotesMaxPage} page of public notes at the moment");
+            throw new Exception(
+                $"We only provide at most {Constants.PublicNotesMaxPage} page of public notes at the moment");
         }
+
         Expression<Func<Note, bool>> where = n => !n.IsPrivate && n.DeleteAt == null;
         var notes = await noteRepository.GetPageListAsync(pageNumber, pageSize, where, n => n.CreateAt, false);
         return mapper.Map<PageData<NoteDto>>(notes);
     }
 
-    private async Task<PageData<Note>> _GetNotesByPage(long userId, int pageSize, int pageNumber, bool isAsc=false, NoteType noteType=NoteType.All)
+    /// <summary>
+    /// Providing memories like
+    /// - 5 years ago, [what happened today]
+    /// - 4 years ago...
+    /// </summary>
+    /// <param name="localTimezone"></param>
+    /// <returns></returns>
+    public async Task<List<NoteDto>> Memories(string localTimezone)
+    {
+        var period = UnixTimestampHelper.GetDayUnixTimestamps(localTimezone);
+        var earliest = await noteRepository.GetFirstOrDefaultAsync(w => w.UserId.Equals(currentUser.Id));
+        if (earliest == null) return [];
+        var notes = new List<Note>();
+        var periodList = _GetDayStartList(period.EndUnixTimestamp, earliest);
+        foreach (var start in periodList)
+        {
+            var note = await noteRepository.GetFirstOrDefaultAsync(w =>
+                w.UserId.Equals(currentUser.Id) && w.CreateAt >= start && w.CreateAt < start + 86400);
+            if (note != null)
+            {
+                notes.Add(note);
+            }
+        }
+
+        return mapper.Map<List<NoteDto>>(notes);
+    }
+
+    public async Task<List<NoteDto>> MemoriesIn(string localTimezone, string yyyyMMdd)
+    {
+        // Parse the date string as a local time
+        var parsedDate = DateTime.ParseExact(yyyyMMdd, "yyyyMMdd", null);
+        // Get the TimeZoneInfo object for the specified local time zone
+        var timeZone = TimeZoneInfo.FindSystemTimeZoneById(localTimezone);
+        // Create a DateTimeOffset object with the parsed date and the local time zone offset
+        var dayStart = new DateTimeOffset(parsedDate, timeZone.GetUtcOffset(parsedDate)).ToUnixTimeSeconds();
+        var notes = await noteRepository.GetListAsync(w =>
+            w.UserId.Equals(currentUser.Id) && w.CreateAt >= dayStart &&
+            w.CreateAt < dayStart + 86400);
+        return mapper.Map<List<NoteDto>>(notes);
+    }
+
+    private static List<long> _GetDayStartList(long endOfToday, Note earliest)
+    {
+        var periodList = new List<long>();
+        var offset = endOfToday - earliest.CreateAt;
+
+        const int oneDay = 86400;
+        const int oneYear = 365 * oneDay;
+        const int halfYear = 180 * oneDay;
+        const int threeMonths = 90 * oneDay;
+        const int twoMonths = 60 * oneDay;
+        const int oneMonths = 30 * oneDay;
+        const int fourWeeks = 28 * oneDay;
+        const int threeWeeks = 21 * oneDay;
+        const int twoWeeks = 14 * oneDay;
+        const int oneWeek = 7 * oneDay;
+        if (offset >= oneYear) // a year
+        {
+            var n = offset / oneYear;
+            while (n > 0)
+            {
+                periodList.Add(endOfToday - n * oneYear);
+                offset -= oneYear;
+                n -= 1;
+            }
+
+            switch (n)
+            {
+                case 1:
+                    periodList.Add(endOfToday - halfYear);
+                    periodList.Add(endOfToday - threeMonths);
+                    periodList.Add(endOfToday - oneMonths);
+                    break;
+                case 2:
+                    periodList.Add(endOfToday - halfYear);
+                    periodList.Add(endOfToday - threeMonths);
+                    break;
+                case 3:
+                    periodList.Add(endOfToday - halfYear);
+                    break;
+            }
+        }
+        else if (offset >= halfYear) // half a year
+        {
+            periodList.Add(endOfToday - halfYear);
+            periodList.Add(endOfToday - threeMonths);
+            periodList.Add(endOfToday - twoMonths);
+            periodList.Add(endOfToday - oneMonths);
+        }
+        else if (offset >= threeMonths)
+        {
+            periodList.Add(endOfToday - threeMonths);
+            periodList.Add(endOfToday - twoMonths);
+            periodList.Add(endOfToday - oneMonths);
+            periodList.Add(endOfToday - threeWeeks);
+        }
+        else if (offset >= fourWeeks)
+        {
+            periodList.Add(endOfToday - fourWeeks);
+            periodList.Add(endOfToday - threeWeeks);
+            periodList.Add(endOfToday - twoWeeks);
+            periodList.Add(endOfToday - oneWeek);
+        }
+        else if (offset >= oneWeek)
+        {
+            periodList.Add(endOfToday - oneWeek);
+            periodList.Add(endOfToday - 5 * oneDay);
+            periodList.Add(endOfToday - 3 * oneDay);
+        }
+
+        return periodList;
+    }
+
+    private async Task<PageData<Note>> _GetNotesByPage(long userId, int pageSize, int pageNumber, bool isAsc = false,
+        NoteType noteType = NoteType.All)
     {
         Expression<Func<Note, bool>> where = n => n.UserId.Equals(userId) && n.DeleteAt == null;
         if (noteType != NoteType.All)
         {
             where = where.And(n => n.IsPrivate.Equals(noteType == NoteType.Private));
         }
+
         var notes = await noteRepository.GetPageListAsync(pageNumber, pageSize, where, n => n.CreateAt, isAsc);
         return notes;
     }
@@ -130,6 +250,7 @@ public class NoteService(IMapper mapper
         {
             throw ExceptionHelper.New(noteId, EventId._00101_NoteIsPrivate, noteId);
         }
+
         if (note is not {IsLong: true,}) return note;
         var longNote = await longNoteRepository.GetFirstOrDefaultAsync(x => x.Id == noteId);
 
@@ -165,7 +286,7 @@ public class NoteService(IMapper mapper
             return true;
         }
 
-        note.DeleteAt = DateTime.UtcNow.ToUnixTimestamp();
+        note.DeleteAt = DateTime.UtcNow.ToUnixTimeSeconds();
         return await noteRepository.UpdateAsync(note);
     }
 

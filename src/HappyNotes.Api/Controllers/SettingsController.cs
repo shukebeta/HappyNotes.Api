@@ -49,7 +49,7 @@ public class SettingsController(
             throw ExceptionHelper.New(settingsDto, EventId._00104_NoteIsNotDeleted, settingsDto.SettingName);
         }
 
-        var now = DateTime.UtcNow.ToUnixTimestamp();
+        var now = DateTime.UtcNow.ToUnixTimeSeconds();
         var existingSetting = await userSettingsRepository.GetFirstOrDefaultAsync(
             s => s.UserId == userId && s.SettingName == settingsDto.SettingName);
 

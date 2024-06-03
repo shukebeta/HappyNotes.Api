@@ -28,6 +28,20 @@ public class NotesController(IMapper mapper
         return new SuccessfulResult<PageData<NoteDto>>(notes);
     }
 
+    [HttpGet]
+    public async Task<ApiResult<List<NoteDto>>> Memories(string localTimezone)
+    {
+        var notes = await noteService.Memories(localTimezone);
+        return new SuccessfulResult<List<NoteDto>>(notes);
+    }
+
+    [HttpGet("{localTimezone}/{yyyyMMdd}")]
+    public async Task<ApiResult<List<NoteDto>>> MemoriesIn(string localTimezone, string yyyyMMdd)
+    {
+        var notes = await noteService.MemoriesIn(localTimezone, yyyyMMdd);
+        return new SuccessfulResult<List<NoteDto>>(notes);
+    }
+
     [AllowAnonymous]
     [HttpGet("{pageSize:int}/{pageNumber:int}")]
     [EnforcePageSizeLimit(Constants.MaxPageSize)]

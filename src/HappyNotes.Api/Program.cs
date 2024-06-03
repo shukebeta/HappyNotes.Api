@@ -148,7 +148,7 @@ void ConfigAuthentication(WebApplicationBuilder b)
                         userContext.Id = int.Parse(claims.First(x => x.Type == ClaimTypes.NameIdentifier).Value);
                         userContext.Username = claims.First(x => x.Type == ClaimTypes.Name).Value;
                         userContext.Email = claims.First(x => x.Type == ClaimTypes.Email).Value;
-                        userContext.TokenValidTo = context.SecurityToken.ValidTo.ToUnixTimestamp();
+                        userContext.TokenValidTo = context.SecurityToken.ValidTo.ToUnixTimeSeconds();
                     }
 
                     return Task.CompletedTask;

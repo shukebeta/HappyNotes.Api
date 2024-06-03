@@ -8,6 +8,6 @@ public class DateTimeExtensionsTests
     public void ToUnixTimestampTest()
     {
         var time = DateTime.UnixEpoch;
-        Assert.That(time.ToUnixTimestamp(), Is.EqualTo(0));
+        Assert.That(time.ToUnixTimeSeconds(), Is.EqualTo(0));
     }
 }
