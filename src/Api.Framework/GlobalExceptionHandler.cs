@@ -1,3 +1,4 @@
+using System.Net;
 using Api.Framework.Exceptions;
 using Api.Framework.Result;
 using Microsoft.AspNetCore.Diagnostics;
@@ -12,7 +13,8 @@ public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IE
         CancellationToken cancellationToken)
     {
         logger.LogError(exception.ToString());
-        context.Response.ContentType = "application/problem+json";
+        context.Response.ContentType = "application/json";
+        context.Response.StatusCode = (int)HttpStatusCode.OK;
         ApiResult result;
         if (IsCustomException(exception))
         {
