@@ -139,7 +139,7 @@ public class NoteService(
         return mapper.Map<List<NoteDto>>(notes);
     }
 
-    public async Task<List<NoteDto>> MemoriesIn(string localTimezone, string yyyyMMdd)
+    public async Task<List<NoteDto>> MemoriesOn(string localTimezone, string yyyyMMdd)
     {
         var dateTimeOffset = UnixTimestampHelper.GetDateTimeOffset(yyyyMMdd, "yyyyMMdd", localTimezone);
         // Create a DateTimeOffset object with the parsed date and the local time zone offset
