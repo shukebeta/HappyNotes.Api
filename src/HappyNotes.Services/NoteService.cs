@@ -141,12 +141,13 @@ public class NoteService(
 
     public async Task<List<NoteDto>> MemoriesOn(string localTimezone, string yyyyMMdd)
     {
-        var dateTimeOffset = UnixTimestampHelper.GetDateTimeOffset(yyyyMMdd, "yyyyMMdd", localTimezone);
-        // Create a DateTimeOffset object with the parsed date and the local time zone offset
-        var dayStart = dateTimeOffset.ToUnixTimeSeconds();
+        // Get the specified time zone
+        TimeZoneInfo timeZone = TimeZoneInfo.FindSystemTimeZoneById(localTimezone);
+        // Parse the date string to a DateTime object
+        var dayStartTimestamp= DateTimeOffset.ParseExact(yyyyMMdd, "yyyyMMdd", CultureInfo.InvariantCulture).GetDayStartTimestamp(timeZone);
         var notes = await noteRepository.GetListAsync(w =>
-            w.UserId.Equals(currentUser.Id) && w.CreateAt >= dayStart &&
-            w.CreateAt < dayStart + 86400);
+            w.UserId.Equals(currentUser.Id) && w.CreateAt >= dayStartTimestamp &&
+            w.CreateAt < dayStartTimestamp + 86400);
         return mapper.Map<List<NoteDto>>(notes);
     }
 
