@@ -1,4 +1,5 @@
 using System.Globalization;
+using Api.Framework.Extensions;
 
 namespace Api.Framework.Helper;
 
@@ -8,23 +9,8 @@ public static class UnixTimestampHelper
         DateTimeOffset? aDate = null)
     {
         DateTimeOffset date = aDate ?? DateTimeOffset.UtcNow;
-
-        // Create a DateTimeOffset instance for the specified date and time zone
-        DateTimeOffset localDateTime = new DateTimeOffset(date.DateTime,
-            TimeZoneInfo.FindSystemTimeZoneById(localTimezone).GetUtcOffset(date.DateTime));
-
-        // Get the start of the day in the local time zone
-        DateTimeOffset startOfDay = new DateTimeOffset(localDateTime.Year, localDateTime.Month, localDateTime.Day, 0, 0,
-            0, localDateTime.Offset);
-
-        // Get the end of the day in the local time zone
-        DateTimeOffset endOfDay = startOfDay.AddDays(1).AddTicks(-1);
-
-        // Convert the start and end of the day to Unix timestamps
-        long startUnixTimestamp = startOfDay.ToUnixTimeSeconds();
-        long endUnixTimestamp = endOfDay.ToUnixTimeSeconds();
-
-        return (startUnixTimestamp, endUnixTimestamp);
+        long startUnixTimestamp = date.GetDayStartTimestamp(TimeZoneInfo.FindSystemTimeZoneById(localTimezone));
+        return (startUnixTimestamp, startUnixTimestamp + 86400 - 1);
     }
 
     public static DateTimeOffset GetDateTimeOffset(string dateString, string dateFormat, string timeZoneId)
@@ -39,7 +25,8 @@ public static class UnixTimestampHelper
         DateTime dateTimeInTimeZone = TimeZoneInfo.ConvertTime(dateTime, timeZone);
 
         // Create a DateTimeOffset object with the correct offset
-        DateTimeOffset dateTimeOffset = new DateTimeOffset(dateTimeInTimeZone, timeZone.GetUtcOffset(dateTimeInTimeZone));
+        DateTimeOffset dateTimeOffset =
+            new DateTimeOffset(dateTimeInTimeZone, timeZone.GetUtcOffset(dateTimeInTimeZone));
 
         return dateTimeOffset;
     }

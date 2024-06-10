@@ -125,7 +125,7 @@ public class NoteService(
         var earliest = await noteRepository.GetFirstOrDefaultAsync(w => w.UserId.Equals(currentUser.Id));
         if (earliest == null) return [];
         var notes = new List<Note>();
-        var periodList = _GetDayStartList(period.EndUnixTimestamp, earliest);
+        var periodList = _GetTimestamps(earliest.CreateAt, localTimezone);
         foreach (var start in periodList)
         {
             var note = await noteRepository.GetFirstOrDefaultAsync(w =>
@@ -150,76 +150,178 @@ public class NoteService(
         return mapper.Map<List<NoteDto>>(notes);
     }
 
-    private static List<long> _GetDayStartList(long endOfToday, Note earliest)
+    private static List<long> _GetDayStartList(long earliestTimestamp, string timeZoneId)
     {
+        var timeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+        var earliestDateTime = earliestTimestamp.ToDateTimeOffset(timeZone);
+        var now = TimeZoneInfo.ConvertTime(DateTimeOffset.Now, timeZone);
         var periodList = new List<long>();
-        var offset = endOfToday - earliest.CreateAt;
-
-        const int oneDay = 86400;
-        const int oneYear = 365 * oneDay;
-        const int halfYear = 180 * oneDay;
-        const int threeMonths = 90 * oneDay;
-        const int twoMonths = 60 * oneDay;
-        const int oneMonths = 30 * oneDay;
-        const int fourWeeks = 28 * oneDay;
-        const int threeWeeks = 21 * oneDay;
-        const int twoWeeks = 14 * oneDay;
-        const int oneWeek = 7 * oneDay;
-        if (offset >= oneYear) // a year
+        if (earliestDateTime.EarlierThan(now.AddYears(-1))) // a year
         {
-            var n = offset / oneYear;
+            var offset = now.ToUnixTimeSeconds() - earliestTimestamp;
+            var n = (int)offset / (365 * 86400);
+            var years = n;
             while (n > 0)
             {
-                periodList.Add(endOfToday - n * oneYear);
-                offset -= oneYear;
+                periodList.Add(now.AddYears(-n).GetDayStartTimestamp(timeZone));
                 n -= 1;
             }
 
-            switch (n)
+            switch (years)
             {
                 case 1:
-                    periodList.Add(endOfToday - halfYear);
-                    periodList.Add(endOfToday - threeMonths);
-                    periodList.Add(endOfToday - oneMonths);
+                    periodList.Add(now.AddMonths(-6).GetDayStartTimestamp(timeZone));
+                    periodList.Add(now.AddMonths(-3).GetDayStartTimestamp(timeZone));
+                    periodList.Add(now.AddMonths(-1).GetDayStartTimestamp(timeZone));
                     break;
                 case 2:
-                    periodList.Add(endOfToday - halfYear);
-                    periodList.Add(endOfToday - threeMonths);
+                    periodList.Add(now.AddMonths(-6).GetDayStartTimestamp(timeZone));
+                    periodList.Add(now.AddMonths(-3).GetDayStartTimestamp(timeZone));
                     break;
                 case 3:
-                    periodList.Add(endOfToday - halfYear);
+                    periodList.Add(now.AddMonths(-6).GetDayStartTimestamp(timeZone));
                     break;
             }
         }
-        else if (offset >= halfYear) // half a year
+        else if (earliestDateTime.EarlierThan(now.AddMonths(-6))) // half a year
         {
-            periodList.Add(endOfToday - halfYear);
-            periodList.Add(endOfToday - threeMonths);
-            periodList.Add(endOfToday - twoMonths);
-            periodList.Add(endOfToday - oneMonths);
+            periodList.Add(now.AddMonths(-6).GetDayStartTimestamp(timeZone));
+            periodList.Add(now.AddMonths(-3).GetDayStartTimestamp(timeZone));
+            periodList.Add(now.AddMonths(-2).GetDayStartTimestamp(timeZone));
+            periodList.Add(now.AddMonths(-1).GetDayStartTimestamp(timeZone));
         }
-        else if (offset >= threeMonths)
+        else if (earliestDateTime.EarlierThan(now.AddMonths(-3)))
         {
-            periodList.Add(endOfToday - threeMonths);
-            periodList.Add(endOfToday - twoMonths);
-            periodList.Add(endOfToday - oneMonths);
-            periodList.Add(endOfToday - threeWeeks);
+            periodList.Add(now.AddMonths(-3).GetDayStartTimestamp(timeZone));
+            periodList.Add(now.AddMonths(-2).GetDayStartTimestamp(timeZone));
+            periodList.Add(now.AddMonths(-1).GetDayStartTimestamp(timeZone));
+            periodList.Add(now.AddDays(-21).GetDayStartTimestamp(timeZone));
         }
-        else if (offset >= fourWeeks)
+        else if (earliestDateTime.EarlierThan(now.AddDays(-28)))
         {
-            periodList.Add(endOfToday - fourWeeks);
-            periodList.Add(endOfToday - threeWeeks);
-            periodList.Add(endOfToday - twoWeeks);
-            periodList.Add(endOfToday - oneWeek);
-        }
-        else if (offset >= oneWeek)
-        {
-            periodList.Add(endOfToday - oneWeek);
-            periodList.Add(endOfToday - 5 * oneDay);
-            periodList.Add(endOfToday - 3 * oneDay);
+            periodList.Add(now.AddDays(-28).GetDayStartTimestamp(timeZone));
+            periodList.Add(now.AddDays(-21).GetDayStartTimestamp(timeZone));
+            periodList.Add(now.AddDays(-14).GetDayStartTimestamp(timeZone));
+            periodList.Add(now.AddDays(-7).GetDayStartTimestamp(timeZone));
         }
 
+        periodList.Add(now.AddDays(-5).GetDayStartTimestamp(timeZone));
+        periodList.Add(now.AddDays(-3).GetDayStartTimestamp(timeZone));
+        periodList.Add(now.AddDays(-2).GetDayStartTimestamp(timeZone));
+        periodList.Add(now.AddDays(-1).GetDayStartTimestamp(timeZone));
+
         return periodList;
+    }
+
+    private static long[] _GetTimestamps(long initialUnixTimestamp, string timeZoneId)
+    {
+        var targetTimeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+        var startDateTimeOffset = initialUnixTimestamp.ToDateTimeOffset(targetTimeZone);
+
+        var startYear = startDateTimeOffset.Year;
+        var startMonth = startDateTimeOffset.Month;
+        var startDay = startDateTimeOffset.Day;
+
+        var nowInTargetTimeZone = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, targetTimeZone);
+        var todayStartTimeOffset = new DateTimeOffset(nowInTargetTimeZone.Year, nowInTargetTimeZone.Month,
+            nowInTargetTimeZone.Day, 0, 0, 0, nowInTargetTimeZone.Offset);
+
+        var currentYear = nowInTargetTimeZone.Year;
+        var currentMonth = nowInTargetTimeZone.Month;
+        var currentDay = nowInTargetTimeZone.Day;
+
+        var timestamps = new List<long>();
+
+        if (startYear > currentYear)
+        {
+            for (var year = startMonth <= currentMonth && startDay <= currentDay
+                     ? startYear
+                     : startYear + 1;
+                 year < currentYear;
+                 year++)
+            {
+                try
+                {
+                    var targetDate = new DateTimeOffset(year, currentMonth, currentDay, 0, 0, 0, nowInTargetTimeZone.Offset);
+                    timestamps.Add(targetDate.ToUnixTimeSeconds());
+                }
+                catch (ArgumentOutOfRangeException)
+                {
+                    // skip invalid dates，such as 02-30, 02-31
+                    // do nothing
+                }
+            }
+
+            // six months ago
+            timestamps.Add(todayStartTimeOffset.AddMonths(-6).ToUnixTimeSeconds());
+            // three months ago
+            timestamps.Add(todayStartTimeOffset.AddMonths(-3).ToUnixTimeSeconds());
+        }
+        else
+        {
+            if (currentMonth - startMonth >= 1)
+            {
+                for (var month = startDay <= currentDay
+                         ? startMonth
+                         : startMonth + 1;
+                     month < currentMonth;
+                     month++)
+                {
+                    try
+                    {
+                        var targetDate = new DateTimeOffset(currentYear, month, currentDay, 0, 0, 0, nowInTargetTimeZone.Offset);
+                        timestamps.Add(targetDate.ToUnixTimeSeconds());
+                    }
+                    catch (ArgumentOutOfRangeException)
+                    {
+                        // skip invalid dates，such as 02-30, 02-31
+                        // do nothing
+                    }
+                }
+            }
+            else
+            {
+                if (currentDay - startDay >= 28)
+                {
+                    // 4 weeks ago
+                    timestamps.Add(todayStartTimeOffset.AddDays(-28).ToUnixTimeSeconds());
+                    // 3 weeks
+                    timestamps.Add(todayStartTimeOffset.AddMonths(-21).ToUnixTimeSeconds());
+                    // 2 weeks ago
+                    timestamps.Add(todayStartTimeOffset.AddDays(-14).ToUnixTimeSeconds());
+                    // 1 week ago
+                    timestamps.Add(todayStartTimeOffset.AddMonths(-7).ToUnixTimeSeconds());
+                }
+                else if (currentDay - startDay >= 21)
+                {
+                    // 3 weeks
+                    timestamps.Add(todayStartTimeOffset.AddMonths(-21).ToUnixTimeSeconds());
+                    // 2 weeks ago
+                    timestamps.Add(todayStartTimeOffset.AddDays(-14).ToUnixTimeSeconds());
+                    // 1 week ago
+                    timestamps.Add(todayStartTimeOffset.AddMonths(-7).ToUnixTimeSeconds());
+                }
+                else if (currentDay - startDay >= 14)
+                {
+                    // 2 weeks ago
+                    timestamps.Add(todayStartTimeOffset.AddDays(-14).ToUnixTimeSeconds());
+                    // 1 week ago
+                    timestamps.Add(todayStartTimeOffset.AddMonths(-7).ToUnixTimeSeconds());
+                }
+                else if (currentDay - startDay >= 7)
+                {
+                    // 1 week ago
+                    timestamps.Add(todayStartTimeOffset.AddMonths(-7).ToUnixTimeSeconds());
+                }
+            }
+        }
+
+        timestamps.Add(todayStartTimeOffset.AddDays(-5).ToUnixTimeSeconds());
+        timestamps.Add(todayStartTimeOffset.AddDays(-3).ToUnixTimeSeconds());
+        timestamps.Add(todayStartTimeOffset.AddDays(-2).ToUnixTimeSeconds());
+        timestamps.Add(todayStartTimeOffset.AddDays(-1).ToUnixTimeSeconds());
+        timestamps.Add(todayStartTimeOffset.ToUnixTimeSeconds());
+        return timestamps.ToArray();
     }
 
     private async Task<PageData<Note>> _GetNotesByPage(long userId, int pageSize, int pageNumber, bool isAsc = false,
