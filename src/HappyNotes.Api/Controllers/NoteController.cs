@@ -6,6 +6,7 @@ using HappyNotes.Common;
 using HappyNotes.Entities;
 using HappyNotes.Extensions;
 using HappyNotes.Models;
+using HappyNotes.Services;
 using HappyNotes.Services.interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -46,6 +47,11 @@ public class NoteController(IMapper mapper
     [HttpPost]
     public async Task<ApiResult<long>> Post(PostNoteRequest request)
     {
+        if (DuplicateRequestChecker.IsDuplicate(currentUser.Id, request))
+        {
+            // Return a response indicating that the request was ignored due to duplication
+            throw ExceptionHelper.New(currentUser.Id, EventId._00105_DetectedDuplicatePostRequest);
+        }
         var noteId = await noteService.Post(request);
         return new SuccessfulResult<long>(noteId);
     }
@@ -53,6 +59,11 @@ public class NoteController(IMapper mapper
     [HttpPost("{noteId:long}")]
     public async Task<ApiResult> Update(long noteId, PostNoteRequest request)
     {
+        if (DuplicateRequestChecker.IsDuplicate(currentUser.Id, request))
+        {
+            // Return a response indicating that the request was ignored due to duplication
+            throw ExceptionHelper.New(currentUser.Id, EventId._00105_DetectedDuplicatePostRequest);
+        }
         await noteService.Update(noteId, request);
         return new SuccessfulResult<long>(noteId);
     }
