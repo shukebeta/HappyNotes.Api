@@ -17,7 +17,7 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton<ISqlSugarClient>(o =>
         {
-            var client = new SqlSugarClient(new ConnectionConfig()
+            var client = new SqlSugarScope(new ConnectionConfig()
             {
                 ConnectionString = options.ConnectionString, // Required
                 DbType = SqlSugar.DbType.MySql, // Required
@@ -31,7 +31,7 @@ public static class ServiceCollectionExtensions
         });
     }
 
-    private static Action<string, SugarParameter[]> _AopOnLogExecuting(ILogger logger, SqlSugarClient client)
+    private static Action<string, SugarParameter[]> _AopOnLogExecuting(ILogger logger, SqlSugarScope client)
     {
         return (sql, pars) =>
         {
