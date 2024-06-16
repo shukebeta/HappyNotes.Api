@@ -109,6 +109,10 @@ public class NoteService(
 
         Expression<Func<Note, bool>> where = n => !n.IsPrivate && n.DeleteAt == null;
         var notes = await noteRepository.GetPageListAsync(pageNumber, pageSize, where, n => n.CreateAt, false);
+        if (notes.TotalCount > Constants.PublicNotesMaxPage * pageSize)
+        {
+            notes.TotalCount = Constants.PublicNotesMaxPage * pageSize;
+        }
         return mapper.Map<PageData<NoteDto>>(notes);
     }
 
