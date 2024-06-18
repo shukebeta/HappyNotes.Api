@@ -1,0 +1,4 @@
+#!/bin/bash
+
+set -x
+mysql -v -v -e "INSERT INTO HappyNotes.Note SET Content='today is a good day, $(date '+%d-%m-%Y %H:%M')', UserId = 1, CreateAt=UNIX_TIMESTAMP()" >> "/tmp/write-note.log"

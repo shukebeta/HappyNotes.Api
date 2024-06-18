@@ -113,6 +113,7 @@ public class NoteService(
         {
             notes.TotalCount = Constants.PublicNotesMaxPage * pageSize;
         }
+
         return mapper.Map<PageData<NoteDto>>(notes);
     }
 
@@ -148,7 +149,8 @@ public class NoteService(
         // Get the specified time zone
         TimeZoneInfo timeZone = TimeZoneInfo.FindSystemTimeZoneById(localTimezone);
         // Parse the date string to a DateTime object
-        var dayStartTimestamp= DateTimeOffset.ParseExact(yyyyMMdd, "yyyyMMdd", CultureInfo.InvariantCulture).GetDayStartTimestamp(timeZone);
+        var dayStartTimestamp = DateTimeOffset.ParseExact(yyyyMMdd, "yyyyMMdd", CultureInfo.InvariantCulture)
+            .GetDayStartTimestamp(timeZone);
         var notes = await noteRepository.GetListAsync(w =>
             w.UserId.Equals(currentUser.Id) && w.CreateAt >= dayStartTimestamp &&
             w.CreateAt < dayStartTimestamp + 86400);
@@ -164,7 +166,7 @@ public class NoteService(
         if (earliestDateTime.EarlierThan(now.AddYears(-1))) // a year
         {
             var offset = now.ToUnixTimeSeconds() - earliestTimestamp;
-            var n = (int)offset / (365 * 86400);
+            var n = (int) offset / (365 * 86400);
             var years = n;
             while (n > 0)
             {
@@ -247,7 +249,8 @@ public class NoteService(
             {
                 try
                 {
-                    var targetDate = new DateTimeOffset(year, currentMonth, currentDay, 0, 0, 0, nowInTargetTimeZone.Offset);
+                    var targetDate = new DateTimeOffset(year, currentMonth, currentDay, 0, 0, 0,
+                        nowInTargetTimeZone.Offset);
                     timestamps.Add(targetDate.ToUnixTimeSeconds());
                 }
                 catch (ArgumentOutOfRangeException)
@@ -256,70 +259,54 @@ public class NoteService(
                     // do nothing
                 }
             }
+        }
 
-            // six months ago
-            timestamps.Add(todayStartTimeOffset.AddMonths(-6).ToUnixTimeSeconds());
-            // three months ago
-            timestamps.Add(todayStartTimeOffset.AddMonths(-3).ToUnixTimeSeconds());
-        }
-        else
+        if (currentMonth - startMonth >= 1)
         {
-            if (currentMonth - startMonth >= 1)
+            for (var month = startDay <= currentDay
+                     ? startMonth
+                     : startMonth + 1;
+                 month < currentMonth;
+                 month++)
             {
-                for (var month = startDay <= currentDay
-                         ? startMonth
-                         : startMonth + 1;
-                     month < currentMonth;
-                     month++)
+                try
                 {
-                    try
-                    {
-                        var targetDate = new DateTimeOffset(currentYear, month, currentDay, 0, 0, 0, nowInTargetTimeZone.Offset);
-                        timestamps.Add(targetDate.ToUnixTimeSeconds());
-                    }
-                    catch (ArgumentOutOfRangeException)
-                    {
-                        // skip invalid dates，such as 02-30, 02-31
-                        // do nothing
-                    }
+                    var targetDate = new DateTimeOffset(currentYear, month, currentDay, 0, 0, 0,
+                        nowInTargetTimeZone.Offset);
+                    timestamps.Add(targetDate.ToUnixTimeSeconds());
                 }
-            }
-            else
-            {
-                if (currentDay - startDay >= 28)
+                catch (ArgumentOutOfRangeException)
                 {
-                    // 4 weeks ago
-                    timestamps.Add(todayStartTimeOffset.AddDays(-28).ToUnixTimeSeconds());
-                    // 3 weeks
-                    timestamps.Add(todayStartTimeOffset.AddMonths(-21).ToUnixTimeSeconds());
-                    // 2 weeks ago
-                    timestamps.Add(todayStartTimeOffset.AddDays(-14).ToUnixTimeSeconds());
-                    // 1 week ago
-                    timestamps.Add(todayStartTimeOffset.AddMonths(-7).ToUnixTimeSeconds());
-                }
-                else if (currentDay - startDay >= 21)
-                {
-                    // 3 weeks
-                    timestamps.Add(todayStartTimeOffset.AddMonths(-21).ToUnixTimeSeconds());
-                    // 2 weeks ago
-                    timestamps.Add(todayStartTimeOffset.AddDays(-14).ToUnixTimeSeconds());
-                    // 1 week ago
-                    timestamps.Add(todayStartTimeOffset.AddMonths(-7).ToUnixTimeSeconds());
-                }
-                else if (currentDay - startDay >= 14)
-                {
-                    // 2 weeks ago
-                    timestamps.Add(todayStartTimeOffset.AddDays(-14).ToUnixTimeSeconds());
-                    // 1 week ago
-                    timestamps.Add(todayStartTimeOffset.AddMonths(-7).ToUnixTimeSeconds());
-                }
-                else if (currentDay - startDay >= 7)
-                {
-                    // 1 week ago
-                    timestamps.Add(todayStartTimeOffset.AddMonths(-7).ToUnixTimeSeconds());
+                    // skip invalid dates，such as 02-30, 02-31
+                    // do nothing
                 }
             }
         }
+
+        if (currentDay - startDay >= 28)
+        {
+            // 4 weeks ago
+            timestamps.Add(todayStartTimeOffset.AddDays(-28).ToUnixTimeSeconds());
+        }
+
+        if (currentDay - startDay >= 21)
+        {
+            // 3 weeks
+            timestamps.Add(todayStartTimeOffset.AddMonths(-21).ToUnixTimeSeconds());
+        }
+
+        if (currentDay - startDay >= 14)
+        {
+            // 2 weeks ago
+            timestamps.Add(todayStartTimeOffset.AddDays(-14).ToUnixTimeSeconds());
+        }
+
+        if (currentDay - startDay >= 7)
+        {
+            // 1 week ago
+            timestamps.Add(todayStartTimeOffset.AddMonths(-7).ToUnixTimeSeconds());
+        }
+
 
         timestamps.Add(todayStartTimeOffset.AddDays(-5).ToUnixTimeSeconds());
         timestamps.Add(todayStartTimeOffset.AddDays(-3).ToUnixTimeSeconds());
