@@ -64,6 +64,11 @@ public class NoteService(
             throw ExceptionHelper.New(id, EventId._00100_NoteNotFound, id);
         }
 
+        if (_NoteIsNotYours(note))
+        {
+            throw ExceptionHelper.New(id, EventId._00102_NoteIsNotYours, id);
+        }
+
         var fullContent = request.Content?.Trim() ?? string.Empty;
 
         if (fullContent.IsLong())
@@ -337,7 +342,7 @@ public class NoteService(
             throw ExceptionHelper.New(noteId, EventId._00100_NoteNotFound, noteId);
         }
 
-        if (note.IsPrivate && _IsNotAuthor(note))
+        if (note.IsPrivate && _NoteIsNotYours(note))
         {
             throw ExceptionHelper.New(noteId, EventId._00101_NoteIsPrivate, noteId);
         }
@@ -353,7 +358,7 @@ public class NoteService(
         return note;
     }
 
-    private bool _IsNotAuthor(Note note)
+    private bool _NoteIsNotYours(Note note)
     {
         return currentUser is null || currentUser.Id != note.UserId;
     }
@@ -366,7 +371,7 @@ public class NoteService(
             throw new Exception($"Note with Id: {id} does not exist");
         }
 
-        if (_IsNotAuthor(note))
+        if (_NoteIsNotYours(note))
         {
             throw ExceptionHelper.New(id, EventId._00102_NoteIsNotYours, id);
         }
@@ -394,7 +399,7 @@ public class NoteService(
             throw ExceptionHelper.New(id, EventId._00103_NoteIsNotDeleted, id);
         }
 
-        if (_IsNotAuthor(note))
+        if (_NoteIsNotYours(note))
         {
             throw ExceptionHelper.New(id, EventId._00102_NoteIsNotYours, id);
         }
