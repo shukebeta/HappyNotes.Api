@@ -10,6 +10,7 @@ using HappyNotes.Dto;
 using HappyNotes.Entities;
 using HappyNotes.Extensions;
 using HappyNotes.Models;
+using HappyNotes.Repositories.interfaces;
 using HappyNotes.Services.interfaces;
 using WeihanLi.Extensions;
 
@@ -17,7 +18,7 @@ namespace HappyNotes.Services;
 
 public class NoteService(
     IMapper mapper,
-    IRepositoryBase<Note> noteRepository,
+    INoteRepository noteRepository,
     IRepositoryBase<LongNote> longNoteRepository,
     CurrentUser currentUser
 ) : INoteService
@@ -30,7 +31,7 @@ public class NoteService(
             throw new ArgumentException("Nothing was submitted");
         }
 
-        Note note = new Note()
+        Note note = new Note
         {
             UserId = currentUser.Id,
             IsPrivate = request.IsPrivate,
@@ -43,7 +44,7 @@ public class NoteService(
             note.IsLong = true;
             note.Content = fullContent.GetShort();
             await noteRepository.InsertAsync(note);
-            await longNoteRepository.InsertAsync(new LongNote()
+            await longNoteRepository.InsertAsync(new LongNote
             {
                 Id = note.Id,
                 Content = fullContent
@@ -78,7 +79,7 @@ public class NoteService(
             note.UpdateAt = DateTime.UtcNow.ToUnixTimeSeconds();
             note.IsLong = true;
             await noteRepository.UpdateAsync(note);
-            var longNote = new LongNote()
+            var longNote = new LongNote
             {
                 Id = id,
                 Content = fullContent
@@ -98,10 +99,9 @@ public class NoteService(
         return await noteRepository.UpdateAsync(note);
     }
 
-    public async Task<PageData<NoteDto>> MyLatest(int pageSize, int pageNumber)
+    public async Task<PageData<Note>> MyLatest(int pageSize, int pageNumber)
     {
-        var notes = await _GetNotesByPage(currentUser.Id, pageSize, pageNumber);
-        return mapper.Map<PageData<NoteDto>>(notes);
+        return await noteRepository.GetUserNotes(currentUser.Id, pageSize, pageNumber, true, false);
     }
 
     public async Task<PageData<NoteDto>> Latest(int pageSize, int pageNumber)
@@ -112,8 +112,7 @@ public class NoteService(
                 $"We only provide at most {Constants.PublicNotesMaxPage} page of public notes at the moment");
         }
 
-        Expression<Func<Note, bool>> where = n => !n.IsPrivate && n.DeleteAt == null;
-        var notes = await noteRepository.GetPageListAsync(pageNumber, pageSize, where, n => n.CreateAt, false);
+        var notes = await noteRepository.GetPublicNotes(pageSize, pageNumber);
         if (notes.TotalCount > Constants.PublicNotesMaxPage * pageSize)
         {
             notes.TotalCount = Constants.PublicNotesMaxPage * pageSize;
@@ -321,22 +320,9 @@ public class NoteService(
         return timestamps.ToArray();
     }
 
-    private async Task<PageData<Note>> _GetNotesByPage(long userId, int pageSize, int pageNumber, bool isAsc = false,
-        NoteType noteType = NoteType.All)
+    public async Task<Note> Get(long noteId)
     {
-        Expression<Func<Note, bool>> where = n => n.UserId.Equals(userId) && n.DeleteAt == null;
-        if (noteType != NoteType.All)
-        {
-            where = where.And(n => n.IsPrivate.Equals(noteType == NoteType.Private));
-        }
-
-        var notes = await noteRepository.GetPageListAsync(pageNumber, pageSize, where, n => n.CreateAt, isAsc);
-        return notes;
-    }
-
-    public async Task<Note?> Get(long noteId)
-    {
-        var note = await noteRepository.GetFirstOrDefaultAsync(x => x.Id == noteId);
+        var note = await noteRepository.Get(noteId);
         if (note is null)
         {
             throw ExceptionHelper.New(noteId, EventId._00100_NoteNotFound, noteId);
@@ -346,19 +332,15 @@ public class NoteService(
         {
             throw ExceptionHelper.New(noteId, EventId._00101_NoteIsPrivate, noteId);
         }
-
-        if (note is not {IsLong: true,}) return note;
-        var longNote = await longNoteRepository.GetFirstOrDefaultAsync(x => x.Id == noteId);
-
-        if (!string.IsNullOrWhiteSpace(longNote?.Content))
-        {
-            note.Content = longNote.Content;
-        }
-
         return note;
     }
 
     private bool _NoteIsNotYours(Note note)
+    {
+        return currentUser is null || currentUser.Id != note.UserId;
+    }
+
+    private bool _NoteIsNotYours(NoteDto note)
     {
         return currentUser is null || currentUser.Id != note.UserId;
     }

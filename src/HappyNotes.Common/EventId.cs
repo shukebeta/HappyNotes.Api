@@ -20,4 +20,6 @@ public enum EventId
     _00104_NoteIsNotDeleted = 104,
     [Description("Duplicate request detected. The request has been ignored.")]
     _00105_DetectedDuplicatePostRequest = 105,
+    [Description("Unknown setting name: {0}")]
+    _00106_UnknownSettingName = 106,
 }

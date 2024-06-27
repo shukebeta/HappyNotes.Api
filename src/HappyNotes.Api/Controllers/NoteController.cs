@@ -1,8 +1,8 @@
 using Api.Framework;
-using Api.Framework.Helper;
 using Api.Framework.Result;
 using AutoMapper;
 using HappyNotes.Common;
+using HappyNotes.Dto;
 using HappyNotes.Entities;
 using HappyNotes.Extensions;
 using HappyNotes.Models;
@@ -10,7 +10,6 @@ using HappyNotes.Services;
 using HappyNotes.Services.interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using WeihanLi.Extensions;
 
 namespace HappyNotes.Api.Controllers;
 
@@ -18,15 +17,13 @@ namespace HappyNotes.Api.Controllers;
 public class NoteController(IMapper mapper
     , CurrentUser currentUser
     , INoteService noteService
-    , IRepositoryBase<Note> noteRepository
-    , IRepositoryBase<LongNote> longNoteRepository
 ): BaseController
 {
     [HttpGet("{noteId}")]
-    public async Task<ApiResult<Note>> Get(int noteId)
+    public async Task<ApiResult<NoteDto>> Get(int noteId)
     {
         var note = await noteService.Get(noteId);
-        return new SuccessfulResult<Note>(note!);
+        return new SuccessfulResult<NoteDto>(mapper.Map<NoteDto>(note));
     }
 
     [AllowAnonymous]

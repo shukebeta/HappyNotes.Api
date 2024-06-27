@@ -1,3 +1,5 @@
+using HappyNotes.Repositories;
+using HappyNotes.Repositories.interfaces;
 using HappyNotes.Services;
 using HappyNotes.Services.interfaces;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,5 +12,6 @@ public static class ServiceExtensions
     {
         services.AddSingleton<IAccountService, AccountService>();
         services.AddSingleton<INoteService, NoteService>();
+        services.AddSingleton<INoteRepository, NoteRepository>();
     }
 }

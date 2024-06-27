@@ -11,6 +11,6 @@ public class MapperProfile: Profile
         CreateMap(typeof(PageData<>), typeof(PageData<>));
         CreateMap<User, UserDto>();
         CreateMap<UserSettings, UserSettingsDto>();
-        CreateMap<Note, NoteDto>();
+        CreateMap<Entities.Note, NoteDto>();
     }
 }

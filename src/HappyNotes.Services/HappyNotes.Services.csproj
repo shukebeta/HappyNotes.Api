@@ -12,6 +12,7 @@
     <ProjectReference Include="..\HappyNotes.Entities\HappyNotes.Entities.csproj" />
     <ProjectReference Include="..\HappyNotes.Extensions\HappyNotes.Extensions.csproj" />
     <ProjectReference Include="..\HappyNotes.Models\HappyNotes.Models.csproj" />
+    <ProjectReference Include="..\HappyNotes.Repositories\HappyNotes.Repositories.csproj" />
   </ItemGroup>
 
 </Project>

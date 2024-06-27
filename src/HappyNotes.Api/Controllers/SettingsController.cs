@@ -46,7 +46,7 @@ public class SettingsController(
         var userId = currentUser.Id;
         if (!DefaultValues.SettingsDictionary.ContainsKey(settingsDto.SettingName))
         {
-            throw ExceptionHelper.New(settingsDto, EventId._00104_NoteIsNotDeleted, settingsDto.SettingName);
+            throw ExceptionHelper.New(settingsDto, EventId._00106_UnknownSettingName, settingsDto.SettingName);
         }
 
         var now = DateTime.UtcNow.ToUnixTimeSeconds();

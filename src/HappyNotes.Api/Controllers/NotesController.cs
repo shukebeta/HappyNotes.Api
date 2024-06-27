@@ -25,7 +25,7 @@ public class NotesController(IMapper mapper
     public async Task<ApiResult<PageData<NoteDto>>> MyLatest(int pageSize, int pageNumber)
     {
         var notes = await noteService.MyLatest(pageSize, pageNumber);
-        return new SuccessfulResult<PageData<NoteDto>>(notes);
+        return new SuccessfulResult<PageData<NoteDto>>(mapper.Map<PageData<NoteDto>>(notes));
     }
 
     [HttpGet]
