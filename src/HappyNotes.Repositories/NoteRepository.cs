@@ -10,9 +10,11 @@ namespace HappyNotes.Repositories;
 
 public class NoteRepository(ISqlSugarClient db) : RepositoryBase<Note>(db), INoteRepository
 {
+    private readonly ISqlSugarClient _db = db;
+
     public async Task<Note> Get(long noteId)
     {
-        return await db.Queryable<Note, LongNote, User>((n, l, u) => new JoinQueryInfos(
+        return await _db.Queryable<Note, LongNote, User>((n, l, u) => new JoinQueryInfos(
                 JoinType.Left, n.Id == l.Id,
                 JoinType.Inner, n.UserId == u.Id
             ))
@@ -54,10 +56,10 @@ public class NoteRepository(ISqlSugarClient db) : RepositoryBase<Note>(db), INot
         var pageData = new PageData<Note>
         {
             PageIndex = pageNumber,
-            PageSize = pageSize
+            PageSize = pageSize,
         };
         RefAsync<int> totalCount = 0;
-        var result = await db.Queryable<Note, User>((n, u) => new JoinQueryInfos(
+        var result = await _db.Queryable<Note, User>((n, u) => new JoinQueryInfos(
                 JoinType.Inner, n.UserId == u.Id
             )).WhereIF(null != where, where)
             .OrderByIF(orderBy != null, orderBy, isAsc ? OrderByType.Asc : OrderByType.Desc)

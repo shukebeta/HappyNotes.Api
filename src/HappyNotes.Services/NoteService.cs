@@ -1,8 +1,6 @@
 using System.Globalization;
-using System.Linq.Expressions;
 using Api.Framework;
 using Api.Framework.Extensions;
-using Api.Framework.Helper;
 using Api.Framework.Models;
 using AutoMapper;
 using HappyNotes.Common;
@@ -12,7 +10,6 @@ using HappyNotes.Extensions;
 using HappyNotes.Models;
 using HappyNotes.Repositories.interfaces;
 using HappyNotes.Services.interfaces;
-using WeihanLi.Extensions;
 
 namespace HappyNotes.Services;
 
@@ -20,7 +17,7 @@ public class NoteService(
     IMapper mapper,
     INoteRepository noteRepository,
     IRepositoryBase<LongNote> longNoteRepository,
-    CurrentUser currentUser
+    CurrentUser? currentUser
 ) : INoteService
 {
     public async Task<long> Post(PostNoteRequest request)
@@ -101,7 +98,7 @@ public class NoteService(
 
     public async Task<PageData<Note>> MyLatest(int pageSize, int pageNumber)
     {
-        return await noteRepository.GetUserNotes(currentUser.Id, pageSize, pageNumber, true, false);
+        return await noteRepository.GetUserNotes(currentUser.Id, pageSize, pageNumber, true);
     }
 
     public async Task<PageData<NoteDto>> Latest(int pageSize, int pageNumber)
@@ -130,7 +127,6 @@ public class NoteService(
     /// <returns></returns>
     public async Task<List<NoteDto>> Memories(string localTimezone)
     {
-        var period = UnixTimestampHelper.GetDayUnixTimestamps(localTimezone);
         var earliest = await noteRepository.GetFirstOrDefaultAsync(w => w.UserId.Equals(currentUser.Id));
         if (earliest == null) return [];
         var notes = new List<Note>();
@@ -159,69 +155,6 @@ public class NoteService(
             w.UserId.Equals(currentUser.Id) && w.CreateAt >= dayStartTimestamp &&
             w.CreateAt < dayStartTimestamp + 86400);
         return mapper.Map<List<NoteDto>>(notes);
-    }
-
-    private static List<long> _GetDayStartList(long earliestTimestamp, string timeZoneId)
-    {
-        var timeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
-        var earliestDateTime = earliestTimestamp.ToDateTimeOffset(timeZone);
-        var now = TimeZoneInfo.ConvertTime(DateTimeOffset.Now, timeZone);
-        var periodList = new List<long>();
-        if (earliestDateTime.EarlierThan(now.AddYears(-1))) // a year
-        {
-            var offset = now.ToUnixTimeSeconds() - earliestTimestamp;
-            var n = (int) offset / (365 * 86400);
-            var years = n;
-            while (n > 0)
-            {
-                periodList.Add(now.AddYears(-n).GetDayStartTimestamp(timeZone));
-                n -= 1;
-            }
-
-            switch (years)
-            {
-                case 1:
-                    periodList.Add(now.AddMonths(-6).GetDayStartTimestamp(timeZone));
-                    periodList.Add(now.AddMonths(-3).GetDayStartTimestamp(timeZone));
-                    periodList.Add(now.AddMonths(-1).GetDayStartTimestamp(timeZone));
-                    break;
-                case 2:
-                    periodList.Add(now.AddMonths(-6).GetDayStartTimestamp(timeZone));
-                    periodList.Add(now.AddMonths(-3).GetDayStartTimestamp(timeZone));
-                    break;
-                case 3:
-                    periodList.Add(now.AddMonths(-6).GetDayStartTimestamp(timeZone));
-                    break;
-            }
-        }
-        else if (earliestDateTime.EarlierThan(now.AddMonths(-6))) // half a year
-        {
-            periodList.Add(now.AddMonths(-6).GetDayStartTimestamp(timeZone));
-            periodList.Add(now.AddMonths(-3).GetDayStartTimestamp(timeZone));
-            periodList.Add(now.AddMonths(-2).GetDayStartTimestamp(timeZone));
-            periodList.Add(now.AddMonths(-1).GetDayStartTimestamp(timeZone));
-        }
-        else if (earliestDateTime.EarlierThan(now.AddMonths(-3)))
-        {
-            periodList.Add(now.AddMonths(-3).GetDayStartTimestamp(timeZone));
-            periodList.Add(now.AddMonths(-2).GetDayStartTimestamp(timeZone));
-            periodList.Add(now.AddMonths(-1).GetDayStartTimestamp(timeZone));
-            periodList.Add(now.AddDays(-21).GetDayStartTimestamp(timeZone));
-        }
-        else if (earliestDateTime.EarlierThan(now.AddDays(-28)))
-        {
-            periodList.Add(now.AddDays(-28).GetDayStartTimestamp(timeZone));
-            periodList.Add(now.AddDays(-21).GetDayStartTimestamp(timeZone));
-            periodList.Add(now.AddDays(-14).GetDayStartTimestamp(timeZone));
-            periodList.Add(now.AddDays(-7).GetDayStartTimestamp(timeZone));
-        }
-
-        periodList.Add(now.AddDays(-5).GetDayStartTimestamp(timeZone));
-        periodList.Add(now.AddDays(-3).GetDayStartTimestamp(timeZone));
-        periodList.Add(now.AddDays(-2).GetDayStartTimestamp(timeZone));
-        periodList.Add(now.AddDays(-1).GetDayStartTimestamp(timeZone));
-
-        return periodList;
     }
 
     private static long[] _GetTimestamps(long initialUnixTimestamp, string timeZoneId)
@@ -336,11 +269,6 @@ public class NoteService(
     }
 
     private bool _NoteIsNotYours(Note note)
-    {
-        return currentUser is null || currentUser.Id != note.UserId;
-    }
-
-    private bool _NoteIsNotYours(NoteDto note)
     {
         return currentUser is null || currentUser.Id != note.UserId;
     }
