@@ -2,9 +2,7 @@ using System.Globalization;
 using Api.Framework;
 using Api.Framework.Extensions;
 using Api.Framework.Models;
-using AutoMapper;
 using HappyNotes.Common;
-using HappyNotes.Dto;
 using HappyNotes.Entities;
 using HappyNotes.Extensions;
 using HappyNotes.Models;
@@ -14,10 +12,9 @@ using HappyNotes.Services.interfaces;
 namespace HappyNotes.Services;
 
 public class NoteService(
-    IMapper mapper,
     INoteRepository noteRepository,
     IRepositoryBase<LongNote> longNoteRepository,
-    CurrentUser? currentUser
+    CurrentUser currentUser
 ) : INoteService
 {
     public async Task<long> Post(PostNoteRequest request)
@@ -101,7 +98,7 @@ public class NoteService(
         return await noteRepository.GetUserNotes(currentUser.Id, pageSize, pageNumber, true);
     }
 
-    public async Task<PageData<NoteDto>> Latest(int pageSize, int pageNumber)
+    public async Task<PageData<Note>> Latest(int pageSize, int pageNumber)
     {
         if (pageNumber > Constants.PublicNotesMaxPage)
         {
@@ -115,7 +112,7 @@ public class NoteService(
             notes.TotalCount = Constants.PublicNotesMaxPage * pageSize;
         }
 
-        return mapper.Map<PageData<NoteDto>>(notes);
+        return notes;
     }
 
     /// <summary>
@@ -125,7 +122,7 @@ public class NoteService(
     /// </summary>
     /// <param name="localTimezone"></param>
     /// <returns></returns>
-    public async Task<List<NoteDto>> Memories(string localTimezone)
+    public async Task<IList<Note>> Memories(string localTimezone)
     {
         var earliest = await noteRepository.GetFirstOrDefaultAsync(w => w.UserId.Equals(currentUser.Id));
         if (earliest == null) return [];
@@ -141,10 +138,10 @@ public class NoteService(
             }
         }
 
-        return mapper.Map<List<NoteDto>>(notes);
+        return notes;
     }
 
-    public async Task<List<NoteDto>> MemoriesOn(string localTimezone, string yyyyMMdd)
+    public async Task<IList<Note>> MemoriesOn(string localTimezone, string yyyyMMdd)
     {
         // Get the specified time zone
         TimeZoneInfo timeZone = TimeZoneInfo.FindSystemTimeZoneById(localTimezone);
@@ -154,7 +151,7 @@ public class NoteService(
         var notes = await noteRepository.GetListAsync(w =>
             w.UserId.Equals(currentUser.Id) && w.CreateAt >= dayStartTimestamp &&
             w.CreateAt < dayStartTimestamp + 86400);
-        return mapper.Map<List<NoteDto>>(notes);
+        return (notes);
     }
 
     private static long[] _GetTimestamps(long initialUnixTimestamp, string timeZoneId)
@@ -270,7 +267,7 @@ public class NoteService(
 
     private bool _NoteIsNotYours(Note note)
     {
-        return currentUser is null || currentUser.Id != note.UserId;
+        return currentUser.Id != note.UserId;
     }
 
     public async Task<bool> Delete(long id)

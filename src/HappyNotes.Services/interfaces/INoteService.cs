@@ -1,5 +1,4 @@
 using Api.Framework.Models;
-using HappyNotes.Dto;
 using HappyNotes.Entities;
 using HappyNotes.Models;
 
@@ -19,7 +18,7 @@ public interface INoteService
     /// <param name="pageSize"></param>
     /// <param name="pageNumber"></param>
     /// <returns></returns>
-    Task<PageData<NoteDto>> Latest(int pageSize, int pageNumber);
-    Task<List<NoteDto>> Memories(string localTimezone);
-    Task<List<NoteDto>> MemoriesOn(string localTimezone, string yyyyMMdd);
+    Task<PageData<Note>> Latest(int pageSize, int pageNumber);
+    Task<IList<Note>> Memories(string localTimezone);
+    Task<IList<Note>> MemoriesOn(string localTimezone, string yyyyMMdd);
 }
