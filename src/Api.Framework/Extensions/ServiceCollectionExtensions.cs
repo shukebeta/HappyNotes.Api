@@ -25,65 +25,60 @@ public static class ServiceCollectionExtensions
                 InitKeyType = InitKeyType.Attribute
             });
 
-            client.Aop.OnLogExecuting = _AopOnLogExecuting(logger, client);
+            client.Aop.OnLogExecuting = (sql, pars) =>
+            {
+                if (_IsProductionEnv()) return;
+                logger.LogInformation(client.Utilities.SerializeObject(pars.ToDictionary(it => it.ParameterName,
+                    it => it.Value)));
+                foreach (var p in pars)
+                {
+                    string v;
+                    if (p.Value == null)
+                    {
+                        v = "null";
+                        sql = sql.Replace(p.ParameterName, v);
+                        continue;
+                    }
+
+                    switch (p.DbType)
+                    {
+                        case DbType.Byte:
+                        case DbType.SByte:
+                        case DbType.Single:
+                        case DbType.Double:
+                        case DbType.UInt16:
+                        case DbType.UInt32:
+                        case DbType.UInt64:
+                        case DbType.Int16:
+                        case DbType.Int32:
+                        case DbType.Int64:
+                        case DbType.VarNumeric:
+                            v = p.Value!.ToString()!;
+                            break;
+                        case DbType.Boolean:
+                            v = p.Value.Equals(true) ? "true" : "false";
+                            break;
+                        case DbType.DateTime:
+                        case DbType.DateTime2:
+                        case DbType.DateTimeOffset:
+                            v = $"'{((DateTime) p.Value):yyyy-MM-dd HH:mm:ss}'";
+                            break;
+                        default:
+                            string strValue = p.Value?.ToString() ?? "";
+                            if (strValue.Contains(@"'"))
+                                strValue = Regex.Replace(strValue, @"'", @"\'");
+                            v = $"'{strValue}'";
+                            break;
+                    }
+
+                    sql = Regex.Replace(sql, $@"{p.ParameterName}\b", $"{v}");
+                }
+
+                logger.LogInformation(sql);
+            };
 
             return client;
         });
-    }
-
-    private static Action<string, SugarParameter[]> _AopOnLogExecuting(ILogger logger, SqlSugarScope client)
-    {
-        return (sql, pars) =>
-        {
-            if (_IsProductionEnv()) return;
-            logger.LogInformation(client.Utilities.SerializeObject(pars.ToDictionary(it => it.ParameterName,
-                it => it.Value)));
-            foreach (var p in pars)
-            {
-                string v;
-                if (p.Value == null)
-                {
-                    v = "null";
-                    sql = sql.Replace(p.ParameterName, v);
-                    continue;
-                }
-
-                switch (p.DbType)
-                {
-                    case DbType.Byte:
-                    case DbType.SByte:
-                    case DbType.Single:
-                    case DbType.Double:
-                    case DbType.UInt16:
-                    case DbType.UInt32:
-                    case DbType.UInt64:
-                    case DbType.Int16:
-                    case DbType.Int32:
-                    case DbType.Int64:
-                    case DbType.VarNumeric:
-                        v = p.Value!.ToString()!;
-                        break;
-                    case DbType.Boolean:
-                        v = p.Value.Equals(true) ? "true" : "false";
-                        break;
-                    case DbType.DateTime:
-                    case DbType.DateTime2:
-                    case DbType.DateTimeOffset:
-                        v = $"'{((DateTime) p.Value):yyyy-MM-dd HH:mm:ss}'";
-                        break;
-                    default:
-                        string strValue = p.Value?.ToString() ?? "";
-                        if (strValue.Contains(@"'"))
-                            strValue = Regex.Replace(strValue, @"'", @"\'");
-                        v = $"'{strValue}'";
-                        break;
-                }
-
-                sql = Regex.Replace(sql, $@"{p.ParameterName}\b", $"{v}");
-            }
-
-            logger.LogInformation(sql);
-        };
     }
 
     private static bool _IsProductionEnv()

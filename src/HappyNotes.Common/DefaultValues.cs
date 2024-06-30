@@ -14,20 +14,14 @@ public static class DefaultValues
 
         new UserSettingsDto()
         {
-            SettingName = "pagerIsFixed",
-            SettingValue = "1",
-        },
-
-        new UserSettingsDto()
-        {
-            SettingName = "newNoteIsPublic",
-            SettingValue = "1",
-        },
-
-        new UserSettingsDto()
-        {
             SettingName = "markdownIsEnabled",
             SettingValue = "0",
+        },
+
+        new UserSettingsDto()
+        {
+            SettingName = "timezone",
+            SettingValue = "Pacific/Auckland",
         },
     ];
 

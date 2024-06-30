@@ -17,7 +17,7 @@ public class SettingsController(
     IRepositoryBase<UserSettings> userSettingsRepository) : BaseController
 {
     [HttpGet]
-    public async Task<ApiResult<List<UserSettingsDto>>> Get()
+    public async Task<ApiResult<List<UserSettingsDto>>> GetAll()
     {
         var userId = currentUser.Id;
         var settings = await userSettingsRepository.GetListAsync(s => s.UserId.Equals(userId));
@@ -40,8 +40,13 @@ public class SettingsController(
         return new SuccessfulResult<List<UserSettingsDto>>(mapper.Map<List<UserSettingsDto>>(settings));
     }
 
+    /// <summary>
+    /// Upserts the user settings.
+    /// </summary>
+    /// <param name="settingsDto">The settings DTO.</param>
+    /// <returns>Returns a result indicating success or failure.</returns>
     [HttpPost]
-    public async Task<ApiResult<bool>> Setup(UserSettingsDto settingsDto)
+    public async Task<ApiResult<bool>> Upsert(UserSettingsDto settingsDto)
     {
         var userId = currentUser.Id;
         if (!DefaultValues.SettingsDictionary.ContainsKey(settingsDto.SettingName))
