@@ -54,4 +54,17 @@ public class StringExtensionsTests
         // Act & Assert
         Assert.That(input.GetShort(), Is.EqualTo(shortStr));
     }
+
+    [Test]
+    public void GetTags()
+    {
+        // Arrange
+        var input = @"# hello
+ #abc 中国 123";
+
+        // Act & Assert
+        Assert.That(input.GetTags()[0], Is.EqualTo("abc"));
+        Assert.That(input.GetTags()[1], Is.EqualTo("中国"));
+        Assert.That(input.GetTags()[2], Is.EqualTo("123"));
+    }
 }

@@ -1,6 +1,6 @@
 using HappyNotes.Dto;
 
-namespace HappyNotes.Common;
+namespace HappyNotes.Api;
 
 public static class DefaultValues
 {

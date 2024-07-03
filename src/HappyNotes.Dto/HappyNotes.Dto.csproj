@@ -11,6 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\HappyNotes.Common\HappyNotes.Common.csproj" />
     <ProjectReference Include="..\HappyNotes.Entities\HappyNotes.Entities.csproj" />
   </ItemGroup>
 

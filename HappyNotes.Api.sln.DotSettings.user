@@ -1,10 +1,4 @@
 ﻿<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
 	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=9f77df58_002D03e1_002D4810_002Daae5_002D9684d3b1483e/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="IsLongTest" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
-  &lt;TestAncestor&gt;
-    &lt;TestId&gt;NUnit3x::3F48E366-F5C3-4A7B-8D7D-5DF43C01147D::net8.0::HappyNotes.Extensions.Tests.StringExtensionsTests&lt;/TestId&gt;
-    &lt;TestId&gt;NUnit3x::C6B57020-13B1-4281-81AB-6283D2C81DE1::net8.0::Api.Framework.Tests.DateTimeExtensionsTests.ToUnixTimestampTest&lt;/TestId&gt;
-    &lt;TestId&gt;NUnit3x::C6B57020-13B1-4281-81AB-6283D2C81DE1::net8.0::Api.Framework.Tests.UnixTimestampHelperTests&lt;/TestId&gt;
-    &lt;TestId&gt;NUnit3x::C6B57020-13B1-4281-81AB-6283D2C81DE1::net8.0::Api.Framework.Tests.DateTimeExtensionsTests.ToDateTimeOffset_ToYmdHms_Test&lt;/TestId&gt;
-    &lt;TestId&gt;NUnit3x::C8E8C55C-4A94-45BB-8E13-15DC5CBCCBF6::net8.0::HappyNotes.Services.Tests.DuplicateRequestCheckerTests&lt;/TestId&gt;
-  &lt;/TestAncestor&gt;
+  &lt;Solution /&gt;
 &lt;/SessionState&gt;</s:String></wpf:ResourceDictionary>

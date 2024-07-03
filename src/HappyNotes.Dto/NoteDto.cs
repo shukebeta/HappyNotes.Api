@@ -1,3 +1,5 @@
+using HappyNotes.Extensions;
+
 namespace HappyNotes.Dto;
 
 public class NoteDto
@@ -14,4 +16,5 @@ public class NoteDto
     public int UpdateAt { get; set; }
 
     public UserDto User { get; set; } = new();
+    public string[] Tags => Content.GetTags();
 }
