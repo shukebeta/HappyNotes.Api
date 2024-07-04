@@ -20,7 +20,7 @@ public static partial class StringExtensions
     private static partial Regex _Space();
 
 
-    [GeneratedRegex(@"(?<=#)[\p{L}_\p{N}]+(?:\s[\p{L}_\p{N}]+)*", RegexOptions.IgnoreCase, "")]
+    [GeneratedRegex(@"(?<=#)[\p{L}_\p{N}]+(?:\s[\p{L}_\p{N}]+)*", RegexOptions.Multiline, "")]
     private static partial Regex _Tags();
 
     public static bool IsLong(this string str)
@@ -40,10 +40,10 @@ public static partial class StringExtensions
     public static string[] GetTags(this string? content)
     {
         content ??= string.Empty;
-        var match = Tags.Match(content);
-        if (match.Success)
+        var matches = Tags.Matches(content);
+        if (matches.Any())
         {
-            return Space.Split(match.Value);
+            return Space.Split(string.Join(" ", matches)).Distinct(StringComparer.OrdinalIgnoreCase).Select(t => t.ToLower()).ToArray();
         }
 
         return [];
