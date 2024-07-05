@@ -1,7 +1,6 @@
 ﻿using System.Text.RegularExpressions;
-using HappyNotes.Common;
 
-namespace HappyNotes.Extensions;
+namespace HappyNotes.Common;
 
 public static partial class StringExtensions
 {
@@ -20,10 +19,10 @@ public static partial class StringExtensions
     private static partial Regex _Space();
 
 
-    [GeneratedRegex(@"(?<=#)[\p{L}_\p{N}]+(?:\s[\p{L}_\p{N}]+)*", RegexOptions.Multiline, "")]
+    [GeneratedRegex(@"(?<=#)[\p{L}_\p{N}]+(?:\p{Zs}+[\p{L}_\p{N}]+)*", RegexOptions.Multiline, "")]
     private static partial Regex _Tags();
 
-    public static bool IsLong(this string str)
+    public static bool IsLong(this string? str)
     {
         var content = str?.Trim() ?? string.Empty;
         return Separator.Match(content).Success || content.Length > Constants.ShortNotesMaxLength;
@@ -31,16 +30,17 @@ public static partial class StringExtensions
 
     public static string GetShort(this string? str)
     {
-        var parts = Separator.Split(str ?? string.Empty, 2);
+        if (str is null) return string.Empty;
+        var parts = Separator.Split(str, 2);
 
         if (parts[0].Length <= Constants.ShortNotesMaxLength) return parts[0];
         return str!.Substring(0, Constants.ShortNotesMaxLength);
     }
 
-    public static string[] GetTags(this string? content)
+    public static string[] GetTags(this string? str)
     {
-        content ??= string.Empty;
-        var matches = Tags.Matches(content);
+        if (str is null) return [];
+        var matches = Tags.Matches(str);
         if (matches.Any())
         {
             return Space.Split(string.Join(" ", matches)).Distinct(StringComparer.OrdinalIgnoreCase).Select(t => t.ToLower()).ToArray();

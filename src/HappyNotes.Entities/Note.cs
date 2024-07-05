@@ -1,4 +1,5 @@
 using Api.Framework;
+using HappyNotes.Common;
 using SqlSugar;
 
 namespace HappyNotes.Entities;
@@ -16,4 +17,5 @@ public class Note: EntityBase
     public bool IsPrivate { get; set; }
 
     [SugarColumn(IsIgnore = true)] public User User { get; set; } = default!;
+    [SugarColumn(IsIgnore = true)] public string[] Tags => Content.GetTags();
 }

@@ -12,6 +12,7 @@ public static class ServiceExtensions
     {
         services.AddSingleton<IAccountService, AccountService>();
         services.AddSingleton<INoteService, NoteService>();
+        services.AddSingleton<INoteTagService, NoteTagService>();
         services.AddSingleton<INoteRepository, NoteRepository>();
     }
 }

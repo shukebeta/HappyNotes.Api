@@ -8,11 +8,15 @@ using HappyNotes.Extensions;
 using HappyNotes.Models;
 using HappyNotes.Repositories.interfaces;
 using HappyNotes.Services.interfaces;
+using Microsoft.Extensions.Logging;
+using EventId = HappyNotes.Common.EventId;
 
 namespace HappyNotes.Services;
 
 public class NoteService(
+    ILogger<NoteService> logger,
     INoteRepository noteRepository,
+    INoteTagService noteTagService,
     IRepositoryBase<LongNote> longNoteRepository,
     CurrentUser currentUser
 ) : INoteService
@@ -48,6 +52,18 @@ public class NoteService(
 
         note.Content = fullContent;
         await noteRepository.InsertAsync(note);
+        try
+        {
+            if (note.Tags.Any())
+            {
+                await noteTagService.Upsert(note.Id, note.Tags);
+            }
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e.ToString());
+            // ate the exception to avoid interrupting the main process
+        }
         return note.Id;
     }
 
@@ -64,7 +80,9 @@ public class NoteService(
             throw ExceptionHelper.New(id, EventId._00102_NoteIsNotYours, id);
         }
 
+        var oldTags = note.Tags;
         var fullContent = request.Content?.Trim() ?? string.Empty;
+        await _UpdateNoteTags(oldTags, note.Id, fullContent);
 
         if (fullContent.IsLong())
         {
@@ -82,7 +100,6 @@ public class NoteService(
             {
                 return await longNoteRepository.InsertAsync(longNote);
             }
-
             return await longNoteRepository.UpdateAsync(longNote);
         }
 
@@ -91,6 +108,21 @@ public class NoteService(
         note.UpdateAt = DateTime.UtcNow.ToUnixTimeSeconds();
         note.IsLong = false;
         return await noteRepository.UpdateAsync(note);
+    }
+
+    private async Task _UpdateNoteTags(string[] oldTags, long noteId, string fullContent)
+    {
+        var tags = fullContent.GetTags();
+        if (oldTags.Any())
+        {
+            var toDelete = oldTags.Except(tags).ToArray();
+            if (toDelete.Any()) await noteTagService.Delete(noteId, toDelete);
+        }
+
+        if (tags.Any())
+        {
+            await noteTagService.Upsert(noteId, tags);
+        }
     }
 
     public async Task<PageData<Note>> MyLatest(int pageSize, int pageNumber)
@@ -262,6 +294,7 @@ public class NoteService(
         {
             throw ExceptionHelper.New(noteId, EventId._00101_NoteIsPrivate, noteId);
         }
+
         return note;
     }
 

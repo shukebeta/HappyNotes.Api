@@ -26,10 +26,7 @@ cat $modelTmplFile \
 	| sed "s/%DB_NAME%/${DbName}/g" \
 	| sed "s/%TABLE_NAME%/${ModelName}/g" > /tmp/tmpModel.sql
 
-echo using Api.Framework\; > "$modelFile"
-echo using SqlSugar\; >> "$modelFile"
-echo >> "$modelFile"
-echo namespace HappyNotes.Entities; >> "$modelFile"
+echo 'namespace HappyNotes.Entities;' > "$modelFile"
 mysql < /tmp/tmpModel.sql | sed '1d' >> "$modelFile"
 
 cat "$modelFile" | sed '/CreateTime\|CreateBy\|ModifyAt\|ModifyBy\|UpdateBy\|UpdateAt\|DeleteAt/d' \

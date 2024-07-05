@@ -3,7 +3,7 @@ into @table;
 select '%DB_NAME%'
 into @schema;
 
-select concat('    public class ', @table)
+select concat('    public class ', @table, '{')
 union
 select concat('        public ', tps.dest, ' ', column_name, ' { get; set; }')
 from information_schema.columns c
@@ -33,4 +33,6 @@ from information_schema.columns c
     select 'bigint', 'long'
 ) tps on c.data_type like tps.orign
 where table_schema = @schema
-  and table_name = @table;
+  and table_name = @table
+union
+select '}';

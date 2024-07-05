@@ -46,6 +46,27 @@ CREATE TABLE `DeletedNote` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `Files`
+--
+
+DROP TABLE IF EXISTS `Files`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `Files` (
+  `Id` bigint NOT NULL AUTO_INCREMENT,
+  `Md5` char(32) NOT NULL,
+  `Path` char(20) NOT NULL,
+  `FileExt` char(4) NOT NULL,
+  `RefCount` int DEFAULT NULL,
+  `CreateAt` bigint DEFAULT NULL,
+  `UpdateAt` bigint DEFAULT NULL,
+  `FileName` char(128) DEFAULT NULL,
+  PRIMARY KEY (`Id`),
+  UNIQUE KEY `Md5` (`Md5`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `LongNote`
 --
 
@@ -73,6 +94,7 @@ CREATE TABLE `Note` (
   `FavoriteCount` int NOT NULL DEFAULT '0',
   `IsLong` tinyint NOT NULL DEFAULT '0',
   `IsPrivate` tinyint NOT NULL DEFAULT '1',
+  `IsMarkdown` tinyint NOT NULL DEFAULT '0' COMMENT 'indicate content field is in markdown format or not',
   `Status` tinyint NOT NULL DEFAULT '1' COMMENT '1 normal 2 deleted 3 purged',
   `CreateAt` bigint NOT NULL,
   `UpdateAt` bigint DEFAULT NULL,
@@ -90,40 +112,27 @@ DROP TABLE IF EXISTS `NoteTag`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `NoteTag` (
   `Id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `NoteId` bigint unsigned NOT NULL DEFAULT '0',
-  `TagId` bigint unsigned NOT NULL DEFAULT '0',
-  `CreateAt` bigint NOT NULL DEFAULT '0',
+  `NoteId` bigint unsigned NOT NULL,
+  `TagName` varchar(128) NOT NULL,
+  `CreateAt` bigint NOT NULL,
   PRIMARY KEY (`Id`),
-  UNIQUE KEY `UI_NoteIdTagId` (`NoteId`,`TagId`),
-  KEY `I_TagId` (`TagId`),
-  KEY `I_NoteId` (`NoteId`)
+  UNIQUE KEY `NoteId` (`NoteId`,`TagName`),
+  KEY `idx_TagName` (`TagName`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Table structure for table `Tag`
+-- Table structure for table `SequelizeMeta`
 --
 
-DROP TABLE IF EXISTS `Tag`;
+DROP TABLE IF EXISTS `SequelizeMeta`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `Tag` (
-  `Id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `Name` varchar(128) NOT NULL DEFAULT '' COMMENT 'Tag name',
-  `PublicCount` int NOT NULL DEFAULT '0',
-  `PrivateCount` int NOT NULL DEFAULT '0',
-  `TotalCount` int NOT NULL DEFAULT '0',
-  `CreateAt` bigint NOT NULL,
-  `UpdateAt` bigint DEFAULT NULL,
-  `DeleteAt` bigint DEFAULT NULL,
-  `CreateBy` bigint NOT NULL DEFAULT '0',
-  `UpdateBy` bigint DEFAULT NULL,
-  PRIMARY KEY (`Id`),
-  UNIQUE KEY `I_Name` (`Name`),
-  KEY `UI_PublicCount` (`PublicCount`),
-  KEY `I_PrivateCount` (`PrivateCount`),
-  KEY `I_TotalCount` (`TotalCount`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+CREATE TABLE `SequelizeMeta` (
+  `name` varchar(255) COLLATE utf8mb3_unicode_ci NOT NULL,
+  PRIMARY KEY (`name`),
+  UNIQUE KEY `name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --

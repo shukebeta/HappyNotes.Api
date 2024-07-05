@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Api.Framework\Api.Framework.csproj" />
+    <ProjectReference Include="..\HappyNotes.Common\HappyNotes.Common.csproj" />
   </ItemGroup>
 
 </Project>
