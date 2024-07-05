@@ -215,7 +215,7 @@ public class NoteService(
 
         var timestamps = new List<long>();
 
-        if (startYear > currentYear)
+        if (startYear < currentYear)
         {
             for (var year = startMonth <= currentMonth && startDay <= currentDay
                      ? startYear
@@ -237,7 +237,7 @@ public class NoteService(
             }
         }
 
-        if (currentMonth - startMonth >= 1)
+        if (startDateTimeOffset.AddMonths(1).EarlierThan(nowInTargetTimeZone))
         {
             for (var month = startDay <= currentDay
                      ? startMonth
@@ -259,32 +259,32 @@ public class NoteService(
             }
         }
 
-        if (currentDay - startDay >= 28)
+        if (startDateTimeOffset.AddDays(28).EarlierThan(nowInTargetTimeZone))
         {
             // 4 weeks ago
             timestamps.Add(todayStartTimeOffset.AddDays(-28).ToUnixTimeSeconds());
         }
 
-        if (currentDay - startDay >= 21)
+        if (startDateTimeOffset.AddDays(21).EarlierThan(nowInTargetTimeZone))
         {
             // 3 weeks
             timestamps.Add(todayStartTimeOffset.AddMonths(-21).ToUnixTimeSeconds());
         }
 
-        if (currentDay - startDay >= 14)
+        if (startDateTimeOffset.AddDays(14).EarlierThan(nowInTargetTimeZone))
         {
             // 2 weeks ago
             timestamps.Add(todayStartTimeOffset.AddDays(-14).ToUnixTimeSeconds());
         }
 
-        if (currentDay - startDay >= 7)
+        if (startDateTimeOffset.AddDays(7).EarlierThan(nowInTargetTimeZone))
         {
             // 1 week ago
             timestamps.Add(todayStartTimeOffset.AddMonths(-7).ToUnixTimeSeconds());
         }
 
-
         timestamps.Add(todayStartTimeOffset.AddDays(-5).ToUnixTimeSeconds());
+        timestamps.Add(todayStartTimeOffset.AddDays(-4).ToUnixTimeSeconds());
         timestamps.Add(todayStartTimeOffset.AddDays(-3).ToUnixTimeSeconds());
         timestamps.Add(todayStartTimeOffset.AddDays(-2).ToUnixTimeSeconds());
         timestamps.Add(todayStartTimeOffset.AddDays(-1).ToUnixTimeSeconds());
