@@ -125,12 +125,12 @@ public class NoteService(
         }
     }
 
-    public async Task<PageData<Note>> MyLatest(int pageSize, int pageNumber)
+    public async Task<PageData<Note>> GetUserNotes(long userId, int pageSize, int pageNumber, bool includePrivate=false)
     {
-        return await noteRepository.GetUserNotes(currentUser.Id, pageSize, pageNumber, true);
+        return await noteRepository.GetUserNotes(userId, pageSize, pageNumber, includePrivate);
     }
 
-    public async Task<PageData<Note>> Latest(int pageSize, int pageNumber)
+    public async Task<PageData<Note>> GetPublicNotes(int pageSize, int pageNumber)
     {
         if (pageNumber > Constants.PublicNotesMaxPage)
         {
@@ -145,6 +145,16 @@ public class NoteService(
         }
 
         return notes;
+    }
+
+    public async Task<PageData<Note>> GetUserTagNotes(long userId, int pageSize, int pageNumber, string tag, bool includePrivate=false)
+    {
+        return await noteRepository.GetUserTagNotes(userId, tag, pageSize, pageNumber, includePrivate);
+    }
+
+    public async Task<PageData<Note>> GetPublicTagNotes(int pageSize, int pageNumber, string tag)
+    {
+        return await noteRepository.GetPublicTagNotes(tag, pageSize, pageNumber);
     }
 
     /// <summary>

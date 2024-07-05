@@ -34,11 +34,22 @@ public class NoteRepository(ISqlSugarClient db) : RepositoryBase<Note>(db), INot
             .FirstAsync();
     }
 
+    public async Task<PageData<Note>> GetUserTagNotes(long userId, string tag, int pageSize, int pageNumber, bool includePrivate = false,
+        bool isAsc = false)
+    {
+        return await _GetPageDataByTagAsync(pageSize, pageNumber,
+            (n,u,t) =>
+                t.TagName.Equals(tag.ToLower()) &&
+                n.DeleteAt == null && n.UserId == userId &&
+                (includePrivate || n.IsPrivate == false),
+            n => n.CreateAt, isAsc);
+    }
+
     public async Task<PageData<Note>> GetUserNotes(long userId, int pageSize, int pageNumber,
-        bool all = false, bool isAsc = false)
+        bool includePrivate = true, bool isAsc = false)
     {
         return await _GetPageDataAsync(pageSize, pageNumber,
-            n => n.DeleteAt == null && n.UserId == userId && (all || n.IsPrivate == false),
+            n => n.DeleteAt == null && n.UserId == userId && (includePrivate || n.IsPrivate == false),
             n => n.CreateAt, isAsc);
     }
 
@@ -46,6 +57,16 @@ public class NoteRepository(ISqlSugarClient db) : RepositoryBase<Note>(db), INot
     {
         return await _GetPageDataAsync(pageSize, pageNumber,
             n => n.DeleteAt == null && n.IsPrivate == false,
+            n => n.CreateAt, isAsc);
+    }
+
+    public async Task<PageData<Note>> GetPublicTagNotes(string tag, int pageSize, int pageNumber, bool isAsc = false)
+    {
+        return await _GetPageDataByTagAsync(pageSize, pageNumber,
+            (n,u,t) =>
+                t.TagName.Equals(tag.ToLower()) &&
+                n.DeleteAt == null &&
+                n.IsPrivate == false,
             n => n.CreateAt, isAsc);
     }
 
@@ -61,6 +82,28 @@ public class NoteRepository(ISqlSugarClient db) : RepositoryBase<Note>(db), INot
         RefAsync<int> totalCount = 0;
         var result = await _db.Queryable<Note, User>((n, u) => new JoinQueryInfos(
                 JoinType.Inner, n.UserId == u.Id
+            )).WhereIF(null != where, where)
+            .OrderByIF(orderBy != null, orderBy, isAsc ? OrderByType.Asc : OrderByType.Desc)
+            .Mapper(n => n.User, n => n.UserId)
+            .ToPageListAsync(pageNumber, pageSize, totalCount);
+        pageData.TotalCount = totalCount;
+        pageData.DataList = result;
+        return pageData;
+    }
+    private async Task<PageData<Note>> _GetPageDataByTagAsync(int pageSize = 20, int pageNumber = 1,
+        Expression<Func<Note, User, NoteTag, bool>>? where = null,
+        Expression<Func<Note, object>>? orderBy = null,
+        bool isAsc = true)
+    {
+        var pageData = new PageData<Note>
+        {
+            PageIndex = pageNumber,
+            PageSize = pageSize,
+        };
+        RefAsync<int> totalCount = 0;
+        var result = await _db.Queryable<Note, User, NoteTag>((n, u, t) => new JoinQueryInfos(
+                JoinType.Inner, n.UserId == u.Id,
+                JoinType.Inner, n.Id == t.NoteId
             )).WhereIF(null != where, where)
             .OrderByIF(orderBy != null, orderBy, isAsc ? OrderByType.Asc : OrderByType.Desc)
             .Mapper(n => n.User, n => n.UserId)

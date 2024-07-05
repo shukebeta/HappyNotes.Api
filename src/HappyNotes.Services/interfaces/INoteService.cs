@@ -11,14 +11,26 @@ public interface INoteService
     Task<bool> Delete(long id);
     Task<bool> Undelete(long id);
     Task<bool> Update(long id, PostNoteRequest request);
-    Task<PageData<Note>> MyLatest(int pageSize, int pageNumber);
+
+    Task<PageData<Note>> GetUserNotes(long userId, int pageSize, int pageNumber, bool includePrivate=false);
     /// <summary>
     /// Latest public notes / random browsing
     /// </summary>
     /// <param name="pageSize"></param>
     /// <param name="pageNumber"></param>
     /// <returns></returns>
-    Task<PageData<Note>> Latest(int pageSize, int pageNumber);
+    Task<PageData<Note>> GetPublicNotes(int pageSize, int pageNumber);
+
+    Task<PageData<Note>> GetUserTagNotes(long userId, int pageSize, int pageNumber, string tag, bool includePrivate=false);
+
+    /// <summary>
+    /// Latest public notes for specific tag
+    /// </summary>
+    /// <param name="pageSize"></param>
+    /// <param name="pageNumber"></param>
+    /// <param name="tag"></param>
+    /// <returns></returns>
+    Task<PageData<Note>> GetPublicTagNotes(int pageSize, int pageNumber, string tag);
     Task<IList<Note>> Memories(string localTimezone);
     Task<IList<Note>> MemoriesOn(string localTimezone, string yyyyMMdd);
 }
