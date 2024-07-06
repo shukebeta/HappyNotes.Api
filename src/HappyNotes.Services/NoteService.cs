@@ -33,13 +33,13 @@ public class NoteService(
         {
             UserId = currentUser.Id,
             IsPrivate = request.IsPrivate,
+            IsMarkdown = request.IsMarkdown,
             CreateAt = DateTime.UtcNow.ToUnixTimeSeconds(),
-            IsLong = false,
+            IsLong = fullContent.IsLong(),
         };
 
-        if (fullContent.IsLong())
+        if (note.IsLong)
         {
-            note.IsLong = true;
             note.Content = fullContent.GetShort();
             await noteRepository.InsertAsync(note);
             await longNoteRepository.InsertAsync(new LongNote
@@ -84,12 +84,14 @@ public class NoteService(
         var fullContent = request.Content?.Trim() ?? string.Empty;
         await _UpdateNoteTags(oldTags, note.Id, fullContent);
 
-        if (fullContent.IsLong())
+        note.IsPrivate = request.IsPrivate;
+        note.IsMarkdown = request.IsMarkdown;
+        note.UpdateAt = DateTime.UtcNow.ToUnixTimeSeconds();
+        note.IsLong = fullContent.IsLong();
+
+        if (note.IsLong)
         {
             note.Content = fullContent.GetShort();
-            note.IsPrivate = request.IsPrivate;
-            note.UpdateAt = DateTime.UtcNow.ToUnixTimeSeconds();
-            note.IsLong = true;
             await noteRepository.UpdateAsync(note);
             var longNote = new LongNote
             {
@@ -104,9 +106,6 @@ public class NoteService(
         }
 
         note.Content = fullContent;
-        note.IsPrivate = request.IsPrivate;
-        note.UpdateAt = DateTime.UtcNow.ToUnixTimeSeconds();
-        note.IsLong = false;
         return await noteRepository.UpdateAsync(note);
     }
 

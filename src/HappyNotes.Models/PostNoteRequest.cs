@@ -5,4 +5,5 @@ public class PostNoteRequest
     public string? Content { get; set; }
     public string[]? Attachments { get; set; }
     public bool IsPrivate { get; set; } = true;
+    public bool IsMarkdown { get; set; }
 }
