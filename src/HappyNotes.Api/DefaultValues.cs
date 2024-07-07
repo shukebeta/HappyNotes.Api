@@ -6,19 +6,26 @@ public static class DefaultValues
 {
     public static readonly List<UserSettingsDto> Settings =
     [
-        new UserSettingsDto()
+        new UserSettingsDto
         {
             SettingName = "pageSize",
             SettingValue = "20",
         },
 
-        new UserSettingsDto()
+        new UserSettingsDto
         {
             SettingName = "markdownIsEnabled",
             SettingValue = "0",
         },
 
-        new UserSettingsDto()
+        new UserSettingsDto
+        {
+            // this will remove the private/public note switch, so you can only write private notes
+            SettingName = "privateNoteOnlyIsEnabled",
+            SettingValue = "0",
+        },
+
+        new UserSettingsDto
         {
             SettingName = "timezone",
             SettingValue = "Pacific/Auckland",
