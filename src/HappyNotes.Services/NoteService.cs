@@ -172,7 +172,7 @@ public class NoteService(
         foreach (var start in periodList)
         {
             var note = await noteRepository.GetFirstOrDefaultAsync(w =>
-                w.UserId.Equals(currentUser.Id) && w.CreateAt >= start && w.CreateAt < start + 86400);
+                w.UserId.Equals(currentUser.Id) && w.CreateAt >= start && w.CreateAt < start + 86400 && w.DeleteAt == null);
             if (note != null)
             {
                 notes.Add(note);
@@ -191,7 +191,7 @@ public class NoteService(
             .GetDayStartTimestamp(timeZone);
         var notes = await noteRepository.GetListAsync(w =>
             w.UserId.Equals(currentUser.Id) && w.CreateAt >= dayStartTimestamp &&
-            w.CreateAt < dayStartTimestamp + 86400);
+            w.CreateAt < dayStartTimestamp + 86400 && w.DeleteAt == null);
         return (notes);
     }
 
@@ -326,7 +326,7 @@ public class NoteService(
         }
 
         // already deleted before
-        if (note.DeleteAt != null)
+        if (note.DeleteAt is not null)
         {
             return true;
         }
@@ -338,12 +338,12 @@ public class NoteService(
     public async Task<bool> Undelete(long id)
     {
         var note = await noteRepository.GetFirstOrDefaultAsync(x => x.Id == id);
-        if (note == null)
+        if (note is null)
         {
             throw ExceptionHelper.New(id, EventId._00100_NoteNotFound, id);
         }
 
-        if (note.DeleteAt == null)
+        if (note.DeleteAt is null)
         {
             throw ExceptionHelper.New(id, EventId._00103_NoteIsNotDeleted, id);
         }

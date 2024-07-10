@@ -95,11 +95,14 @@ CREATE TABLE `Note` (
   `IsLong` tinyint NOT NULL DEFAULT '0',
   `IsPrivate` tinyint NOT NULL DEFAULT '1',
   `IsMarkdown` tinyint NOT NULL DEFAULT '0' COMMENT 'indicate content field is in markdown format or not',
-  `Status` tinyint NOT NULL DEFAULT '1' COMMENT '1 normal 2 deleted 3 purged',
   `CreateAt` bigint NOT NULL,
   `UpdateAt` bigint DEFAULT NULL,
   `DeleteAt` bigint DEFAULT NULL,
-  PRIMARY KEY (`Id`)
+  PRIMARY KEY (`Id`),
+  KEY `idx_FavoriteCount` (`FavoriteCount`),
+  KEY `idx_CreateAt` (`CreateAt`),
+  KEY `idx_DeleteAt` (`DeleteAt`),
+  KEY `idx_UserId_DeleteAt` (`UserId`,`DeleteAt`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

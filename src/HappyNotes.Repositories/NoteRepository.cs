@@ -1,7 +1,6 @@
 using System.Linq.Expressions;
 using Api.Framework;
 using Api.Framework.Models;
-using HappyNotes.Dto;
 using HappyNotes.Entities;
 using HappyNotes.Repositories.interfaces;
 using SqlSugar;
@@ -24,7 +23,6 @@ public class NoteRepository(ISqlSugarClient db) : RepositoryBase<Note>(db), INot
                 Id = n.Id,
                 Content = n.IsLong ? l.Content : n.Content,
                 FavoriteCount = n.FavoriteCount,
-                Status = n.Status,
                 IsLong = n.IsLong,
                 IsMarkdown = n.IsMarkdown,
                 IsPrivate = n.IsPrivate,
