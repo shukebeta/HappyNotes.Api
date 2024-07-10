@@ -279,7 +279,7 @@ public class NoteService(
         if (startDateTimeOffset.AddDays(7).EarlierThan(nowInTargetTimeZone))
         {
             // 1 week ago
-            timestamps.Add(todayStartTimeOffset.AddMonths(-7).ToUnixTimeSeconds());
+            timestamps.Add(todayStartTimeOffset.AddDays(-7).ToUnixTimeSeconds());
         }
 
         timestamps.Add(todayStartTimeOffset.AddDays(-5).ToUnixTimeSeconds());
