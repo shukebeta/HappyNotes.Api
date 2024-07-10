@@ -267,7 +267,7 @@ public class NoteService(
         if (startDateTimeOffset.AddDays(21).EarlierThan(nowInTargetTimeZone))
         {
             // 3 weeks
-            timestamps.Add(todayStartTimeOffset.AddMonths(-21).ToUnixTimeSeconds());
+            timestamps.Add(todayStartTimeOffset.AddDays(-21).ToUnixTimeSeconds());
         }
 
         if (startDateTimeOffset.AddDays(14).EarlierThan(nowInTargetTimeZone))
