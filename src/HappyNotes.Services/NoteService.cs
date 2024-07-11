@@ -236,56 +236,21 @@ public class NoteService(
             }
         }
 
+        if (startDateTimeOffset.AddMonths(6).EarlierThan(nowInTargetTimeZone))
+        {
+            timestamps.Add(todayStartTimeOffset.AddMonths(-6).ToUnixTimeSeconds());
+        }
+
+        if (startDateTimeOffset.AddMonths(3).EarlierThan(nowInTargetTimeZone))
+        {
+            timestamps.Add(todayStartTimeOffset.AddMonths(-3).ToUnixTimeSeconds());
+        }
+
         if (startDateTimeOffset.AddMonths(1).EarlierThan(nowInTargetTimeZone))
         {
-            for (var month = startDay <= currentDay
-                     ? startMonth
-                     : startMonth + 1;
-                 month < currentMonth;
-                 month++)
-            {
-                try
-                {
-                    var targetDate = new DateTimeOffset(currentYear, month, currentDay, 0, 0, 0,
-                        nowInTargetTimeZone.Offset);
-                    timestamps.Add(targetDate.ToUnixTimeSeconds());
-                }
-                catch (ArgumentOutOfRangeException)
-                {
-                    // skip invalid dates，such as 02-30, 02-31
-                    // do nothing
-                }
-            }
+            timestamps.Add(todayStartTimeOffset.AddMonths(-1).ToUnixTimeSeconds());
         }
 
-        if (startDateTimeOffset.AddDays(28).EarlierThan(nowInTargetTimeZone))
-        {
-            // 4 weeks ago
-            timestamps.Add(todayStartTimeOffset.AddDays(-28).ToUnixTimeSeconds());
-        }
-
-        if (startDateTimeOffset.AddDays(21).EarlierThan(nowInTargetTimeZone))
-        {
-            // 3 weeks
-            timestamps.Add(todayStartTimeOffset.AddDays(-21).ToUnixTimeSeconds());
-        }
-
-        if (startDateTimeOffset.AddDays(14).EarlierThan(nowInTargetTimeZone))
-        {
-            // 2 weeks ago
-            timestamps.Add(todayStartTimeOffset.AddDays(-14).ToUnixTimeSeconds());
-        }
-
-        if (startDateTimeOffset.AddDays(7).EarlierThan(nowInTargetTimeZone))
-        {
-            // 1 week ago
-            timestamps.Add(todayStartTimeOffset.AddDays(-7).ToUnixTimeSeconds());
-        }
-
-        timestamps.Add(todayStartTimeOffset.AddDays(-5).ToUnixTimeSeconds());
-        timestamps.Add(todayStartTimeOffset.AddDays(-4).ToUnixTimeSeconds());
-        timestamps.Add(todayStartTimeOffset.AddDays(-3).ToUnixTimeSeconds());
-        timestamps.Add(todayStartTimeOffset.AddDays(-2).ToUnixTimeSeconds());
         timestamps.Add(todayStartTimeOffset.AddDays(-1).ToUnixTimeSeconds());
         timestamps.Add(todayStartTimeOffset.ToUnixTimeSeconds());
         return timestamps.ToArray();
