@@ -37,7 +37,7 @@ public class NoteRepository(ISqlSugarClient db) : RepositoryBase<Note>(db), INot
     {
         return await _GetPageDataByTagAsync(pageSize, pageNumber,
             (n,u,t) =>
-                t.TagName.Equals(tag.ToLower()) &&
+                t.Tag.Equals(tag.ToLower()) &&
                 n.DeleteAt == null && n.UserId == userId &&
                 (includePrivate || n.IsPrivate == false),
             n => n.CreateAt, isAsc);
@@ -62,7 +62,7 @@ public class NoteRepository(ISqlSugarClient db) : RepositoryBase<Note>(db), INot
     {
         return await _GetPageDataByTagAsync(pageSize, pageNumber,
             (n,u,t) =>
-                t.TagName.Equals(tag.ToLower()) &&
+                t.Tag.Equals(tag.ToLower()) &&
                 n.DeleteAt == null &&
                 n.IsPrivate == false,
             n => n.CreateAt, isAsc);

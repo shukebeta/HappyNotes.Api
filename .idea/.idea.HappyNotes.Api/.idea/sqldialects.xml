@@ -2,6 +2,7 @@
 <project version="4">
   <component name="SqlDialectMappings">
     <file url="file://$PROJECT_DIR$/documents/database/changelist/2024/05-12-test-patch.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/documents/database/changelist/2024/07-19-note-tag-adjustment.sql" dialect="MySQL" />
     <file url="PROJECT" dialect="MySQL" />
   </component>
 </project>

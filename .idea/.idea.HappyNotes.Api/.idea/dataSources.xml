@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
-    <data-source source="LOCAL" name="HappyNotes@localhost" uuid="653d713b-993e-4ce8-aedc-18785c794610">
+    <data-source source="LOCAL" name="information_schema@localhost" uuid="653d713b-993e-4ce8-aedc-18785c794610">
       <driver-ref>mysql.8</driver-ref>
       <synchronize>true</synchronize>
       <jdbc-driver>com.mysql.cj.jdbc.Driver</jdbc-driver>
-      <jdbc-url>jdbc:mysql://localhost:6306/HappyNotes</jdbc-url>
+      <jdbc-url>jdbc:mysql://localhost:6306/information_schema</jdbc-url>
       <jdbc-additional-properties>
         <property name="com.intellij.clouds.kubernetes.db.host.port" />
         <property name="com.intellij.clouds.kubernetes.db.enabled" value="false" />

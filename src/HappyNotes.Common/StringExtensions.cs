@@ -19,7 +19,7 @@ public static partial class StringExtensions
     private static partial Regex _Space();
 
 
-    [GeneratedRegex(@"(?<=#)[\p{L}_\p{N}]+(?:\p{Zs}+[\p{L}_\p{N}]+)*", RegexOptions.Multiline, "")]
+    [GeneratedRegex(@"(?<=#)[\p{L}_\p{N}]+(?:\p{Zs}+[\p{L}_\p{N}]+)*", RegexOptions.Singleline, "")]
     private static partial Regex _Tags();
 
     public static bool IsLong(this string? str)

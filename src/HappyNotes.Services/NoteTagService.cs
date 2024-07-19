@@ -13,11 +13,11 @@ public class NoteTagService(
         foreach (var tag in tags)
         {
             if (await noteTagRepository.GetFirstOrDefaultAsync(t =>
-                    t.NoteId == noteId && t.TagName.Equals(tag.ToLower())) == null)
+                    t.NoteId == noteId && t.Tag.Equals(tag.ToLower())) == null)
                 await noteTagRepository.InsertAsync(new NoteTag()
                 {
                     NoteId = noteId,
-                    TagName = tag.ToLower(),
+                    Tag = tag.ToLower(),
                     CreateAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                 });
         }
@@ -27,7 +27,7 @@ public class NoteTagService(
     {
         foreach (var tag in tags)
         {
-            await noteTagRepository.DeleteAsync(t => t.NoteId == noteId && t.TagName.Equals(tag.ToLower()));
+            await noteTagRepository.DeleteAsync(t => t.NoteId == noteId && t.Tag.Equals(tag.ToLower()));
         }
     }
 }
