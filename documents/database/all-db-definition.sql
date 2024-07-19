@@ -91,6 +91,7 @@ CREATE TABLE `Note` (
   `Id` bigint NOT NULL AUTO_INCREMENT,
   `UserId` bigint NOT NULL DEFAULT '0',
   `Content` varchar(1024) NOT NULL,
+  `Tags` varchar(512) DEFAULT NULL,
   `FavoriteCount` int NOT NULL DEFAULT '0',
   `IsLong` tinyint NOT NULL DEFAULT '0',
   `IsPrivate` tinyint NOT NULL DEFAULT '1',
@@ -116,11 +117,11 @@ DROP TABLE IF EXISTS `NoteTag`;
 CREATE TABLE `NoteTag` (
   `Id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `NoteId` bigint unsigned NOT NULL,
-  `TagName` varchar(128) NOT NULL,
+  `Tag` varchar(32) NOT NULL COMMENT 'Note tag, put #tag1 tag2 tag3 in note content',
   `CreateAt` bigint NOT NULL,
   PRIMARY KEY (`Id`),
-  UNIQUE KEY `NoteId` (`NoteId`,`TagName`),
-  KEY `idx_TagName` (`TagName`)
+  UNIQUE KEY `NoteId` (`NoteId`,`Tag`),
+  KEY `idx_TagName` (`Tag`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

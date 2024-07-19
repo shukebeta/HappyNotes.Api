@@ -1,10 +1,10 @@
 # Database: HappyNotes Table: NoteTag
 
  Field    | Type            | Null | Default | Comment
-----------|-----------------|------|---------|---------
+----------|-----------------|------|---------|-----------------------------------------------
  Id       | bigint unsigned | NO   |         |
  NoteId   | bigint unsigned | NO   |         |
- TagName  | varchar(128)    | NO   |         |
+ Tag      | varchar(32)     | NO   |         | Note tag, put #tag1 tag2 tag3 in note content
  CreateAt | bigint          | NO   |         |
 
 ## Indexes: 
@@ -13,5 +13,5 @@
 -------------|-------------|--------------|------------|------------|---------
  PRIMARY     | Id          |            1 |          0 | BTREE      | YES
  NoteId      | NoteId      |            1 |          0 | BTREE      | YES
- NoteId      | TagName     |            2 |          0 | BTREE      | YES
- idx_TagName | TagName     |            1 |          1 | BTREE      | YES
+ NoteId      | Tag         |            2 |          0 | BTREE      | YES
+ idx_TagName | Tag         |            1 |          1 | BTREE      | YES

@@ -5,6 +5,7 @@
  Id            | bigint        | NO   |         |
  UserId        | bigint        | NO   | 0       |
  Content       | varchar(1024) | NO   |         |
+ Tags          | varchar(512)  | YES  |         |
  FavoriteCount | int           | NO   | 0       |
  IsLong        | tinyint       | NO   | 0       |
  IsPrivate     | tinyint       | NO   | 1       |
