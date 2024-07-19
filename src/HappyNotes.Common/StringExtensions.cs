@@ -1,11 +1,12 @@
 ﻿using System.Text.RegularExpressions;
+using WeihanLi.Extensions;
 
 namespace HappyNotes.Common;
 
 public static partial class StringExtensions
 {
     private static readonly Regex Separator = _Separator();
-    private static readonly Regex Tags = _Tags();
+    private static readonly Regex TagsPattern = _Tags();
     private static readonly Regex Space = _Space();
 
     /// <summary>
@@ -37,13 +38,29 @@ public static partial class StringExtensions
         return str!.Substring(0, Constants.ShortNotesMaxLength);
     }
 
-    public static string[] GetTags(this string? str)
+    public static List<string> GetTags(this string? str, int maxTagLength = 32, int maxTotalLength = 512)
     {
         if (str is null) return [];
-        var matches = Tags.Matches(str);
+        var matches = TagsPattern.Matches(str);
         if (matches.Any())
         {
-            return Space.Split(string.Join(" ", matches)).Distinct(StringComparer.OrdinalIgnoreCase).Select(t => t.ToLower()).ToArray();
+            var tags = new List<string>();
+            var totalLength = 0;
+            var candidate = Space.Split(string.Join(' ', matches)) // first join multiple match into one string, then split it to one array
+                .Select(m => m.ToLower()).Distinct();
+            foreach (var tag in candidate)
+            {
+                if (tag.Length > maxTagLength)
+                    continue;
+
+                // Check if adding this tag (plus a space) would exceed the max total length
+                totalLength += tag.Length + 1; // +1 for the space
+                if (totalLength > maxTotalLength)
+                    break;
+                tags.Add(tag);
+            }
+
+            return tags;
         }
 
         return [];

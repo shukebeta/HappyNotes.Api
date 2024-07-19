@@ -36,6 +36,7 @@ public class NoteService(
             IsMarkdown = request.IsMarkdown,
             CreateAt = DateTime.UtcNow.ToUnixTimeSeconds(),
             IsLong = fullContent.IsLong(),
+            Tags = string.Join(' ', fullContent.GetTags()),
         };
 
         if (note.IsLong)
@@ -54,9 +55,10 @@ public class NoteService(
         await noteRepository.InsertAsync(note);
         try
         {
-            if (note.Tags.Any())
+            var tags = fullContent.GetTags();
+            if (tags.Any())
             {
-                await noteTagService.Upsert(note.Id, note.Tags);
+                await noteTagService.Upsert(note.Id, tags);
             }
         }
         catch (Exception e)
@@ -80,47 +82,42 @@ public class NoteService(
             throw ExceptionHelper.New(id, EventId._00102_NoteIsNotYours, id);
         }
 
-        var oldTags = note.Tags;
         var fullContent = request.Content?.Trim() ?? string.Empty;
-        await _UpdateNoteTags(oldTags, note.Id, fullContent);
+        // we first update tags
+        await _UpdateNoteTags(note, fullContent);
 
         note.IsPrivate = request.IsPrivate;
         note.IsMarkdown = request.IsMarkdown;
         note.UpdateAt = DateTime.UtcNow.ToUnixTimeSeconds();
         note.IsLong = fullContent.IsLong();
+        note.Tags = string.Join(' ', fullContent.GetTags());
 
         if (note.IsLong)
         {
-            note.Content = fullContent.GetShort();
-            await noteRepository.UpdateAsync(note);
             var longNote = new LongNote
             {
                 Id = id,
                 Content = fullContent
             };
-            if (await longNoteRepository.GetFirstOrDefaultAsync(x => x.Id == id) is null)
-            {
-                return await longNoteRepository.InsertAsync(longNote);
-            }
-            return await longNoteRepository.UpdateAsync(longNote);
+            await longNoteRepository.UpsertAsync(longNote, n => n.Id == id);
         }
-
-        note.Content = fullContent;
+        note.Content = fullContent.GetShort();
         return await noteRepository.UpdateAsync(note);
     }
 
-    private async Task _UpdateNoteTags(string[] oldTags, long noteId, string fullContent)
+    private async Task _UpdateNoteTags(Note note, string fullContent)
     {
+        var oldTags = note.Tags?.Split(" ")?.ToList() ?? [];
         var tags = fullContent.GetTags();
         if (oldTags.Any())
         {
-            var toDelete = oldTags.Except(tags).ToArray();
-            if (toDelete.Any()) await noteTagService.Delete(noteId, toDelete);
+            var toDelete = oldTags.Except(tags).ToList();
+            if (toDelete.Any()) await noteTagService.Delete(note.Id, toDelete);
         }
 
         if (tags.Any())
         {
-            await noteTagService.Upsert(noteId, tags);
+            await noteTagService.Upsert(note.Id, tags);
         }
     }
 

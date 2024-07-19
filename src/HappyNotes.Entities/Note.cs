@@ -14,7 +14,7 @@ public class Note: EntityBase
     public bool IsLong { get; set; }
     public bool IsMarkdown { get; set; }
     public bool IsPrivate { get; set; }
+    public string Tags { get; set; }
 
     [SugarColumn(IsIgnore = true)] public User User { get; set; } = default!;
-    [SugarColumn(IsIgnore = true)] public string[] Tags => Content.GetTags();
 }

@@ -8,7 +8,7 @@ public class NoteTagService(
     IRepositoryBase<NoteTag> noteTagRepository
 ) : INoteTagService
 {
-    public async Task Upsert(long noteId, string[] tags)
+    public async Task Upsert(long noteId, List<string> tags)
     {
         foreach (var tag in tags)
         {
@@ -23,7 +23,7 @@ public class NoteTagService(
         }
     }
 
-    public async Task Delete(long noteId, string[] tags)
+    public async Task Delete(long noteId, List<string> tags)
     {
         foreach (var tag in tags)
         {
