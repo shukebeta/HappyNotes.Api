@@ -29,7 +29,7 @@ public class NoteService(
             throw new ArgumentException("Nothing was submitted");
         }
 
-        Note note = new Note
+        var note = new Note
         {
             UserId = currentUser.Id,
             IsPrivate = request.IsPrivate,
@@ -37,37 +37,33 @@ public class NoteService(
             CreateAt = DateTime.UtcNow.ToUnixTimeSeconds(),
             IsLong = fullContent.IsLong(),
             Tags = string.Join(' ', fullContent.GetTags()),
+            Content = fullContent.IsLong() ? fullContent.GetShort() : fullContent
         };
+
+        await noteRepository.InsertAsync(note);
 
         if (note.IsLong)
         {
-            note.Content = fullContent.GetShort();
-            await noteRepository.InsertAsync(note);
             await longNoteRepository.InsertAsync(new LongNote
             {
                 Id = note.Id,
                 Content = fullContent
             });
-            return note.Id;
         }
 
-        note.Content = fullContent;
-        await noteRepository.InsertAsync(note);
         try
         {
-            var tags = fullContent.GetTags();
-            if (tags.Any())
-            {
-                await noteTagService.Upsert(note.Id, tags);
-            }
+            await _UpdateNoteTags(note, fullContent);
         }
         catch (Exception e)
         {
             logger.LogError(e.ToString());
             // ate the exception to avoid interrupting the main process
         }
+
         return note.Id;
     }
+
 
     public async Task<bool> Update(long id, PostNoteRequest request)
     {
@@ -107,7 +103,7 @@ public class NoteService(
 
     private async Task _UpdateNoteTags(Note note, string fullContent)
     {
-        var oldTags = note.Tags?.Split(" ")?.ToList() ?? [];
+        var oldTags = (string.IsNullOrWhiteSpace(note.Tags)) ? [] : note.Tags.Split(" ").ToList();
         var tags = fullContent.GetTags();
         if (oldTags.Any())
         {
