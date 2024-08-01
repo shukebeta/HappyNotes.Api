@@ -1,7 +1,0 @@
-#!/bin/bash
-set -x
-savepath=/tmp
-curl -o ${savepath}/Province.sql https://raw.githubusercontent.com/uiwjs/province-city-china/master/dist/data.sql
-mysql YangtaoStandard < ${savepath}/Province.sql;
-rm ${savepath}/Province.sql
-mysql YangtaoStandard < ./adjustProvinceData.sql
