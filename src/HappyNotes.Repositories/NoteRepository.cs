@@ -38,24 +38,24 @@ public class NoteRepository(ISqlSugarClient db) : RepositoryBase<Note>(db), INot
         return await _GetPageDataByTagAsync(pageSize, pageNumber,
             (n,u,t) =>
                 t.Tag.Equals(tag.ToLower()) &&
-                n.DeleteAt == null && n.UserId == userId &&
+                n.DeletedAt == null && n.UserId == userId &&
                 (includePrivate || n.IsPrivate == false),
-            n => n.CreateAt, isAsc);
+            n => n.CreatedAt, isAsc);
     }
 
     public async Task<PageData<Note>> GetUserNotes(long userId, int pageSize, int pageNumber,
         bool includePrivate = true, bool isAsc = false)
     {
         return await _GetPageDataAsync(pageSize, pageNumber,
-            n => n.DeleteAt == null && n.UserId == userId && (includePrivate || n.IsPrivate == false),
-            n => n.CreateAt, isAsc);
+            n => n.DeletedAt == null && n.UserId == userId && (includePrivate || n.IsPrivate == false),
+            n => n.CreatedAt, isAsc);
     }
 
     public async Task<PageData<Note>> GetPublicNotes(int pageSize, int pageNumber, bool isAsc = false)
     {
         return await _GetPageDataAsync(pageSize, pageNumber,
-            n => n.DeleteAt == null && n.IsPrivate == false,
-            n => n.CreateAt, isAsc);
+            n => n.DeletedAt == null && n.IsPrivate == false,
+            n => n.CreatedAt, isAsc);
     }
 
     public async Task<PageData<Note>> GetPublicTagNotes(string tag, int pageSize, int pageNumber, bool isAsc = false)
@@ -63,9 +63,9 @@ public class NoteRepository(ISqlSugarClient db) : RepositoryBase<Note>(db), INot
         return await _GetPageDataByTagAsync(pageSize, pageNumber,
             (n,u,t) =>
                 t.Tag.Equals(tag.ToLower()) &&
-                n.DeleteAt == null &&
+                n.DeletedAt == null &&
                 n.IsPrivate == false,
-            n => n.CreateAt, isAsc);
+            n => n.CreatedAt, isAsc);
     }
 
     private async Task<PageData<Note>> _GetPageDataAsync(int pageSize = 20, int pageNumber = 1,

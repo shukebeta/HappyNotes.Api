@@ -10,7 +10,7 @@ public class UserSettings
     public long UserId { get; set; }
     public string SettingName { get; set; }
     public string SettingValue { get; set; }
-    public long CreateAt { get; set; }
-    public long DeleteAt { get; set; }
-    public long UpdateAt { get; set; }
+    public long CreatedAt { get; set; }
+    public long DeletedAt { get; set; }
+    public long UpdatedAt { get; set; }
 }

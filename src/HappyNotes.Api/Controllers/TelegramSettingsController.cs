@@ -25,7 +25,7 @@ public class TelegramSettingsController(
     public async Task<ApiResult<List<TelegramSettingsDto>>> GetAll()
     {
         var userId = currentUser.Id;
-        var settings = await telegramSyncSettingsRepository.GetListAsync(s => s.UserId.Equals(userId), o => o.CreateAt);
+        var settings = await telegramSyncSettingsRepository.GetListAsync(s => s.UserId.Equals(userId), o => o.CreatedAt);
         return new SuccessfulResult<List<TelegramSettingsDto>>(mapper.Map<List<TelegramSettingsDto>>(settings));
     }
 
@@ -54,7 +54,7 @@ public class TelegramSettingsController(
                 TextEncryptionHelper.Encrypt(settingsDto.EncryptedToken, _jwtConfig.SymmetricSecurityKey),
             TokenRemark = settingsDto.TokenRemark,
             ChannelId = settingsDto.ChannelId,
-            CreateAt = now,
+            CreatedAt = now,
         };
         var result = await telegramSyncSettingsRepository.InsertAsync(settings);
         return result ? new SuccessfulResult<bool>(true) : new FailedResult<bool>(false, "0 rows inserted");

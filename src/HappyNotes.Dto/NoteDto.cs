@@ -10,8 +10,8 @@ public class NoteDto
     public bool IsLong { get; set; }
     public bool IsMarkdown { get; set; }
     public bool IsPrivate { get; set; }
-    public int CreateAt { get; set; }
-    public int UpdateAt { get; set; }
+    public int CreatedAt { get; set; }
+    public int UpdatedAt { get; set; }
 
     public UserDto User { get; set; } = new();
 }

@@ -18,7 +18,7 @@ public class NoteTagService(
                 {
                     NoteId = noteId,
                     Tag = tag.ToLower(),
-                    CreateAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                    CreatedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                 });
         }
     }

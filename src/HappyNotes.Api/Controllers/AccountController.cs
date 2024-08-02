@@ -80,7 +80,7 @@ namespace HappyNotes.Api.Controllers
                 Gravatar = gravatar,
                 Salt = salt,
                 Password = password,
-                CreateAt = DateTime.Now.ToUnixTimeSeconds(),
+                CreatedAt = DateTime.Now.ToUnixTimeSeconds(),
             };
 
             var id = await userRepository.InsertReturnIdentityAsync(newUser);
@@ -113,7 +113,7 @@ namespace HappyNotes.Api.Controllers
                 throw new Exception("Unexpected error, user not found.");
             }
 
-            if (user.DeleteAt != null)
+            if (user.DeletedAt != null)
             {
                 throw new Exception("Sorry, your account has been deleted");
             }

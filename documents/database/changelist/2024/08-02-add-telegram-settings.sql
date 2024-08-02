@@ -16,3 +16,18 @@ CREATE TABLE IF NOT EXISTS `HappyNotes`.`TelegramSettings`
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_0900_ai_ci;
+
+DROP TABLE IF EXISTS HappyNotes.DeletedNote;
+
+ALTER TABLE `HappyNotes`.`Note` CHANGE `CreateAt` `CreatedAt` BIGINT NOT NULL DEFAULT '0' COMMENT 'A unix timestamp';
+ALTER TABLE `HappyNotes`.`NoteTag` CHANGE `CreateAt` `CreatedAt` BIGINT NOT NULL DEFAULT '0' COMMENT 'A unix timestamp';
+ALTER TABLE `HappyNotes`.`User` CHANGE `CreateAt` `CreatedAt` BIGINT NOT NULL DEFAULT '0' COMMENT 'A unix timestamp';
+ALTER TABLE `HappyNotes`.`UserSettings` CHANGE `CreateAt` `CreatedAt` BIGINT NOT NULL DEFAULT '0' COMMENT 'A unix timestamp';
+
+ALTER TABLE `HappyNotes`.`Note` CHANGE `DeleteAt` `DeletedAt` BIGINT NULL COMMENT 'A unix timestamp';
+ALTER TABLE `HappyNotes`.`User` CHANGE `DeleteAt` `DeletedAt` BIGINT NULL COMMENT 'A unix timestamp';
+ALTER TABLE `HappyNotes`.`UserSettings` CHANGE `DeleteAt` `DeletedAt` BIGINT NULL COMMENT 'A unix timestamp';
+
+ALTER TABLE `HappyNotes`.`Note` CHANGE `UpdateAt` `UpdatedAt` BIGINT NULL COMMENT 'A unix timestamp';
+ALTER TABLE `HappyNotes`.`User` CHANGE `UpdateAt` `UpdatedAt` BIGINT NULL COMMENT 'A unix timestamp';
+ALTER TABLE `HappyNotes`.`UserSettings` CHANGE `UpdateAt` `UpdatedAt` BIGINT NULL COMMENT 'A unix timestamp';

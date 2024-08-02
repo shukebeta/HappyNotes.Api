@@ -83,7 +83,7 @@ public class SettingsController(
             it => new UserSettings()
             {
                 SettingValue = settingValue,
-                UpdateAt = timestamp,
+                UpdatedAt = timestamp,
             },
             w => w.UserId == userId && w.SettingName == settingName);
         return result > 0;
@@ -96,7 +96,7 @@ public class SettingsController(
             UserId = userId,
             SettingName = settingName,
             SettingValue = settingValue,
-            CreateAt = timestamp,
+            CreatedAt = timestamp,
         };
         return await userSettingsRepository.InsertAsync(settings);
     }

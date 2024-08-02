@@ -10,7 +10,7 @@
  IsLong        | tinyint       | NO   | 0       |
  IsPrivate     | tinyint       | NO   | 1       |
  IsMarkdown    | tinyint       | NO   | 0       | indicate content field is in markdown format or not
- CreateAt      | bigint        | NO   |         |
+ CreatedAt     | bigint        | NO   | 0       | A unix timestamp
  UpdateAt      | bigint        | YES  |         |
  DeleteAt      | bigint        | YES  |         |
 
@@ -20,7 +20,7 @@
 ---------------------|---------------|--------------|------------|------------|---------
  PRIMARY             | Id            |            1 |          0 | BTREE      | YES
  idx_FavoriteCount   | FavoriteCount |            1 |          1 | BTREE      | YES
- idx_CreateAt        | CreateAt      |            1 |          1 | BTREE      | YES
+ idx_CreateAt        | CreatedAt     |            1 |          1 | BTREE      | YES
  idx_DeleteAt        | DeleteAt      |            1 |          1 | BTREE      | YES
  idx_UserId_DeleteAt | UserId        |            1 |          1 | BTREE      | YES
  idx_UserId_DeleteAt | DeleteAt      |            2 |          1 | BTREE      | YES

@@ -1,14 +1,14 @@
 # Database: HappyNotes Table: UserSettings
 
  Field        | Type          | Null | Default | Comment
---------------|---------------|------|---------|---------
+--------------|---------------|------|---------|------------------
  Id           | bigint        | NO   |         |
  UserId       | bigint        | YES  |         |
  SettingName  | varchar(255)  | YES  |         |
  SettingValue | varchar(4096) | YES  |         |
- CreateAt     | bigint        | NO   |         |
- UpdateAt     | bigint        | YES  |         |
- DeleteAt     | bigint        | YES  |         |
+ CreatedAt    | bigint        | NO   | 0       | A unix timestamp
+ UpdatedAt    | bigint        | NO   | 0       | A unix timestamp
+ DeletedAt    | bigint        | NO   | 0       | A unix timestamp
 
 ## Indexes: 
 

@@ -1,7 +1,7 @@
 # Database: HappyNotes Table: User
 
  Field         | Type         | Null | Default | Comment
----------------|--------------|------|---------|---------
+---------------|--------------|------|---------|------------------
  Id            | bigint       | NO   |         |
  Username      | varchar(20)  | NO   |         |
  Email         | varchar(128) | NO   |         |
@@ -9,7 +9,7 @@
  Gravatar      | varchar(512) | YES  |         |
  Password      | varchar(64)  | NO   |         |
  Salt          | varchar(64)  | NO   |         |
- CreateAt      | bigint       | NO   |         |
+ CreatedAt     | bigint       | NO   | 0       | A unix timestamp
  UpdateAt      | bigint       | YES  |         |
  DeleteAt      | bigint       | YES  |         |
 

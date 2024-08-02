@@ -34,7 +34,7 @@ public class NoteService(
             UserId = currentUser.Id,
             IsPrivate = request.IsPrivate,
             IsMarkdown = request.IsMarkdown,
-            CreateAt = DateTime.UtcNow.ToUnixTimeSeconds(),
+            CreatedAt = DateTime.UtcNow.ToUnixTimeSeconds(),
             IsLong = fullContent.IsLong(),
             Tags = string.Join(' ', fullContent.GetTags()),
             Content = fullContent.IsLong() ? fullContent.GetShort() : fullContent
@@ -84,7 +84,7 @@ public class NoteService(
 
         note.IsPrivate = request.IsPrivate;
         note.IsMarkdown = request.IsMarkdown;
-        note.UpdateAt = DateTime.UtcNow.ToUnixTimeSeconds();
+        note.UpdatedAt = DateTime.UtcNow.ToUnixTimeSeconds();
         note.IsLong = fullContent.IsLong();
         note.Tags = string.Join(' ', fullContent.GetTags());
 
@@ -161,11 +161,11 @@ public class NoteService(
         var earliest = await noteRepository.GetFirstOrDefaultAsync(w => w.UserId.Equals(currentUser.Id));
         if (earliest == null) return [];
         var notes = new List<Note>();
-        var periodList = _GetTimestamps(earliest.CreateAt, localTimezone);
+        var periodList = _GetTimestamps(earliest.CreatedAt, localTimezone);
         foreach (var start in periodList)
         {
             var note = await noteRepository.GetFirstOrDefaultAsync(w =>
-                w.UserId.Equals(currentUser.Id) && w.CreateAt >= start && w.CreateAt < start + 86400 && w.DeleteAt == null);
+                w.UserId.Equals(currentUser.Id) && w.CreatedAt >= start && w.CreatedAt < start + 86400 && w.DeletedAt == null);
             if (note != null)
             {
                 notes.Add(note);
@@ -183,8 +183,8 @@ public class NoteService(
         var dayStartTimestamp = DateTimeOffset.ParseExact(yyyyMMdd, "yyyyMMdd", CultureInfo.InvariantCulture)
             .GetDayStartTimestamp(timeZone);
         var notes = await noteRepository.GetListAsync(w =>
-            w.UserId.Equals(currentUser.Id) && w.CreateAt >= dayStartTimestamp &&
-            w.CreateAt < dayStartTimestamp + 86400 && w.DeleteAt == null);
+            w.UserId.Equals(currentUser.Id) && w.CreatedAt >= dayStartTimestamp &&
+            w.CreatedAt < dayStartTimestamp + 86400 && w.DeletedAt == null);
         return (notes);
     }
 
@@ -284,12 +284,12 @@ public class NoteService(
         }
 
         // already deleted before
-        if (note.DeleteAt is not null)
+        if (note.DeletedAt is not null)
         {
             return true;
         }
 
-        note.DeleteAt = DateTime.UtcNow.ToUnixTimeSeconds();
+        note.DeletedAt = DateTime.UtcNow.ToUnixTimeSeconds();
         return await noteRepository.UpdateAsync(note);
     }
 
@@ -301,7 +301,7 @@ public class NoteService(
             throw ExceptionHelper.New(id, EventId._00100_NoteNotFound, id);
         }
 
-        if (note.DeleteAt is null)
+        if (note.DeletedAt is null)
         {
             throw ExceptionHelper.New(id, EventId._00103_NoteIsNotDeleted, id);
         }
@@ -311,7 +311,7 @@ public class NoteService(
             throw ExceptionHelper.New(id, EventId._00102_NoteIsNotYours, id);
         }
 
-        note.DeleteAt = null;
+        note.DeletedAt = null;
         return await noteRepository.UpdateAsync(note);
     }
 }

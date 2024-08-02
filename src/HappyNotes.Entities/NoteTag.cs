@@ -8,5 +8,5 @@ public class NoteTag
     public long Id { get; set; }
     public long NoteId { get; set; }
     public string Tag { get; set; }
-    public long CreateAt { get; set; }
+    public long CreatedAt { get; set; }
 }

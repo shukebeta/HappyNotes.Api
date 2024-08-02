@@ -24,28 +24,6 @@ CREATE DATABASE /*!32312 IF NOT EXISTS*/ `HappyNotes` /*!40100 DEFAULT CHARACTER
 USE `HappyNotes`;
 
 --
--- Table structure for table `DeletedNote`
---
-
-DROP TABLE IF EXISTS `DeletedNote`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `DeletedNote` (
-  `Id` bigint NOT NULL,
-  `UserId` bigint NOT NULL DEFAULT '0',
-  `Content` varchar(1024) NOT NULL,
-  `FavoriteCount` int NOT NULL DEFAULT '0',
-  `IsLong` tinyint NOT NULL DEFAULT '0',
-  `IsPrivate` tinyint NOT NULL DEFAULT '1',
-  `Status` tinyint NOT NULL DEFAULT '1',
-  `CreateAt` bigint NOT NULL,
-  `UpdateAt` bigint DEFAULT NULL,
-  `DeleteAt` bigint DEFAULT NULL,
-  PRIMARY KEY (`Id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
 -- Table structure for table `Files`
 --
 
@@ -96,12 +74,12 @@ CREATE TABLE `Note` (
   `IsLong` tinyint NOT NULL DEFAULT '0',
   `IsPrivate` tinyint NOT NULL DEFAULT '1',
   `IsMarkdown` tinyint NOT NULL DEFAULT '0' COMMENT 'indicate content field is in markdown format or not',
-  `CreateAt` bigint NOT NULL,
+  `CreatedAt` bigint NOT NULL DEFAULT '0' COMMENT 'A unix timestamp',
   `UpdateAt` bigint DEFAULT NULL,
   `DeleteAt` bigint DEFAULT NULL,
   PRIMARY KEY (`Id`),
   KEY `idx_FavoriteCount` (`FavoriteCount`),
-  KEY `idx_CreateAt` (`CreateAt`),
+  KEY `idx_CreateAt` (`CreatedAt`),
   KEY `idx_DeleteAt` (`DeleteAt`),
   KEY `idx_UserId_DeleteAt` (`UserId`,`DeleteAt`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -118,7 +96,7 @@ CREATE TABLE `NoteTag` (
   `Id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `NoteId` bigint unsigned NOT NULL,
   `Tag` varchar(32) NOT NULL COMMENT 'Note tag, put #tag1 tag2 tag3 in note content',
-  `CreateAt` bigint NOT NULL,
+  `CreatedAt` bigint NOT NULL DEFAULT '0' COMMENT 'A unix timestamp',
   PRIMARY KEY (`Id`),
   UNIQUE KEY `NoteId` (`NoteId`,`Tag`),
   KEY `idx_TagName` (`Tag`)
@@ -140,6 +118,30 @@ CREATE TABLE `SequelizeMeta` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `TelegramSettings`
+--
+
+DROP TABLE IF EXISTS `TelegramSettings`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `TelegramSettings` (
+  `Id` int NOT NULL AUTO_INCREMENT,
+  `UserId` bigint NOT NULL,
+  `SyncType` tinyint NOT NULL,
+  `SyncValue` varchar(32) NOT NULL DEFAULT '',
+  `EncryptedToken` varchar(128) NOT NULL DEFAULT '' COMMENT 'Telegram channel ID for syncing',
+  `ChannelId` varchar(64) NOT NULL DEFAULT '' COMMENT 'Telegram channel ID for syncing',
+  `TokenRemark` varchar(64) DEFAULT NULL,
+  `Status` tinyint NOT NULL DEFAULT '1' COMMENT 'See TelegramSettingsStatus enum for details',
+  `StatusText` varchar(1024) DEFAULT NULL,
+  `CreatedAt` bigint NOT NULL DEFAULT '0' COMMENT 'A unix timestamp',
+  PRIMARY KEY (`Id`),
+  UNIQUE KEY `UserId` (`UserId`,`SyncType`,`SyncValue`),
+  KEY `SyncType` (`SyncType`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `User`
 --
 
@@ -154,7 +156,7 @@ CREATE TABLE `User` (
   `Gravatar` varchar(512) DEFAULT NULL,
   `Password` varchar(64) NOT NULL,
   `Salt` varchar(64) NOT NULL DEFAULT '',
-  `CreateAt` bigint NOT NULL,
+  `CreatedAt` bigint NOT NULL DEFAULT '0' COMMENT 'A unix timestamp',
   `UpdateAt` bigint DEFAULT NULL,
   `DeleteAt` bigint DEFAULT NULL,
   PRIMARY KEY (`Id`),
@@ -175,9 +177,9 @@ CREATE TABLE `UserSettings` (
   `UserId` bigint DEFAULT NULL,
   `SettingName` varchar(255) DEFAULT NULL,
   `SettingValue` varchar(4096) DEFAULT NULL,
-  `CreateAt` bigint NOT NULL,
-  `UpdateAt` bigint DEFAULT NULL,
-  `DeleteAt` bigint DEFAULT NULL,
+  `CreatedAt` bigint NOT NULL DEFAULT '0' COMMENT 'A unix timestamp',
+  `UpdatedAt` bigint NOT NULL DEFAULT '0' COMMENT 'A unix timestamp',
+  `DeletedAt` bigint NOT NULL DEFAULT '0' COMMENT 'A unix timestamp',
   PRIMARY KEY (`Id`),
   UNIQUE KEY `SettingName` (`UserId`,`SettingName`),
   KEY `UserId` (`UserId`)

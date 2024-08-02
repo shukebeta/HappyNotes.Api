@@ -29,6 +29,6 @@ cat $modelTmplFile \
 echo 'namespace HappyNotes.Entities;' > "$modelFile"
 mysql < /tmp/tmpModel.sql | sed '1d' >> "$modelFile"
 
-cat "$modelFile" | sed '/CreateTime\|CreateBy\|ModifyAt\|ModifyBy\|UpdateBy\|UpdateAt\|DeleteAt/d' \
+cat "$modelFile" | sed '/CreateTime\|CreateBy\|ModifyAt\|ModifyBy\|UpdateBy\|UpdatedAt\|DeletedAt/d' \
     | sed "s/class ${ModelName}/class ${ModelName}Dto/g" \
     | sed 's/\.Entities/\.Dto/g' > "$dtoModelFile"
