@@ -10,5 +10,7 @@ public class TelegramSettings
     public string EncryptedToken { get; set; } = string.Empty;
     public string TokenRemark { get; set; } = string.Empty;
     public string ChannelId { get; set; } = string.Empty;
+    public TelegramSettingStatus Status { get; set; }
+    public string StatusText { get; set; } = string.Empty;
     public long CreateAt { get; set; }
 }
