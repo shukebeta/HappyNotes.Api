@@ -60,6 +60,7 @@ public class NoteService(
             logger.LogError(e.ToString());
             // ate the exception to avoid interrupting the main process
         }
+        //todo: sync to telegram
 
         return note.Id;
     }
