@@ -39,7 +39,7 @@ public class TelegramSettingsController(
         if (existingSetting != null)
         {
             throw new Exception(
-                $"SyncType: {settingsDto.SyncType} has already been set to channel: {existingSetting.TelegramChannelId}");
+                $"SyncType: {settingsDto.SyncType} has already been set to channel: {existingSetting.ChannelId}");
         }
 
         // todo: more verification before inserting the settings
@@ -50,10 +50,10 @@ public class TelegramSettingsController(
             SyncType = settingsDto.SyncType,
             SyncValue = settingsDto.SyncValue,
             // one key is being used for two purposes, I know it is not good, but it is convenient.
-            EncryptedTelegramToken =
-                TextEncryptionHelper.Encrypt(settingsDto.EncryptedTelegramToken, _jwtConfig.SymmetricSecurityKey),
+            EncryptedToken =
+                TextEncryptionHelper.Encrypt(settingsDto.EncryptedToken, _jwtConfig.SymmetricSecurityKey),
             TokenRemark = settingsDto.TokenRemark,
-            TelegramChannelId = settingsDto.TelegramChannelId,
+            ChannelId = settingsDto.ChannelId,
             CreateAt = now,
         };
         var result = await telegramSyncSettingsRepository.InsertAsync(settings);
