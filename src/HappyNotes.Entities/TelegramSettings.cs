@@ -1,4 +1,5 @@
 using HappyNotes.Common;
+using HappyNotes.Common.Enums;
 
 namespace HappyNotes.Entities;
 

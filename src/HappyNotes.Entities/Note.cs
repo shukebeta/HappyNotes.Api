@@ -17,4 +17,5 @@ public class Note: EntityBase
     public string Tags { get; set; }
 
     [SugarColumn(IsIgnore = true)] public User User { get; set; } = default!;
+    [SugarColumn(IsIgnore = true)] public List<string> TagList { get; set; }
 }

@@ -1,4 +1,4 @@
-namespace HappyNotes.Common;
+namespace HappyNotes.Common.Enums;
 
 public enum TelegramSettingStatus
 {

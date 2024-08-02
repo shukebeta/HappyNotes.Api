@@ -1,4 +1,4 @@
-namespace HappyNotes.Common;
+namespace HappyNotes.Common.Enums;
 
 /// <summary>
 /// Defines the types of note synchronization for Telegram.

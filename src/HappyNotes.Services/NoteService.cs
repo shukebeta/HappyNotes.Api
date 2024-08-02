@@ -1,15 +1,18 @@
 using System.Globalization;
 using Api.Framework;
 using Api.Framework.Extensions;
+using Api.Framework.Helper;
 using Api.Framework.Models;
 using HappyNotes.Common;
+using HappyNotes.Common.Enums;
 using HappyNotes.Entities;
 using HappyNotes.Extensions;
 using HappyNotes.Models;
 using HappyNotes.Repositories.interfaces;
 using HappyNotes.Services.interfaces;
 using Microsoft.Extensions.Logging;
-using EventId = HappyNotes.Common.EventId;
+using Microsoft.Extensions.Options;
+using EventId = HappyNotes.Common.Enums.EventId;
 
 namespace HappyNotes.Services;
 
@@ -18,9 +21,14 @@ public class NoteService(
     INoteRepository noteRepository,
     INoteTagService noteTagService,
     IRepositoryBase<LongNote> longNoteRepository,
+    IRepositoryBase<TelegramSettings> telegramSettingsRepository,
+    ITelegramService telegramService,
+    IOptions<JwtConfig> jwtConfig,
     CurrentUser currentUser
 ) : INoteService
 {
+    private readonly JwtConfig _jwtConfig = jwtConfig.Value;
+
     public async Task<long> Post(PostNoteRequest request)
     {
         var fullContent = request.Content?.Trim() ?? string.Empty;
@@ -29,6 +37,7 @@ public class NoteService(
             throw new ArgumentException("Nothing was submitted");
         }
 
+        var tagList = fullContent.GetTags();
         var note = new Note
         {
             UserId = currentUser.Id,
@@ -36,7 +45,8 @@ public class NoteService(
             IsMarkdown = request.IsMarkdown,
             CreatedAt = DateTime.UtcNow.ToUnixTimeSeconds(),
             IsLong = fullContent.IsLong(),
-            Tags = string.Join(' ', fullContent.GetTags()),
+            Tags = string.Join(' ', tagList),
+            TagList = tagList,
             Content = fullContent.IsLong() ? fullContent.GetShort() : fullContent
         };
 
@@ -60,11 +70,90 @@ public class NoteService(
             logger.LogError(e.ToString());
             // ate the exception to avoid interrupting the main process
         }
-        //todo: sync to telegram
+
+        // Sync to Telegram asynchronously
+        Task.Run(async () =>
+        {
+            try
+            {
+                await _SyncNoteToTelegram(note, fullContent);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex.ToString());
+            }
+        });
 
         return note.Id;
     }
 
+    private async Task _SyncNoteToTelegram(Note note, string fullContent)
+    {
+        var telegramSettings = await telegramSettingsRepository.GetListAsync(x => x.UserId == note.UserId);
+        if (!telegramSettings.Any()) return;
+        var validSettings = telegramSettings.Where(s => s.Status == TelegramSettingStatus.Ok).ToArray();
+        if (!validSettings.Any()) return;
+        var syncChannelList = _GetSyncChannelList(note, validSettings);
+        if (!syncChannelList.Any()) return;
+        var token = TextEncryptionHelper.Decrypt(validSettings.First().EncryptedToken, _jwtConfig.SymmetricSecurityKey);
+        foreach (var channelId in syncChannelList)
+        {
+            await _SyncNote(note, fullContent, token, channelId);
+        }
+    }
+
+    private async Task _SyncNote(Note note, string fullContent, string token, string channelId)
+    {
+        var message = fullContent; // Or format the message as needed
+
+        // You can use different logic here based on the note's properties
+        if (note.IsLong)
+        {
+            await telegramService.SendLongMessageAsFileAsync(token, channelId, fullContent,
+                note.IsMarkdown ? ".md" : ".txt");
+        }
+        else
+        {
+            await telegramService.SendMessageAsync(token, channelId, message, note.IsMarkdown);
+        }
+    }
+
+    private IList<string> _GetSyncChannelList(Note note, IList<TelegramSettings> settings)
+    {
+        var targetChannelList = new List<string>();
+        foreach (var setting in settings)
+        {
+            switch (setting.SyncType)
+            {
+                case TelegramSyncType.All:
+                    targetChannelList.Add(setting.ChannelId);
+                    break;
+                case TelegramSyncType.Private:
+                    if (note.IsPrivate)
+                    {
+                        targetChannelList.Add(setting.ChannelId);
+                    }
+
+                    break;
+                case TelegramSyncType.Public:
+                    if (!note.IsPrivate)
+                    {
+                        targetChannelList.Add(setting.ChannelId);
+                    }
+
+                    break;
+                case TelegramSyncType.Tag:
+                    if (note.TagList.Contains(setting.SyncValue))
+                    {
+                        targetChannelList.Add(setting.ChannelId);
+                    }
+
+                    break;
+            }
+        }
+
+        return targetChannelList;
+    }
 
     public async Task<bool> Update(long id, PostNoteRequest request)
     {
@@ -98,6 +187,7 @@ public class NoteService(
             };
             await longNoteRepository.UpsertAsync(longNote, n => n.Id == id);
         }
+
         note.Content = fullContent.GetShort();
         return await noteRepository.UpdateAsync(note);
     }
@@ -118,7 +208,8 @@ public class NoteService(
         }
     }
 
-    public async Task<PageData<Note>> GetUserNotes(long userId, int pageSize, int pageNumber, bool includePrivate=false)
+    public async Task<PageData<Note>> GetUserNotes(long userId, int pageSize, int pageNumber,
+        bool includePrivate = false)
     {
         return await noteRepository.GetUserNotes(userId, pageSize, pageNumber, includePrivate);
     }
@@ -140,7 +231,8 @@ public class NoteService(
         return notes;
     }
 
-    public async Task<PageData<Note>> GetUserTagNotes(long userId, int pageSize, int pageNumber, string tag, bool includePrivate=false)
+    public async Task<PageData<Note>> GetUserTagNotes(long userId, int pageSize, int pageNumber, string tag,
+        bool includePrivate = false)
     {
         return await noteRepository.GetUserTagNotes(userId, tag, pageSize, pageNumber, includePrivate);
     }
@@ -166,7 +258,8 @@ public class NoteService(
         foreach (var start in periodList)
         {
             var note = await noteRepository.GetFirstOrDefaultAsync(w =>
-                w.UserId.Equals(currentUser.Id) && w.CreatedAt >= start && w.CreatedAt < start + 86400 && w.DeletedAt == null);
+                w.UserId.Equals(currentUser.Id) && w.CreatedAt >= start && w.CreatedAt < start + 86400 &&
+                w.DeletedAt == null);
             if (note != null)
             {
                 notes.Add(note);

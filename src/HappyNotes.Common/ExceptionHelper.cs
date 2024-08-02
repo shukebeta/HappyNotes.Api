@@ -1,6 +1,7 @@
 using Api.Framework.Exceptions;
 using Api.Framework.Helper;
 using HappyNotes.Common;
+using HappyNotes.Common.Enums;
 
 namespace HappyNotes.Extensions;
 
