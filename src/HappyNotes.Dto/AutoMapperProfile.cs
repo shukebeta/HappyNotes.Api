@@ -4,13 +4,14 @@ using HappyNotes.Entities;
 
 namespace HappyNotes.Dto;
 
-public class MapperProfile: Profile
+public class AutoMapperProfile: Profile
 {
-    public MapperProfile()
+    public AutoMapperProfile()
     {
         CreateMap(typeof(PageData<>), typeof(PageData<>));
         CreateMap<User, UserDto>();
         CreateMap<UserSettings, UserSettingsDto>();
         CreateMap<Note, NoteDto>();
+        CreateMap<TelegramSettings, TelegramSettingsDto>();
     }
 }

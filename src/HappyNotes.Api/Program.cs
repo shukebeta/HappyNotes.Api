@@ -37,7 +37,7 @@ builder.Services.AddControllers().AddJsonOptions(options =>
     options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
     // Optionally configure other serialization options here
 });
-builder.Services.AddAutoMapper(typeof(MapperProfile));
+builder.Services.AddAutoMapper(typeof(AutoMapperProfile));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(SetupSwaggerGen());
 builder.Services.AddSingleton(typeof(IRepositoryBase<>), typeof(RepositoryBase<>));
