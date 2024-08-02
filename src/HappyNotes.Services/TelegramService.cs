@@ -1,35 +1,70 @@
+using HappyNotes.Common;
 using HappyNotes.Services.interfaces;
 using Telegram.Bot;
+using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.InputFiles;
+using File = System.IO.File;
+
 namespace HappyNotes.Services;
 
 public class TelegramService : ITelegramService
 {
-    public async Task SendMessageAsync(string botToken, string channelId, string message)
+    public async Task SendMessageAsync(string botToken, string channelId, string message, bool isMarkdown)
     {
         var botClient = new TelegramBotClient(botToken);
         await botClient.SendTextMessageAsync(
-            chatId: channelId,
-            text: message
+            chatId: _GetChatId(channelId),
+            text: message,
+            isMarkdown ? ParseMode.Markdown : null
         );
     }
 
-    public async Task SendFileAsync(string botToken, string channelId, string filePath, string caption = null)
+    private async Task _SendFileAsync(string botToken, string channelId, string filePath, string caption = null)
     {
         var botClient = new TelegramBotClient(botToken);
         await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         var inputOnlineFile = new InputOnlineFile(fileStream, Path.GetFileName(filePath));
-
+        var isMarkdown = filePath.EndsWith(".md");
         await botClient.SendDocumentAsync(
-            chatId: channelId,
+            chatId: _GetChatId(channelId),
             document: inputOnlineFile,
-            caption: caption
+            caption: caption.GetShort(Constants.TelegramCaptionLength - 3) + "...",
+            parseMode: isMarkdown ? ParseMode.Markdown : null
         );
     }
 
-    public async Task SendLongMessageAsFileAsync(string botToken, string channelId, string message, string tempFilePath = "note.txt")
+    private ChatId _GetChatId(string chatId)
     {
-        await File.WriteAllTextAsync(tempFilePath, message);
-        await SendFileAsync(botToken, channelId, tempFilePath, "Here is the long note as a text file.");
+        if (chatId.StartsWith("@"))
+        {
+            return new ChatId(chatId);
+        }
+
+        return long.Parse(chatId);
+    }
+
+    public async Task SendLongMessageAsFileAsync(string botToken, string channelId, string message,
+        string extension = ".txt")
+    {
+        // Create a temporary file in the system's temporary folder
+        string tempFilePath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + extension);
+
+        try
+        {
+            // Write the message to the temporary file
+            await File.WriteAllTextAsync(tempFilePath, message);
+
+            // Send the file via Telegram
+            await _SendFileAsync(botToken, channelId, tempFilePath, message);
+        }
+        finally
+        {
+            // Ensure the temporary file is deleted after use
+            if (File.Exists(tempFilePath))
+            {
+                File.Delete(tempFilePath);
+            }
+        }
     }
 }

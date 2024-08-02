@@ -29,13 +29,14 @@ public static partial class StringExtensions
         return Separator.Match(content).Success || content.Length > Constants.ShortNotesMaxLength;
     }
 
-    public static string GetShort(this string? str)
+    public static string GetShort(this string? str, int maxLength = 0)
     {
         if (str is null) return string.Empty;
         var parts = Separator.Split(str, 2);
 
-        if (parts[0].Length <= Constants.ShortNotesMaxLength) return parts[0];
-        return str!.Substring(0, Constants.ShortNotesMaxLength);
+        maxLength = maxLength <= 0 ? Constants.ShortNotesMaxLength : maxLength;
+        if (parts[0].Length <= maxLength) return parts[0];
+        return str!.Substring(0, maxLength);
     }
 
     public static List<string> GetTags(this string? str, int maxTagLength = 32, int maxTotalLength = 512)
@@ -64,5 +65,10 @@ public static partial class StringExtensions
         }
 
         return [];
+    }
+
+    public static string GetEscapedMarkdown(this string text)
+    {
+        return Regex.Replace(text, @"[_*\[\]()~>#`+\-=|{}.!]", @"\$0", RegexOptions.Singleline, TimeSpan.FromSeconds(10));
     }
 }
