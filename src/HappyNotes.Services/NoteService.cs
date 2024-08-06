@@ -91,7 +91,7 @@ public class NoteService(
     {
         var telegramSettings = await telegramSettingsRepository.GetListAsync(x => x.UserId == note.UserId);
         if (!telegramSettings.Any()) return;
-        var validSettings = telegramSettings.Where(s => s.Status == TelegramSettingStatus.Ok).ToArray();
+        var validSettings = telegramSettings.Where(s => s.Status.Is(TelegramSettingStatus.Normal)).ToArray();
         if (!validSettings.Any()) return;
         var syncChannelList = _GetSyncChannelList(note, validSettings);
         if (!syncChannelList.Any()) return;
