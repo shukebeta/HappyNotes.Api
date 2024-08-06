@@ -8,9 +8,10 @@
  SyncValue      | varchar(32)   | NO   |         |
  EncryptedToken | varchar(128)  | NO   |         | Telegram channel ID for syncing
  ChannelId      | varchar(64)   | NO   |         | Telegram channel ID for syncing
+ ChannelName    | varchar(64)   | NO   |         |
  TokenRemark    | varchar(64)   | YES  |         |
  Status         | tinyint       | NO   | 1       | See TelegramSettingsStatus enum for details
- StatusText     | varchar(1024) | YES  |         |
+ LastError      | varchar(1024) | YES  |         |
  CreatedAt      | bigint        | NO   | 0       | A unix timestamp
 
 ## Indexes: 

@@ -75,13 +75,13 @@ CREATE TABLE `Note` (
   `IsPrivate` tinyint NOT NULL DEFAULT '1',
   `IsMarkdown` tinyint NOT NULL DEFAULT '0' COMMENT 'indicate content field is in markdown format or not',
   `CreatedAt` bigint NOT NULL DEFAULT '0' COMMENT 'A unix timestamp',
-  `UpdateAt` bigint DEFAULT NULL,
-  `DeleteAt` bigint DEFAULT NULL,
+  `UpdatedAt` bigint DEFAULT NULL COMMENT 'A unix timestamp',
+  `DeletedAt` bigint DEFAULT NULL COMMENT 'A unix timestamp',
   PRIMARY KEY (`Id`),
   KEY `idx_FavoriteCount` (`FavoriteCount`),
   KEY `idx_CreateAt` (`CreatedAt`),
-  KEY `idx_DeleteAt` (`DeleteAt`),
-  KEY `idx_UserId_DeleteAt` (`UserId`,`DeleteAt`)
+  KEY `idx_DeleteAt` (`DeletedAt`),
+  KEY `idx_UserId_DeleteAt` (`UserId`,`DeletedAt`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -131,9 +131,10 @@ CREATE TABLE `TelegramSettings` (
   `SyncValue` varchar(32) NOT NULL DEFAULT '',
   `EncryptedToken` varchar(128) NOT NULL DEFAULT '' COMMENT 'Telegram channel ID for syncing',
   `ChannelId` varchar(64) NOT NULL DEFAULT '' COMMENT 'Telegram channel ID for syncing',
+  `ChannelName` varchar(64) NOT NULL DEFAULT '',
   `TokenRemark` varchar(64) DEFAULT NULL,
   `Status` tinyint NOT NULL DEFAULT '1' COMMENT 'See TelegramSettingsStatus enum for details',
-  `StatusText` varchar(1024) DEFAULT NULL,
+  `LastError` varchar(1024) DEFAULT NULL,
   `CreatedAt` bigint NOT NULL DEFAULT '0' COMMENT 'A unix timestamp',
   PRIMARY KEY (`Id`),
   UNIQUE KEY `UserId` (`UserId`,`SyncType`,`SyncValue`),
@@ -157,8 +158,8 @@ CREATE TABLE `User` (
   `Password` varchar(64) NOT NULL,
   `Salt` varchar(64) NOT NULL DEFAULT '',
   `CreatedAt` bigint NOT NULL DEFAULT '0' COMMENT 'A unix timestamp',
-  `UpdateAt` bigint DEFAULT NULL,
-  `DeleteAt` bigint DEFAULT NULL,
+  `UpdatedAt` bigint DEFAULT NULL COMMENT 'A unix timestamp',
+  `DeletedAt` bigint DEFAULT NULL COMMENT 'A unix timestamp',
   PRIMARY KEY (`Id`),
   UNIQUE KEY `UserName` (`Username`),
   UNIQUE KEY `Email` (`Email`)
@@ -178,8 +179,8 @@ CREATE TABLE `UserSettings` (
   `SettingName` varchar(255) DEFAULT NULL,
   `SettingValue` varchar(4096) DEFAULT NULL,
   `CreatedAt` bigint NOT NULL DEFAULT '0' COMMENT 'A unix timestamp',
-  `UpdatedAt` bigint NOT NULL DEFAULT '0' COMMENT 'A unix timestamp',
-  `DeletedAt` bigint NOT NULL DEFAULT '0' COMMENT 'A unix timestamp',
+  `UpdatedAt` bigint DEFAULT NULL COMMENT 'A unix timestamp',
+  `DeletedAt` bigint DEFAULT NULL COMMENT 'A unix timestamp',
   PRIMARY KEY (`Id`),
   UNIQUE KEY `SettingName` (`UserId`,`SettingName`),
   KEY `UserId` (`UserId`)

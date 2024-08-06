@@ -7,8 +7,8 @@
  SettingName  | varchar(255)  | YES  |         |
  SettingValue | varchar(4096) | YES  |         |
  CreatedAt    | bigint        | NO   | 0       | A unix timestamp
- UpdatedAt    | bigint        | NO   | 0       | A unix timestamp
- DeletedAt    | bigint        | NO   | 0       | A unix timestamp
+ UpdatedAt    | bigint        | YES  |         | A unix timestamp
+ DeletedAt    | bigint        | YES  |         | A unix timestamp
 
 ## Indexes: 
 

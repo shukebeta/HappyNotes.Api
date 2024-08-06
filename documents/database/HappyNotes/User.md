@@ -10,8 +10,8 @@
  Password      | varchar(64)  | NO   |         |
  Salt          | varchar(64)  | NO   |         |
  CreatedAt     | bigint       | NO   | 0       | A unix timestamp
- UpdateAt      | bigint       | YES  |         |
- DeleteAt      | bigint       | YES  |         |
+ UpdatedAt     | bigint       | YES  |         | A unix timestamp
+ DeletedAt     | bigint       | YES  |         | A unix timestamp
 
 ## Indexes: 
 
