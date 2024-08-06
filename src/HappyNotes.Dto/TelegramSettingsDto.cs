@@ -1,16 +1,14 @@
-using HappyNotes.Common;
-using HappyNotes.Common.Enums;
+using HappyNotes.Entities.BaseModel;
 
 namespace HappyNotes.Dto;
 
-public class TelegramSettingsDto
+/// <summary>
+/// Data transfer object for Telegram settings.
+/// </summary>
+public class TelegramSettingsDto : TelegramSettingsBase
 {
-    public long UserId { get; set; }
-    public TelegramSyncType SyncType { get; set; }
-    public string SyncValue { get; set; } = string.Empty;
-    public string EncryptedToken { get; set; } = string.Empty;
-    public string TokenRemark { get; set; } = string.Empty;
-    public string ChannelId { get; set; } = string.Empty;
-    public TelegramSettingStatus Status { get; set; }
-    public string StatusText { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the unique identifier for the settings.
+    /// </summary>
+    public long Id { get; set; }
 }

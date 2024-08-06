@@ -49,11 +49,12 @@ public class TelegramSettingsController(
             UserId = userId,
             SyncType = settingsDto.SyncType,
             SyncValue = settingsDto.SyncValue,
-            // one key is being used for two purposes, I know it is not good, but it is convenient.
+            // _jwtConfig.SymmetricSecurityKey is being used for two purposes, I know it is not good, but it is convenient.
             EncryptedToken =
                 TextEncryptionHelper.Encrypt(settingsDto.EncryptedToken, _jwtConfig.SymmetricSecurityKey),
             TokenRemark = settingsDto.TokenRemark,
             ChannelId = settingsDto.ChannelId,
+            ChannelName = settingsDto.ChannelName,
             CreatedAt = now,
         };
         var result = await telegramSyncSettingsRepository.InsertAsync(settings);

@@ -1,17 +1,28 @@
-using HappyNotes.Common;
 using HappyNotes.Common.Enums;
+using HappyNotes.Entities.BaseModel;
+using SqlSugar;
 
 namespace HappyNotes.Entities;
 
-public class TelegramSettings
+/// <summary>
+/// Represents the settings for Telegram synchronization.
+/// </summary>
+public class TelegramSettings: TelegramSettingsBase
 {
-    public long UserId { get; set; }
-    public TelegramSyncType SyncType { get; set; }
-    public string SyncValue { get; set; } = string.Empty;
-    public string EncryptedToken { get; set; } = string.Empty;
-    public string TokenRemark { get; set; } = string.Empty;
-    public string ChannelId { get; set; } = string.Empty;
-    public TelegramSettingStatus Status { get; set; }
-    public string StatusText { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the unique identifier for the settings.
+    /// </summary>
+    [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
+    public int Id { get; set; }
+
+    /// <summary>
+    /// Gets or sets the Unix timestamp indicating when the settings were created.
+    /// </summary>
     public long CreatedAt { get; set; }
+
+    /// <summary>
+    /// Gets the status text representation of the current status.
+    /// </summary>
+    [SugarColumn(IsIgnore = true)]
+    public new string StatusText => Status.StatusText();
 }
