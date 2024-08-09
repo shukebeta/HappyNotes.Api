@@ -4,9 +4,13 @@ using Api.Framework.Helper;
 using Api.Framework.Models;
 using Api.Framework.Result;
 using AutoMapper;
+using HappyNotes.Common;
+using HappyNotes.Common.Enums;
 using HappyNotes.Dto;
 using HappyNotes.Entities;
+using HappyNotes.Extensions;
 using HappyNotes.Models;
+using HappyNotes.Services.interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -16,6 +20,7 @@ public class TelegramSettingsController(
     IMapper mapper,
     CurrentUser currentUser,
     IRepositoryBase<TelegramSettings> telegramSyncSettingsRepository,
+    ITelegramService telegramService,
     IOptions<JwtConfig> jwtConfig
 ) : BaseController
 {
@@ -55,10 +60,76 @@ public class TelegramSettingsController(
             TokenRemark = settingsDto.TokenRemark,
             ChannelId = settingsDto.ChannelId,
             ChannelName = settingsDto.ChannelName,
+            Status = TelegramSettingStatus.Created,
             CreatedAt = now,
         };
+
+        // check special token value
+        if (settingsDto.EncryptedToken.Equals(Constants.TheSameAsTheLastToken))
+        {
+            var lastSetting = await telegramSyncSettingsRepository.GetFirstOrDefaultAsync(
+                s => s.UserId == userId, "Id DESC");
+            if (lastSetting != null)
+            {
+                settings.EncryptedToken = lastSetting.EncryptedToken;
+            }
+            else
+            {
+                throw new Exception("No previous token found");
+            }
+        }
         var result = await telegramSyncSettingsRepository.InsertAsync(settings);
         return result ? new SuccessfulResult<bool>(true) : new FailedResult<bool>(false, "0 rows inserted");
+    }
+
+    [HttpPost]
+    public async Task<ApiResult<bool>> Disable(TelegramSettingsDto settingsDto)
+    {
+        var userId = currentUser.Id;
+        var existingSetting = await telegramSyncSettingsRepository.GetFirstOrDefaultAsync(
+            s => s.UserId == userId && s.SyncType == settingsDto.SyncType && s.SyncValue == settingsDto.SyncValue);
+
+        if (existingSetting == null)
+        {
+            throw new Exception(
+                $"Setting with {settingsDto.Id} doesn't exist.");
+        }
+
+        if (existingSetting.Status.Has(TelegramSettingStatus.Inactive))
+        {
+            throw new Exception(
+                $"Setting with {settingsDto.Id} is already Disabled");
+        }
+
+        existingSetting.Status = existingSetting.Status.Add(TelegramSettingStatus.Inactive);
+
+        var result = await telegramSyncSettingsRepository.UpdateAsync(existingSetting);
+        return result ? new SuccessfulResult<bool>(true) : new FailedResult<bool>(false, "0 rows Updated");
+    }
+
+    [HttpPost]
+    public async Task<ApiResult<bool>> Activate(TelegramSettingsDto settingsDto)
+    {
+        var userId = currentUser.Id;
+        var existingSetting = await telegramSyncSettingsRepository.GetFirstOrDefaultAsync(
+            s => s.UserId == userId && s.SyncType == settingsDto.SyncType && s.SyncValue == settingsDto.SyncValue);
+
+        if (existingSetting == null)
+        {
+            throw new Exception(
+                $"Setting with {settingsDto.Id} doesn't exist.");
+        }
+
+        if (!existingSetting.Status.Has(TelegramSettingStatus.Inactive))
+        {
+            throw new Exception(
+                $"Setting with {settingsDto.Id} is already active");
+        }
+
+        existingSetting.Status = existingSetting.Status.Remove(TelegramSettingStatus.Inactive);
+
+        var result = await telegramSyncSettingsRepository.UpdateAsync(existingSetting);
+        return result ? new SuccessfulResult<bool>(true) : new FailedResult<bool>(false, "0 rows Updated");
     }
 
     [HttpDelete]
@@ -77,6 +148,31 @@ public class TelegramSettingsController(
         var result = await telegramSyncSettingsRepository.DeleteAsync(s => s.UserId == userId &&
                                                                            s.SyncType == existingSetting.SyncType &&
                                                                            s.SyncValue == existingSetting.SyncValue);
-        return result ? new SuccessfulResult<bool>(true) : new FailedResult<bool>(false, "0 rows inserted");
+        return result ? new SuccessfulResult<bool>(true) : new FailedResult<bool>(false, "0 rows deleted");
+    }
+
+    [HttpPost]
+    public async Task<ApiResult<bool>> Test(TelegramSettingsDto settingsDto)
+    {
+        var userId = currentUser.Id;
+        var existingSetting = await telegramSyncSettingsRepository.GetFirstOrDefaultAsync(
+            s => s.UserId == userId && s.SyncType == settingsDto.SyncType && s.SyncValue == settingsDto.SyncValue);
+
+        if (existingSetting == null)
+        {
+            throw new Exception( $"Could find this setting.");
+        }
+        if (string.IsNullOrWhiteSpace(existingSetting.EncryptedToken) || string.IsNullOrWhiteSpace(existingSetting.ChannelId))
+        {
+            throw new Exception( $"token or channelId is empty, cannot test.");
+        }
+        var token = TextEncryptionHelper.Decrypt(existingSetting.EncryptedToken, _jwtConfig.SymmetricSecurityKey);
+        var message = await telegramService.SendMessageAsync(token, existingSetting.ChannelId, "Hello *world!*", true);
+        if (message.MessageId > 0)
+        {
+            existingSetting.Status = existingSetting.Status.Add(TelegramSettingStatus.Tested);
+            await telegramSyncSettingsRepository.UpdateAsync(existingSetting);
+        }
+        return message.MessageId > 0 ? new SuccessfulResult<bool>(true) : new FailedResult<bool>(false, "test failed.");
     }
 }

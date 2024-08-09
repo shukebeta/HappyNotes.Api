@@ -10,23 +10,23 @@ namespace HappyNotes.Services;
 
 public class TelegramService : ITelegramService
 {
-    public async Task SendMessageAsync(string botToken, string channelId, string message, bool isMarkdown)
+    public async Task<Message> SendMessageAsync(string botToken, string channelId, string message, bool isMarkdown)
     {
         var botClient = new TelegramBotClient(botToken);
-        await botClient.SendTextMessageAsync(
+        return await botClient.SendTextMessageAsync(
             chatId: _GetChatId(channelId),
             text: message,
             isMarkdown ? ParseMode.Markdown : null
         );
     }
 
-    private async Task _SendFileAsync(string botToken, string channelId, string filePath, string caption = null)
+    private async Task<Message> _SendFileAsync(string botToken, string channelId, string filePath, string caption = null)
     {
         var botClient = new TelegramBotClient(botToken);
         await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         var inputOnlineFile = new InputOnlineFile(fileStream, Path.GetFileName(filePath));
         var isMarkdown = filePath.EndsWith(".md");
-        await botClient.SendDocumentAsync(
+        return await botClient.SendDocumentAsync(
             chatId: _GetChatId(channelId),
             document: inputOnlineFile,
             caption: caption.GetShort(Constants.TelegramCaptionLength - 3) + "...",
@@ -44,7 +44,7 @@ public class TelegramService : ITelegramService
         return long.Parse(chatId);
     }
 
-    public async Task SendLongMessageAsFileAsync(string botToken, string channelId, string message,
+    public async Task<Message> SendLongMessageAsFileAsync(string botToken, string channelId, string message,
         string extension = ".txt")
     {
         // Create a temporary file in the system's temporary folder
@@ -56,7 +56,7 @@ public class TelegramService : ITelegramService
             await File.WriteAllTextAsync(tempFilePath, message);
 
             // Send the file via Telegram
-            await _SendFileAsync(botToken, channelId, tempFilePath, message);
+            return await _SendFileAsync(botToken, channelId, tempFilePath, message);
         }
         finally
         {
