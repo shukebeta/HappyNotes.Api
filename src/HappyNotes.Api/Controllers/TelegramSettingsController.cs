@@ -65,7 +65,7 @@ public class TelegramSettingsController(
         };
 
         // check special token value
-        if (settingsDto.EncryptedToken.Equals(Constants.TheSameAsTheLastToken))
+        if (settingsDto.EncryptedToken.Equals(Constants.TelegramSameTokenFlag))
         {
             var lastSetting = await telegramSyncSettingsRepository.GetFirstOrDefaultAsync(
                 s => s.UserId == userId, "Id DESC");
