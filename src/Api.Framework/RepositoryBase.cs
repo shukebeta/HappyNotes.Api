@@ -186,9 +186,15 @@ public class RepositoryBase<TEntity>(ISqlSugarClient db) : IRepositoryBase<TEnti
         return await db.Queryable<TEntity>().In(ids).ToListAsync();
     }
 
-    public virtual async Task<TEntity?> GetFirstOrDefaultAsync(Expression<Func<TEntity, bool>>? @where)
+    public virtual async Task<TEntity?> GetFirstOrDefaultAsync(Expression<Func<TEntity, bool>>? @where, string? orderBy = null)
     {
-        var result = await db.Queryable<TEntity>().WhereIF(where != null, where).Take(1).ToListAsync();
+        var queryAble = db.Queryable<TEntity>().WhereIF(null != where, where);
+        if (null != orderBy)
+        {
+            queryAble.OrderBy(orderBy);
+        }
+
+        var result = await queryAble.Take(1).ToListAsync();
 
         return result.FirstOrDefault();
     }

@@ -51,7 +51,7 @@ public interface IRepositoryBase<TEntity> where TEntity : class, new()
 
     Task<TEntity> GetSingleAsync(Expression<Func<TEntity, bool>>? where);
 
-    Task<TEntity?> GetFirstOrDefaultAsync(Expression<Func<TEntity, bool>>? where);
+    Task<TEntity?> GetFirstOrDefaultAsync(Expression<Func<TEntity, bool>>? where, string? orderBy = null);
 
     #endregion
 
