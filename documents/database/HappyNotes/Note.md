@@ -1,18 +1,19 @@
 # Database: HappyNotes Table: Note
 
- Field         | Type          | Null | Default | Comment
----------------|---------------|------|---------|-----------------------------------------------------
- Id            | bigint        | NO   |         |
- UserId        | bigint        | NO   | 0       |
- Content       | varchar(1024) | NO   |         |
- Tags          | varchar(512)  | YES  |         |
- FavoriteCount | int           | NO   | 0       |
- IsLong        | tinyint       | NO   | 0       |
- IsPrivate     | tinyint       | NO   | 1       |
- IsMarkdown    | tinyint       | NO   | 0       | indicate content field is in markdown format or not
- CreatedAt     | bigint        | NO   | 0       | A unix timestamp
- UpdatedAt     | bigint        | YES  |         | A unix timestamp
- DeletedAt     | bigint        | YES  |         | A unix timestamp
+ Field              | Type          | Null | Default | Comment
+--------------------|---------------|------|---------|-----------------------------------------------------
+ Id                 | bigint        | NO   |         |
+ UserId             | bigint        | NO   | 0       |
+ Content            | varchar(1024) | NO   |         |
+ Tags               | varchar(512)  | YES  |         |
+ TelegramMessageIds | varchar(512)  | YES  |         | Common separated telegram MessageId list
+ FavoriteCount      | int           | NO   | 0       |
+ IsLong             | tinyint       | NO   | 0       |
+ IsPrivate          | tinyint       | NO   | 1       |
+ IsMarkdown         | tinyint       | NO   | 0       | indicate content field is in markdown format or not
+ CreatedAt          | bigint        | NO   | 0       | A unix timestamp
+ UpdatedAt          | bigint        | YES  |         | A unix timestamp
+ DeletedAt          | bigint        | YES  |         | A unix timestamp
 
 ## Indexes: 
 

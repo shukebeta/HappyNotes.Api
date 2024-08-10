@@ -70,6 +70,7 @@ CREATE TABLE `Note` (
   `UserId` bigint NOT NULL DEFAULT '0',
   `Content` varchar(1024) NOT NULL,
   `Tags` varchar(512) DEFAULT NULL,
+  `TelegramMessageIds` varchar(512) DEFAULT NULL COMMENT 'Common separated telegram MessageId list',
   `FavoriteCount` int NOT NULL DEFAULT '0',
   `IsLong` tinyint NOT NULL DEFAULT '0',
   `IsPrivate` tinyint NOT NULL DEFAULT '1',

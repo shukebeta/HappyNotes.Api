@@ -20,7 +20,8 @@ public class TelegramService : ITelegramService
         );
     }
 
-    private async Task<Message> _SendFileAsync(string botToken, string channelId, string filePath, string caption = null)
+    private async Task<Message> _SendFileAsync(string botToken, string channelId, string filePath,
+        string caption = null)
     {
         var botClient = new TelegramBotClient(botToken);
         await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
@@ -34,7 +35,7 @@ public class TelegramService : ITelegramService
         );
     }
 
-    private ChatId _GetChatId(string chatId)
+    private static ChatId _GetChatId(string chatId)
     {
         if (chatId.StartsWith("@"))
         {
@@ -65,6 +66,27 @@ public class TelegramService : ITelegramService
             {
                 File.Delete(tempFilePath);
             }
+        }
+    }
+
+    public async Task EditMessageAsync(string botToken, string chatId, int messageId, string newText, bool isMarkdown)
+    {
+        try
+        {
+            var botClient = new TelegramBotClient(botToken);
+
+            await botClient.EditMessageTextAsync(
+                chatId: _GetChatId(chatId),
+                messageId: messageId,
+                text: newText,
+                parseMode: isMarkdown ? ParseMode.Markdown : null
+            );
+
+            Console.WriteLine("Message updated successfully!");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating message: {ex.Message}");
         }
     }
 }
