@@ -105,7 +105,7 @@ public class NoteService(
         var text = fullContent; // Or format the message as needed
 
         // You can use different logic here based on the note's properties
-        if (note.IsLong)
+        if (fullContent.Length > Constants.TelegramMessageLength)
         {
             await telegramService.SendLongMessageAsFileAsync(token, channelId, fullContent,
                 note.IsMarkdown ? ".md" : ".txt");
