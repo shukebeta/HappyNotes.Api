@@ -15,7 +15,28 @@ public class Note: EntityBase
     public bool IsMarkdown { get; set; }
     public bool IsPrivate { get; set; }
     public string Tags { get; set; }
+    public string? TelegramMessageIds { get; set; }
 
     [SugarColumn(IsIgnore = true)] public User User { get; set; } = default!;
     [SugarColumn(IsIgnore = true)] public List<string> TagList { get; set; }
+
+    public void UpsertTelegramMessageIdList(string channelId, int messageId)
+    {
+        var id = $"{channelId}:{messageId}";
+        if (string.IsNullOrEmpty(TelegramMessageIds)) {
+            TelegramMessageIds = id;
+        }
+        else {
+            var ids = TelegramMessageIds.Split(',');
+            foreach (var t in ids)
+            {
+                if (t.Equals(id))
+                {
+                    return;
+                }
+            }
+
+            TelegramMessageIds += $",{channelId}:{messageId}";
+        }
+    }
 }

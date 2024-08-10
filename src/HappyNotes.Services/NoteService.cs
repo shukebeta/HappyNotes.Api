@@ -76,7 +76,7 @@ public class NoteService(
         {
             try
             {
-                await _SyncNoteToTelegram(note, fullContent);
+                await _SentToTelegram(note, fullContent);
             }
             catch (Exception ex)
             {
@@ -87,7 +87,7 @@ public class NoteService(
         return note.Id;
     }
 
-    private async Task _SyncNoteToTelegram(Note note, string fullContent)
+    private async Task _SentToTelegram(Note note, string fullContent)
     {
         var telegramSettings = await telegramSettingsRepository.GetListAsync(x => x.UserId == note.UserId);
         if (!telegramSettings.Any()) return;
@@ -98,13 +98,13 @@ public class NoteService(
         var token = TextEncryptionHelper.Decrypt(validSettings.First().EncryptedToken, _jwtConfig.SymmetricSecurityKey);
         foreach (var channelId in syncChannelList)
         {
-            await _SyncNote(note, fullContent, token, channelId);
+            await _SentNoteToChannel(note, fullContent, token, channelId);
         }
     }
 
-    private async Task _SyncNote(Note note, string fullContent, string token, string channelId)
+    private async Task _SentNoteToChannel(Note note, string fullContent, string token, string channelId)
     {
-        var message = fullContent; // Or format the message as needed
+        var text = fullContent; // Or format the message as needed
 
         // You can use different logic here based on the note's properties
         if (note.IsLong)
@@ -114,7 +114,12 @@ public class NoteService(
         }
         else
         {
-            await telegramService.SendMessageAsync(token, channelId, message, note.IsMarkdown);
+            var message = await telegramService.SendMessageAsync(token, channelId, text, note.IsMarkdown);
+            if (message.MessageId > 0)
+            {
+                note.UpsertTelegramMessageIdList(channelId, message.MessageId);
+                await noteRepository.UpdateAsync(note);
+            }
         }
     }
 
@@ -169,7 +174,6 @@ public class NoteService(
         }
 
         var fullContent = request.Content?.Trim() ?? string.Empty;
-        // we first update tags
         await _UpdateNoteTags(note, fullContent);
 
         note.IsPrivate = request.IsPrivate;
@@ -180,16 +184,46 @@ public class NoteService(
 
         if (note.IsLong)
         {
-            var longNote = new LongNote
-            {
-                Id = id,
-                Content = fullContent
-            };
+            var longNote = new LongNote {Id = id, Content = fullContent};
             await longNoteRepository.UpsertAsync(longNote, n => n.Id == id);
         }
 
         note.Content = fullContent.GetShort();
+        Task.Run(async () => await SyncToTelegramAsync(note, fullContent));
         return await noteRepository.UpdateAsync(note);
+    }
+
+    private async Task SyncToTelegramAsync(Note note, string fullContent)
+    {
+        if (!string.IsNullOrWhiteSpace(note.TelegramMessageIds) &&
+            fullContent.Length <= Constants.TelegramMessageLength)
+        {
+            try
+            {
+                var settings = await telegramSettingsRepository.GetListAsync(
+                    s => s.UserId == note.UserId && s.Status == TelegramSettingStatus.Normal);
+
+                if (!settings.Any()) return;
+
+                var syncChannels = note.TelegramMessageIds.Split(",").Select(s => s.Split(":")).ToList();
+                foreach (var channel in syncChannels)
+                {
+                    var channelId = channel[0];
+                    var setting = settings.FirstOrDefault(s => s.ChannelId.Equals(channelId));
+                    if (setting == null) continue;
+
+                    var token = TextEncryptionHelper.Decrypt(setting.EncryptedToken,
+                        _jwtConfig.SymmetricSecurityKey);
+                    var messageId = int.Parse(channel[1]);
+                    await telegramService.EditMessageAsync(token, channelId, messageId, fullContent,
+                        note.IsMarkdown);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex.ToString());
+            }
+        }
     }
 
     private async Task _UpdateNoteTags(Note note, string fullContent)
