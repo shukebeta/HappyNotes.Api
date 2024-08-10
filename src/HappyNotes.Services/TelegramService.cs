@@ -44,25 +44,17 @@ public class TelegramService : ITelegramService
         }
     }
 
-    public async Task EditMessageAsync(string botToken, string chatId, int messageId, string newText, bool isMarkdown)
+    public async Task<Message> EditMessageAsync(string botToken, string chatId, int messageId, string newText,
+        bool isMarkdown)
     {
-        try
-        {
-            var botClient = new TelegramBotClient(botToken);
+        var botClient = new TelegramBotClient(botToken);
 
-            await botClient.EditMessageTextAsync(
-                chatId: _GetChatId(chatId),
-                messageId: messageId,
-                text: newText,
-                parseMode: isMarkdown ? ParseMode.Markdown : null
-            );
-
-            Console.WriteLine("Message updated successfully!");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error updating message: {ex.Message}");
-        }
+        return await botClient.EditMessageTextAsync(
+            chatId: _GetChatId(chatId),
+            messageId: messageId,
+            text: newText,
+            parseMode: isMarkdown ? ParseMode.Markdown : null
+        );
     }
 
     private static async Task<Message> _SendFileAsync(string botToken, string channelId, string filePath,
