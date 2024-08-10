@@ -20,31 +20,6 @@ public class TelegramService : ITelegramService
         );
     }
 
-    private async Task<Message> _SendFileAsync(string botToken, string channelId, string filePath,
-        string caption = null)
-    {
-        var botClient = new TelegramBotClient(botToken);
-        await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-        var inputOnlineFile = new InputOnlineFile(fileStream, Path.GetFileName(filePath));
-        var isMarkdown = filePath.EndsWith(".md");
-        return await botClient.SendDocumentAsync(
-            chatId: _GetChatId(channelId),
-            document: inputOnlineFile,
-            caption: caption.GetShort(Constants.TelegramCaptionLength - 3) + "...",
-            parseMode: isMarkdown ? ParseMode.Markdown : null
-        );
-    }
-
-    private static ChatId _GetChatId(string chatId)
-    {
-        if (chatId.StartsWith("@"))
-        {
-            return new ChatId(chatId);
-        }
-
-        return long.Parse(chatId);
-    }
-
     public async Task<Message> SendLongMessageAsFileAsync(string botToken, string channelId, string message,
         string extension = ".txt")
     {
@@ -88,5 +63,41 @@ public class TelegramService : ITelegramService
         {
             Console.WriteLine($"Error updating message: {ex.Message}");
         }
+    }
+
+    private static async Task<Message> _SendFileAsync(string botToken, string channelId, string filePath,
+        string message)
+    {
+        var botClient = new TelegramBotClient(botToken);
+        await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var inputOnlineFile = new InputOnlineFile(fileStream, Path.GetFileName(filePath));
+        var isMarkdown = filePath.EndsWith(".md");
+        return await botClient.SendDocumentAsync(
+            chatId: _GetChatId(channelId),
+            document: inputOnlineFile,
+            caption: _GetTelegramCaption(message),
+            parseMode: isMarkdown ? ParseMode.Markdown : null
+        );
+    }
+
+    private static string _GetTelegramCaption(string? message)
+    {
+        var caption = message?.GetShort(Constants.TelegramCaptionLength - 3) ?? "";
+        if (caption.Length == Constants.TelegramCaptionLength - 3)
+        {
+            return caption + "...";
+        }
+
+        return caption;
+    }
+
+    private static ChatId _GetChatId(string chatId)
+    {
+        if (chatId.StartsWith("@"))
+        {
+            return new ChatId(chatId);
+        }
+
+        return long.Parse(chatId);
     }
 }
