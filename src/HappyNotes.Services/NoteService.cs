@@ -72,33 +72,31 @@ public class NoteService(
         }
 
         // Sync to Telegram asynchronously
-        Task.Run(async () =>
-        {
-            try
-            {
-                await _SentToTelegram(note, fullContent);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex.ToString());
-            }
-        });
+        Task.Run(async () => await _SentToTelegram(note, fullContent));
 
         return note.Id;
     }
 
     private async Task _SentToTelegram(Note note, string fullContent)
     {
-        var telegramSettings = await telegramSettingsRepository.GetListAsync(x => x.UserId == note.UserId);
-        if (!telegramSettings.Any()) return;
-        var validSettings = telegramSettings.Where(s => s.Status.Is(TelegramSettingStatus.Normal)).ToArray();
-        if (!validSettings.Any()) return;
-        var syncChannelList = _GetSyncChannelList(note, validSettings);
-        if (!syncChannelList.Any()) return;
-        var token = TextEncryptionHelper.Decrypt(validSettings.First().EncryptedToken, _jwtConfig.SymmetricSecurityKey);
-        foreach (var channelId in syncChannelList)
+        try
         {
-            await _SentNoteToChannel(note, fullContent, token, channelId);
+            var telegramSettings = await telegramSettingsRepository.GetListAsync(x => x.UserId == note.UserId);
+            if (!telegramSettings.Any()) return;
+            var validSettings = telegramSettings.Where(s => s.Status.Is(TelegramSettingStatus.Normal)).ToArray();
+            if (!validSettings.Any()) return;
+            var syncChannelList = _GetSyncChannelList(note, validSettings);
+            if (!syncChannelList.Any()) return;
+            var token = TextEncryptionHelper.Decrypt(validSettings.First().EncryptedToken,
+                _jwtConfig.SymmetricSecurityKey);
+            foreach (var channelId in syncChannelList)
+            {
+                await _SentNoteToChannel(note, fullContent, token, channelId);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex.ToString());
         }
     }
 
@@ -123,7 +121,7 @@ public class NoteService(
         }
     }
 
-    private IList<string> _GetSyncChannelList(Note note, IList<TelegramSettings> settings)
+    private List<string> _GetSyncChannelList(Note note, IList<TelegramSettings> settings)
     {
         var targetChannelList = new List<string>();
         foreach (var setting in settings)
@@ -157,7 +155,7 @@ public class NoteService(
             }
         }
 
-        return targetChannelList;
+        return targetChannelList.Distinct().ToList();
     }
 
     public async Task<bool> Update(long id, PostNoteRequest request)
