@@ -1,10 +1,12 @@
 ﻿using System.Linq.Expressions;
 using Api.Framework.Models;
+using SqlSugar;
 
 namespace Api.Framework;
 
 public interface IRepositoryBase<TEntity> where TEntity : class, new()
 {
+    ISqlSugarClient db { get; }
     Task<bool> UpsertAsync(TEntity entity, Expression<Func<TEntity, bool>> where);
     #region Insert methods
 

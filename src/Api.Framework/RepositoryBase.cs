@@ -4,9 +4,11 @@ using SqlSugar;
 
 namespace Api.Framework;
 
-public class RepositoryBase<TEntity>(ISqlSugarClient db) : IRepositoryBase<TEntity>
+public class RepositoryBase<TEntity>(ISqlSugarClient dbClient) : IRepositoryBase<TEntity>
     where TEntity : class, new()
 {
+    public ISqlSugarClient db => dbClient;
+
     public virtual async Task<bool> UpsertAsync(TEntity entity, Expression<Func<TEntity, bool>> where)
     {
         var existingEntity = await GetFirstOrDefaultAsync(where);
