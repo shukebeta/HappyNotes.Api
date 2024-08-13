@@ -236,7 +236,7 @@ public class NoteService(
 
         if (tags.Any())
         {
-            await noteTagService.Upsert(note.Id, tags);
+            await noteTagService.Upsert(note, tags);
         }
     }
 

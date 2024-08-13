@@ -7,13 +7,11 @@ using SqlSugar;
 
 namespace HappyNotes.Repositories;
 
-public class NoteRepository(ISqlSugarClient db) : RepositoryBase<Note>(db), INoteRepository
+public class NoteRepository(ISqlSugarClient dbClient) : RepositoryBase<Note>(dbClient), INoteRepository
 {
-    private readonly ISqlSugarClient _db = db;
-
     public async Task<Note> Get(long noteId)
     {
-        return await _db.Queryable<Note, LongNote, User>((n, l, u) => new JoinQueryInfos(
+        return await db.Queryable<Note, LongNote, User>((n, l, u) => new JoinQueryInfos(
                 JoinType.Left, n.Id == l.Id,
                 JoinType.Inner, n.UserId == u.Id
             ))
@@ -78,7 +76,7 @@ public class NoteRepository(ISqlSugarClient db) : RepositoryBase<Note>(db), INot
             PageSize = pageSize,
         };
         RefAsync<int> totalCount = 0;
-        var result = await _db.Queryable<Note, User>((n, u) => new JoinQueryInfos(
+        var result = await db.Queryable<Note, User>((n, u) => new JoinQueryInfos(
                 JoinType.Inner, n.UserId == u.Id
             )).WhereIF(null != where, where)
             .OrderByIF(orderBy != null, orderBy, isAsc ? OrderByType.Asc : OrderByType.Desc)
@@ -99,7 +97,7 @@ public class NoteRepository(ISqlSugarClient db) : RepositoryBase<Note>(db), INot
             PageSize = pageSize,
         };
         RefAsync<int> totalCount = 0;
-        var result = await _db.Queryable<Note, User, NoteTag>((n, u, t) => new JoinQueryInfos(
+        var result = await db.Queryable<Note, User, NoteTag>((n, u, t) => new JoinQueryInfos(
                 JoinType.Inner, n.UserId == u.Id,
                 JoinType.Inner, n.Id == t.NoteId
             )).WhereIF(null != where, where)
