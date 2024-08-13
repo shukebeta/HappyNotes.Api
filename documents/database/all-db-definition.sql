@@ -95,6 +95,7 @@ DROP TABLE IF EXISTS `NoteTag`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `NoteTag` (
   `Id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `UserId` bigint NOT NULL COMMENT '=Note.UserId',
   `NoteId` bigint unsigned NOT NULL,
   `Tag` varchar(32) NOT NULL COMMENT 'Note tag, put #tag1 tag2 tag3 in note content',
   `CreatedAt` bigint NOT NULL DEFAULT '0' COMMENT 'A unix timestamp',
