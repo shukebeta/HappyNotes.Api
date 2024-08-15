@@ -60,7 +60,7 @@ public class StringExtensionsTests
     {
         // Arrange
         var input = @"# hello
- #abc 中国 123";
+ #abc #中国 #123";
 
         // Act & Assert
         Assert.That(input.GetTags()[0], Is.EqualTo("abc"));

@@ -1,6 +1,4 @@
 ﻿using System.Text.RegularExpressions;
-using WeihanLi.Extensions;
-
 namespace HappyNotes.Common;
 
 public static partial class StringExtensions
@@ -20,7 +18,7 @@ public static partial class StringExtensions
     private static partial Regex _Space();
 
 
-    [GeneratedRegex(@"(?<=#)[\p{L}_\p{N}]+(?:\p{Zs}+[\p{L}_\p{N}]+)*", RegexOptions.Singleline, "")]
+    [GeneratedRegex(@"(?<=#)[\p{L}_\p{N}]+(?:\p{Zs})*", RegexOptions.Singleline, "")]
     private static partial Regex _Tags();
 
     public static bool IsLong(this string? str)
