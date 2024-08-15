@@ -55,16 +55,29 @@ public class StringExtensionsTests
         Assert.That(input.GetShort(), Is.EqualTo(shortStr));
     }
 
-    [Test]
-    public void GetTags()
+    [TestCase("#123", "123")]
+    [TestCase("#123#124", "123")]
+    [TestCase("#123 #124", "123")]
+    public void GetTags_SingleLine(string input, string expected)
     {
-        // Arrange
-        var input = @"# hello
- #abc #中国 #123";
+        // Act
+        var tag = input.GetTags().FirstOrDefault();
 
-        // Act & Assert
-        Assert.That(input.GetTags()[0], Is.EqualTo("abc"));
-        Assert.That(input.GetTags()[1], Is.EqualTo("中国"));
-        Assert.That(input.GetTags()[2], Is.EqualTo("123"));
+        // Assert
+        Assert.That(tag, Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void GetTags_Multiline()
+    {
+        var input = @"#123中
+#234国 
+#345人
+#456民#567还没站起来";
+        // Act
+        var tag = string.Join(" ", input.GetTags());
+
+        // Assert
+        Assert.That(tag, Is.EqualTo("123中 234国 345人 456民 567还没站起来"));
     }
 }
