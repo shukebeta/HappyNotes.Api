@@ -1,11 +1,14 @@
 ﻿using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Components.Forms;
+
 namespace HappyNotes.Common;
 
 public static partial class StringExtensions
 {
     private static readonly Regex Separator = _Separator();
-    private static readonly Regex TagsPattern = _Tags();
+    private static readonly Regex Tags = _Tags();
     private static readonly Regex Space = _Space();
+    private static readonly Regex NoteId = _NoteId();
 
     /// <summary>
     /// 4 new line in a row or <!-- more --> means a manual separated long note
@@ -17,9 +20,11 @@ public static partial class StringExtensions
     [GeneratedRegex(@"\s+", RegexOptions.IgnoreCase, "")]
     private static partial Regex _Space();
 
-
     [GeneratedRegex(@"(?<=#)[\p{L}_\p{N}]{1,32}(?=[^\p{L}\p{N}_]|$)", RegexOptions.Singleline, "")]
     private static partial Regex _Tags();
+
+    [GeneratedRegex(@"@[1-9][0-9]{0,31}(?=[^\d]|$)", RegexOptions.Singleline, "")]
+    private static partial Regex _NoteId();
 
     public static bool IsLong(this string? str)
     {
@@ -34,16 +39,44 @@ public static partial class StringExtensions
 
         maxLength = maxLength <= 0 ? Constants.ShortNotesMaxLength : maxLength;
         if (parts[0].Length <= maxLength) return parts[0];
-        return str!.Substring(0, maxLength);
+        return str[..maxLength];
     }
 
-    public static List<string> GetTags(this string? str, int maxTagLength = 32, int maxTotalLength = 512)
+    public static List<string> GetNoteIds(this string? str, int maxIdLength = 33, int maxTotalLength = 160)
     {
         if (str is null) return [];
-        var matches = TagsPattern.Matches(str);
+        var matches = NoteId.Matches(str);
         if (matches.Any())
         {
-            var tags = new List<string>();
+            var noteIds = new List<string>();
+            var totalLength = 0;
+            // Join multiple match into one string, then split it to one unique list
+            var candidate = Space.Split(string.Join(' ', matches)).Distinct();
+            foreach (var tag in candidate)
+            {
+                if (tag.Length > maxIdLength)
+                    continue;
+
+                // Check if adding this tag (plus a space) would exceed the max total length
+                totalLength += tag.Length + 1; // +1 for the space
+                if (totalLength > maxTotalLength)
+                    break;
+                noteIds.Add(tag);
+            }
+
+            return noteIds;
+        }
+
+        return [];
+    }
+
+    public static List<string> GetTags(this string? str, int maxTagLength = 32, int maxTotalLength = 352)
+    {
+        if (str is null) return [];
+        var matches = Tags.Matches(str);
+        var tags = new List<string>();
+        if (matches.Any())
+        {
             var totalLength = 0;
             var candidate = Space.Split(string.Join(' ', matches)) // first join multiple match into one string, then split it to one array
                 .Select(m => m.ToLower()).Distinct();
@@ -59,14 +92,7 @@ public static partial class StringExtensions
                 tags.Add(tag);
             }
 
-            return tags;
         }
-
-        return [];
-    }
-
-    public static string GetEscapedMarkdown(this string text)
-    {
-        return Regex.Replace(text, @"[_*\[\]()~>#`+\-=|{}.!]", @"\$0", RegexOptions.Singleline, TimeSpan.FromSeconds(10));
+        return tags.Concat(str.GetNoteIds()).ToList();
     }
 }

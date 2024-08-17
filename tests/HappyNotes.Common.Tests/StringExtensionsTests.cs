@@ -80,4 +80,22 @@ public class StringExtensionsTests
         // Assert
         Assert.That(tag, Is.EqualTo("123中 234国 345人 456民 567还没站起来"));
     }
+
+    [TestCase("@12345", "12345")]  // Valid case
+    [TestCase("@1", "1")]  // Single digit
+    [TestCase("@12345678901234567890123456789012", "12345678901234567890123456789012")]  // 32 digits
+    [TestCase("@1234abc", "1234")]  // Valid followed by non-digit
+    [TestCase("abc@1234", "1234")]  // Valid - with text before @
+    [TestCase("@9876543210abc1234", "9876543210")]  // Valid - multiple patterns
+    [TestCase("@01234", null)]  // Invalid - starts with 0
+    [TestCase("@", null)]  // Invalid - no digits
+    [TestCase("abcd", null)]  // Invalid - no @ symbol
+    [TestCase("@123456789012345678901234567890123", null)]  // Invalid - more than 32 digits
+    public void NoteIdRegex_ShouldMatchExpected(string input, string expected)
+    {
+        var matches = input.GetNoteIds();
+        var result = matches.Any() ? matches[0][1..] : null;
+
+        Assert.AreEqual(expected, result);
+    }
 }
