@@ -21,16 +21,8 @@ public interface INoteService
     /// <returns></returns>
     Task<PageData<Note>> GetPublicNotes(int pageSize, int pageNumber);
 
-    Task<PageData<Note>> GetUserTagNotes(long userId, int pageSize, int pageNumber, string tag, bool includePrivate=false);
+    Task<PageData<Note>> GetUserTagNotes(long userId, int pageSize, int pageNumber, string tag);
 
-    /// <summary>
-    /// Latest public notes for specific tag
-    /// </summary>
-    /// <param name="pageSize"></param>
-    /// <param name="pageNumber"></param>
-    /// <param name="tag"></param>
-    /// <returns></returns>
-    Task<PageData<Note>> GetPublicTagNotes(int pageSize, int pageNumber, string tag);
     Task<PageData<Note>> GetLinkedNotes(long userId, long noteId);
     Task<IList<Note>> Memories(string localTimezone);
     Task<IList<Note>> MemoriesOn(string localTimezone, string yyyyMMdd);

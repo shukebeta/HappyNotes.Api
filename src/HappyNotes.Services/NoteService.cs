@@ -263,15 +263,9 @@ public class NoteService(
         return notes;
     }
 
-    public async Task<PageData<Note>> GetUserTagNotes(long userId, int pageSize, int pageNumber, string tag,
-        bool includePrivate = false)
+    public async Task<PageData<Note>> GetUserTagNotes(long userId, int pageSize, int pageNumber, string tag)
     {
-        return await noteRepository.GetUserTagNotes(userId, tag, pageSize, pageNumber, includePrivate);
-    }
-
-    public async Task<PageData<Note>> GetPublicTagNotes(int pageSize, int pageNumber, string tag)
-    {
-        return await noteRepository.GetPublicTagNotes(tag, pageSize, pageNumber);
+        return await noteRepository.GetUserTagNotes(userId, tag, pageSize, pageNumber);
     }
 
     public async Task<PageData<Note>> GetLinkedNotes(long userId, long noteId)

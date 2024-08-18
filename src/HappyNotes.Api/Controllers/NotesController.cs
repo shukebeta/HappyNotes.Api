@@ -33,13 +33,6 @@ public class NotesController(IMapper mapper
         return new SuccessfulResult<PageData<NoteDto>>(mapper.Map<PageData<NoteDto>>(notes));
     }
 
-    [HttpGet("{pageSize:int}/{pageNumber:int}")]
-    public async Task<ApiResult<PageData<NoteDto>>> MyTag(int pageSize, int pageNumber, string tag)
-    {
-        var notes = await noteService.GetUserTagNotes(currentUser.Id, pageSize, pageNumber, tag, true);
-        return new SuccessfulResult<PageData<NoteDto>>(mapper.Map<PageData<NoteDto>>(notes));
-    }
-
     [HttpGet("{noteId}")]
     public async Task<ApiResult<PageData<NoteDto>>> LinkedNotes(long noteId)
     {
@@ -47,12 +40,10 @@ public class NotesController(IMapper mapper
         return new SuccessfulResult<PageData<NoteDto>>(mapper.Map<PageData<NoteDto>>(notes));
     }
 
-    [AllowAnonymous]
     [HttpGet("{pageSize:int}/{pageNumber:int}")]
-    [EnforcePageSizeLimit(Constants.MaxPageSize)]
     public async Task<ApiResult<PageData<NoteDto>>> Tag(int pageSize, int pageNumber, string tag)
     {
-        var notes = await noteService.GetPublicTagNotes(pageSize, pageNumber, tag);
+        var notes = await noteService.GetUserTagNotes(currentUser.Id, pageSize, pageNumber, tag);
         return new SuccessfulResult<PageData<NoteDto>>(mapper.Map<PageData<NoteDto>>(notes));
     }
 

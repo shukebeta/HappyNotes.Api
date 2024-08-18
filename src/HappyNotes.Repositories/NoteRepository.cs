@@ -30,14 +30,13 @@ public class NoteRepository(ISqlSugarClient dbClient) : RepositoryBase<Note>(dbC
             .FirstAsync();
     }
 
-    public async Task<PageData<Note>> GetUserTagNotes(long userId, string tag, int pageSize, int pageNumber, bool includePrivate = false,
+    public async Task<PageData<Note>> GetUserTagNotes(long userId, string tag, int pageSize, int pageNumber,
         bool isAsc = false)
     {
         return await _GetPageDataByTagAsync(pageSize, pageNumber,
-            (n,u,t) =>
+            (n, u, t) =>
                 t.Tag.Equals(tag.ToLower()) &&
-                n.DeletedAt == null && n.UserId == userId &&
-                (includePrivate || n.IsPrivate == false),
+                n.DeletedAt == null && (n.UserId == userId || n.IsPrivate == false),
             n => n.CreatedAt, isAsc);
     }
 
@@ -56,20 +55,10 @@ public class NoteRepository(ISqlSugarClient dbClient) : RepositoryBase<Note>(dbC
             n => n.CreatedAt, isAsc);
     }
 
-    public async Task<PageData<Note>> GetPublicTagNotes(string tag, int pageSize, int pageNumber, bool isAsc = false)
-    {
-        return await _GetPageDataByTagAsync(pageSize, pageNumber,
-            (n,u,t) =>
-                t.Tag.Equals(tag.ToLower()) &&
-                n.DeletedAt == null &&
-                n.IsPrivate == false,
-            n => n.CreatedAt, isAsc);
-    }
-
     public async Task<PageData<Note>> GetLinkedNotes(long userId, long noteId, int max = 100)
     {
         return await _GetPageDataByTagAsync(max, 1,
-            (n,u,t) =>
+            (n, u, t) =>
                 t.Tag.Equals($"@{noteId}") &&
                 n.DeletedAt == null &&
                 (t.UserId == userId || n.IsPrivate == false),
@@ -96,6 +85,7 @@ public class NoteRepository(ISqlSugarClient dbClient) : RepositoryBase<Note>(dbC
         pageData.DataList = result;
         return pageData;
     }
+
     private async Task<PageData<Note>> _GetPageDataByTagAsync(int pageSize = 20, int pageNumber = 1,
         Expression<Func<Note, User, NoteTag, bool>>? where = null,
         Expression<Func<Note, object>>? orderBy = null,
