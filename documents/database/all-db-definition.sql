@@ -45,6 +45,24 @@ CREATE TABLE `Files` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `LinkedNote`
+--
+
+DROP TABLE IF EXISTS `LinkedNote`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `LinkedNote` (
+  `Id` bigint NOT NULL AUTO_INCREMENT,
+  `NoteId` bigint NOT NULL,
+  `LinkedNoteId` bigint NOT NULL,
+  `CreateAt` bigint NOT NULL,
+  PRIMARY KEY (`Id`),
+  UNIQUE KEY `uniq` (`NoteId`,`LinkedNoteId`),
+  KEY `linkedNoteId` (`LinkedNoteId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `LongNote`
 --
 
