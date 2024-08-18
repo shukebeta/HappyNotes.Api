@@ -31,6 +31,7 @@ public interface INoteService
     /// <param name="tag"></param>
     /// <returns></returns>
     Task<PageData<Note>> GetPublicTagNotes(int pageSize, int pageNumber, string tag);
+    Task<PageData<Note>> GetLinkedNotes(long userId, long noteId);
     Task<IList<Note>> Memories(string localTimezone);
     Task<IList<Note>> MemoriesOn(string localTimezone, string yyyyMMdd);
 }

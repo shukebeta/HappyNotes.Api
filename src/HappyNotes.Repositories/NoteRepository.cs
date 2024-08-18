@@ -66,6 +66,16 @@ public class NoteRepository(ISqlSugarClient dbClient) : RepositoryBase<Note>(dbC
             n => n.CreatedAt, isAsc);
     }
 
+    public async Task<PageData<Note>> GetLinkedNotes(long userId, long noteId, int max = 100)
+    {
+        return await _GetPageDataByTagAsync(max, 1,
+            (n,u,t) =>
+                t.Tag.Equals($"@{noteId}") &&
+                n.DeletedAt == null &&
+                (t.UserId == userId || n.IsPrivate == false),
+            n => n.CreatedAt, false);
+    }
+
     private async Task<PageData<Note>> _GetPageDataAsync(int pageSize = 20, int pageNumber = 1,
         Expression<Func<Note, bool>>? where = null, Expression<Func<Note, object>>? orderBy = null,
         bool isAsc = true)
@@ -97,11 +107,19 @@ public class NoteRepository(ISqlSugarClient dbClient) : RepositoryBase<Note>(dbC
             PageSize = pageSize,
         };
         RefAsync<int> totalCount = 0;
-        var result = await db.Queryable<Note, User, NoteTag>((n, u, t) => new JoinQueryInfos(
+        var queryable = db.Queryable<Note, User, NoteTag>((n, u, t) => new JoinQueryInfos(
                 JoinType.Inner, n.UserId == u.Id,
                 JoinType.Inner, n.Id == t.NoteId
             )).WhereIF(null != where, where)
-            .OrderByIF(orderBy != null, orderBy, isAsc ? OrderByType.Asc : OrderByType.Desc)
+            .OrderByIF(orderBy != null, orderBy, isAsc ? OrderByType.Asc : OrderByType.Desc);
+        Console.WriteLine(queryable.ToSqlString());
+
+        List<Note> result = await queryable
+            // db.Queryable<Note, User, NoteTag>((n, u, t) => new JoinQueryInfos(
+            //     JoinType.Inner, n.UserId == u.Id,
+            //     JoinType.Inner, n.Id == t.NoteId
+            // )).WhereIF(null != where, where)
+            // .OrderByIF(orderBy != null, orderBy, isAsc ? OrderByType.Asc : OrderByType.Desc)
             .Mapper(n => n.User, n => n.UserId)
             .ToPageListAsync(pageNumber, pageSize, totalCount);
         pageData.TotalCount = totalCount;

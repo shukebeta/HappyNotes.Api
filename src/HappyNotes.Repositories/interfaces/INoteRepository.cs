@@ -14,4 +14,5 @@ public interface INoteRepository : IRepositoryBase<Note>
         bool isAsc = false);
     Task<PageData<Note>> GetPublicNotes(int pageSize, int pageNumber, bool isAsc = false);
     Task<PageData<Note>> GetPublicTagNotes(string tag, int pageSize, int pageNumber, bool isAsc = false);
+    Task<PageData<Note>> GetLinkedNotes(long userId, long noteId, int max=100);
 }

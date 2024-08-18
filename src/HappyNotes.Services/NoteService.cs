@@ -274,6 +274,11 @@ public class NoteService(
         return await noteRepository.GetPublicTagNotes(tag, pageSize, pageNumber);
     }
 
+    public async Task<PageData<Note>> GetLinkedNotes(long userId, long noteId)
+    {
+        return await noteRepository.GetLinkedNotes(userId, noteId);
+    }
+
     /// <summary>
     /// Providing memories like
     /// - 5 years ago, [what happened today]

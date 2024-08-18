@@ -40,6 +40,13 @@ public class NotesController(IMapper mapper
         return new SuccessfulResult<PageData<NoteDto>>(mapper.Map<PageData<NoteDto>>(notes));
     }
 
+    [HttpGet("{noteId}")]
+    public async Task<ApiResult<PageData<NoteDto>>> LinkedNotes(long noteId)
+    {
+        var notes = await noteService.GetLinkedNotes(currentUser.Id, noteId);
+        return new SuccessfulResult<PageData<NoteDto>>(mapper.Map<PageData<NoteDto>>(notes));
+    }
+
     [AllowAnonymous]
     [HttpGet("{pageSize:int}/{pageNumber:int}")]
     [EnforcePageSizeLimit(Constants.MaxPageSize)]
