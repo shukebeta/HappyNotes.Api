@@ -213,8 +213,21 @@ public class NoteService(
                     var token = TextEncryptionHelper.Decrypt(setting.EncryptedToken,
                         _jwtConfig.SymmetricSecurityKey);
                     var messageId = int.Parse(channel[1]);
-                    await telegramService.EditMessageAsync(token, channelId, messageId, fullContent,
-                        note.IsMarkdown);
+                    try
+                    {
+                        await telegramService.EditMessageAsync(token, channelId, messageId, fullContent,
+                            note.IsMarkdown);
+
+                    }
+                    catch (Telegram.Bot.Exceptions.ApiRequestException ex)
+                    {
+                        logger.LogError(ex.ToString());
+                        if (note.IsMarkdown)
+                        {
+                            // exception can be caused by the Markdown parser, so we do the edit again without setting markdown flag
+                            await telegramService.EditMessageAsync(token, channelId, messageId, fullContent, false);
+                        }
+                    }
                 }
             }
             catch (Exception ex)
