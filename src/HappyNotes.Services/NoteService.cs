@@ -203,7 +203,7 @@ public class NoteService(
 
                 if (!settings.Any()) return;
 
-                var syncChannels = note.TelegramMessageIds.Split(",").Select(s => s.Split(":")).ToList();
+                var syncChannels = _GetSyncChannels(note);
                 foreach (var channel in syncChannels)
                 {
                     var channelId = channel[0];
@@ -235,6 +235,49 @@ public class NoteService(
                 logger.LogError(ex.ToString());
             }
         }
+    }
+
+    private async Task _DeleteTelegramMessageAsync(Note note)
+    {
+        if (!string.IsNullOrWhiteSpace(note.TelegramMessageIds))
+        {
+            try
+            {
+                var settings = await telegramSettingsRepository.GetListAsync(
+                    s => s.UserId == note.UserId && s.Status == TelegramSettingStatus.Normal);
+
+                if (!settings.Any()) return;
+
+                var syncChannels = _GetSyncChannels(note);
+                foreach (var channel in syncChannels)
+                {
+                    var channelId = channel[0];
+                    var setting = settings.FirstOrDefault(s => s.ChannelId.Equals(channelId));
+                    if (setting == null) continue;
+
+                    var token = TextEncryptionHelper.Decrypt(setting.EncryptedToken,
+                        _jwtConfig.SymmetricSecurityKey);
+                    var messageId = int.Parse(channel[1]);
+                    try
+                    {
+                        await telegramService.DeleteMessageAsync(token, channelId, messageId);
+                    }
+                    catch (Telegram.Bot.Exceptions.ApiRequestException ex)
+                    {
+                        logger.LogError(ex.ToString());
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex.ToString());
+            }
+        }
+    }
+
+    private static List<string[]> _GetSyncChannels(Note note)
+    {
+        return note.TelegramMessageIds?.Split(",").Select(s => s.Split(":")).ToList() ?? [];
     }
 
     private async Task _UpdateNoteTags(Note note, string fullContent)
@@ -428,6 +471,7 @@ public class NoteService(
         }
 
         note.DeletedAt = DateTime.UtcNow.ToUnixTimeSeconds();
+        Task.Run(async () => await _DeleteTelegramMessageAsync(note));
         return await noteRepository.UpdateAsync(note);
     }
 
