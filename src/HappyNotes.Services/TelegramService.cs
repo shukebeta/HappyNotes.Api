@@ -57,6 +57,17 @@ public class TelegramService : ITelegramService
         );
     }
 
+    public async Task DeleteMessageAsync(string botToken, string chatId, int messageId)
+    {
+        var botClient = new TelegramBotClient(botToken);
+
+        await botClient.DeleteMessageAsync(
+            chatId: _GetChatId(chatId),
+            messageId: messageId
+        );
+    }
+
+
     private static async Task<Message> _SendFileAsync(string botToken, string channelId, string filePath,
         string message)
     {
