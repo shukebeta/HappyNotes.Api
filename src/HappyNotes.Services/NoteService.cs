@@ -525,6 +525,11 @@ public class NoteService(
             throw ExceptionHelper.New(noteId, EventId._00101_NoteIsPrivate, noteId);
         }
 
+        if (note.DeletedAt.HasValue)
+        {
+            throw ExceptionHelper.New(noteId, EventId._00104_NoteIsDeleted, noteId);
+        }
+
         return note;
     }
 

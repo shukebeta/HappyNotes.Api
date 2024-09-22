@@ -25,6 +25,9 @@ public class NoteRepository(ISqlSugarClient dbClient) : RepositoryBase<Note>(dbC
                 IsMarkdown = n.IsMarkdown,
                 IsPrivate = n.IsPrivate,
                 UserId = n.UserId,
+                DeletedAt = n.DeletedAt,
+                CreatedAt = n.CreatedAt,
+                UpdatedAt = n.UpdatedAt,
                 User = u
             })
             .FirstAsync();
