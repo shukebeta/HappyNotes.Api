@@ -20,6 +20,7 @@ public class TelegramSettingsController(
     IMapper mapper,
     CurrentUser currentUser,
     IRepositoryBase<TelegramSettings> telegramSyncSettingsRepository,
+    ITelegramSettingsCacheService telegramSettingsCacheService,
     ITelegramService telegramService,
     IOptions<JwtConfig> jwtConfig
 ) : BaseController
@@ -79,6 +80,7 @@ public class TelegramSettingsController(
             }
         }
         var result = await telegramSyncSettingsRepository.InsertAsync(settings);
+        if (result) telegramSettingsCacheService.ClearCache(userId);
         return result ? new SuccessfulResult<bool>(true) : new FailedResult<bool>(false, "0 rows inserted");
     }
 
@@ -104,6 +106,7 @@ public class TelegramSettingsController(
         existingSetting.Status = existingSetting.Status.Add(TelegramSettingStatus.Inactive);
 
         var result = await telegramSyncSettingsRepository.UpdateAsync(existingSetting);
+        if (result) telegramSettingsCacheService.ClearCache(userId);
         return result ? new SuccessfulResult<bool>(true) : new FailedResult<bool>(false, "0 rows Updated");
     }
 
@@ -129,6 +132,7 @@ public class TelegramSettingsController(
         existingSetting.Status = existingSetting.Status.Remove(TelegramSettingStatus.Inactive);
 
         var result = await telegramSyncSettingsRepository.UpdateAsync(existingSetting);
+        if (result) telegramSettingsCacheService.ClearCache(userId);
         return result ? new SuccessfulResult<bool>(true) : new FailedResult<bool>(false, "0 rows Updated");
     }
 
@@ -148,6 +152,7 @@ public class TelegramSettingsController(
         var result = await telegramSyncSettingsRepository.DeleteAsync(s => s.UserId == userId &&
                                                                            s.SyncType == existingSetting.SyncType &&
                                                                            s.SyncValue == existingSetting.SyncValue);
+        if (result) telegramSettingsCacheService.ClearCache(userId);
         return result ? new SuccessfulResult<bool>(true) : new FailedResult<bool>(false, "0 rows deleted");
     }
 
