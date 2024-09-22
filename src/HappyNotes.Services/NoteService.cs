@@ -331,6 +331,8 @@ public class NoteService(
 
                     await _DeleteMessage(setting, channel);
                 }
+                note.TelegramMessageIds = null;
+                await noteRepository.UpdateAsync(note);
             }
             catch (Exception ex)
             {
@@ -383,8 +385,6 @@ public class NoteService(
         if (tags.Any())
         {
             await noteTagService.Upsert(note, tags);
-            // Sync to Telegram asynchronously
-            Task.Run(async () => await _SentToTelegram(note, fullContent));
         }
     }
 
