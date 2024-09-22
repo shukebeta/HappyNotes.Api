@@ -104,7 +104,6 @@ public class NoteService(
     /// Obtain what channel IDs require the removal of this note
     /// </summary>
     /// <param name="note"></param>
-    /// <param name="validSettings"></param>
     /// <returns></returns>
     private async Task<List<SyncedChannel>> _GetRequiredRemovalChannelIds(Note note)
     {
@@ -254,6 +253,8 @@ public class NoteService(
 
         note.Content = fullContent.GetShort();
         Task.Run(async () => await _UpdateTelegramMessageAsync(note, fullContent));
+        // Sync to Telegram asynchronously
+        Task.Run(async () => await _SentToTelegram(note, fullContent));
         return await noteRepository.UpdateAsync(note);
     }
 
