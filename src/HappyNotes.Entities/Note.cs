@@ -1,5 +1,6 @@
 using Api.Framework;
 using HappyNotes.Common;
+using HappyNotes.Models;
 using SqlSugar;
 
 namespace HappyNotes.Entities;
@@ -20,23 +21,8 @@ public class Note: EntityBase
     [SugarColumn(IsIgnore = true)] public User User { get; set; } = default!;
     [SugarColumn(IsIgnore = true)] public List<string> TagList { get; set; }
 
-    public void UpsertTelegramMessageIdList(string channelId, int messageId)
+    public void UpdateTelegramMessageIds(List<SyncedChannel> channels)
     {
-        var id = $"{channelId}:{messageId}";
-        if (string.IsNullOrEmpty(TelegramMessageIds)) {
-            TelegramMessageIds = id;
-        }
-        else {
-            var ids = TelegramMessageIds.Split(',');
-            foreach (var t in ids)
-            {
-                if (t.Equals(id))
-                {
-                    return;
-                }
-            }
-
-            TelegramMessageIds += $",{channelId}:{messageId}";
-        }
+        TelegramMessageIds = string.Join(",", channels.Select(r => $"{r.ChannelId}:{r.MessageId}"));
     }
 }
