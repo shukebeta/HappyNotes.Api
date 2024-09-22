@@ -2,6 +2,7 @@ using HappyNotes.Repositories;
 using HappyNotes.Repositories.interfaces;
 using HappyNotes.Services;
 using HappyNotes.Services.interfaces;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace HappyNotes.Api;
@@ -15,5 +16,7 @@ public static class ServiceExtensions
         services.AddSingleton<INoteTagService, NoteTagService>();
         services.AddSingleton<INoteRepository, NoteRepository>();
         services.AddSingleton<ITelegramService, TelegramService>();
+        services.AddSingleton<IMemoryCache, MemoryCache>();
+        services.AddSingleton<ITelegramSettingsCacheService, TelegramSettingsCacheService>();
     }
 }

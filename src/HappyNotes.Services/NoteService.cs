@@ -21,8 +21,8 @@ public class NoteService(
     INoteRepository noteRepository,
     INoteTagService noteTagService,
     IRepositoryBase<LongNote> longNoteRepository,
-    IRepositoryBase<TelegramSettings> telegramSettingsRepository,
     ITelegramService telegramService,
+    ITelegramSettingsCacheService telegramSettingsCacheService,
     IOptions<JwtConfig> jwtConfig,
     CurrentUser currentUser
 ) : INoteService
@@ -81,7 +81,7 @@ public class NoteService(
     {
         try
         {
-            var validSettings = await _GetValidTelegramSettings(note);
+            var validSettings = await telegramSettingsCacheService.GetAsync(note.UserId);
             if (!validSettings.Any()) return;
 
             var toSyncChannelIds = _GetRequiredSyncChannelIds(note, validSettings);
@@ -106,14 +106,14 @@ public class NoteService(
     /// <param name="note"></param>
     /// <param name="validSettings"></param>
     /// <returns></returns>
-    private async Task<List<SyncedChannel>> _GetRequiredRemovalChannelIds(Note note, TelegramSettings[]? validSettings)
+    private async Task<List<SyncedChannel>> _GetRequiredRemovalChannelIds(Note note)
     {
         var syncedChannels = _GetSyncedChannels(note);
 
         // If existing channels are empty, nothing to delete
         if (!syncedChannels.Any()) return [];
 
-        var toSyncChannelIds = _GetToSyncChannelIds(note, validSettings ?? await _GetValidTelegramSettings(note));
+        var toSyncChannelIds = _GetToSyncChannelIds(note, await telegramSettingsCacheService.GetAsync(note.UserId));
 
         // If no channels need to sync, return all existing channels
         if (!toSyncChannelIds.Any()) return syncedChannels;
@@ -123,12 +123,11 @@ public class NoteService(
         return syncedChannels.Where(r => ids.Contains(r.ChannelId)).ToList();
     }
 
-    private async Task _DeleteTelegramMessageIfNeeded(Note note, TelegramSettings[] validSettings)
+    private async Task _DeleteTelegramMessageIfNeeded(Note note)
     {
-        var toRemoveChannels = await _GetRequiredRemovalChannelIds(note, validSettings);
+        var toRemoveChannels = await _GetRequiredRemovalChannelIds(note);
         if (!toRemoveChannels.Any()) return;
-        var settings = await telegramSettingsRepository.GetListAsync(
-            s => s.UserId == note.UserId && s.Status == TelegramSettingStatus.Normal);
+        var settings = await telegramSettingsCacheService.GetAsync(note.UserId);
 
         if (!settings.Any()) return;
         foreach (var channel in toRemoveChannels)
@@ -152,7 +151,7 @@ public class NoteService(
     /// <param name="note"></param>
     /// <param name="validSettings"></param>
     /// <returns></returns>
-    private List<string> _GetRequiredSyncChannelIds(Note note, TelegramSettings[] validSettings)
+    private List<string> _GetRequiredSyncChannelIds(Note note, IList<TelegramSettings> validSettings)
     {
         var toSyncChannelIds = _GetToSyncChannelIds(note, validSettings);
         if (!toSyncChannelIds.Any()) return toSyncChannelIds;
@@ -163,14 +162,6 @@ public class NoteService(
         }
 
         return toSyncChannelIds;
-    }
-
-    private async Task<TelegramSettings[]> _GetValidTelegramSettings(Note note)
-    {
-        var telegramSettings = await telegramSettingsRepository.GetListAsync(x => x.UserId == note.UserId);
-        if (!telegramSettings.Any()) return [];
-        var validSettings = telegramSettings.Where(s => s.Status.Is(TelegramSettingStatus.Normal)).ToArray();
-        return validSettings;
     }
 
     private async Task _SentNoteToChannel(Note note, string fullContent, string token, string channelId)
@@ -194,7 +185,7 @@ public class NoteService(
         }
     }
 
-    private List<string> _GetToSyncChannelIds(Note note, TelegramSettings[] settings)
+    private List<string> _GetToSyncChannelIds(Note note, IList<TelegramSettings> settings)
     {
         var targetChannelList = new List<string>();
         foreach (var setting in settings)
@@ -273,8 +264,7 @@ public class NoteService(
         {
             try
             {
-                var settings = await telegramSettingsRepository.GetListAsync(
-                    s => s.UserId == note.UserId && s.Status == TelegramSettingStatus.Normal);
+                var settings = await telegramSettingsCacheService.GetAsync(note.UserId);
 
                 if (!settings.Any()) return;
 
@@ -317,8 +307,7 @@ public class NoteService(
         {
             try
             {
-                var settings = await telegramSettingsRepository.GetListAsync(
-                    s => s.UserId == note.UserId && s.Status == TelegramSettingStatus.Normal);
+                var settings = await telegramSettingsCacheService.GetAsync(note.UserId);
 
                 if (!settings.Any()) return;
 
