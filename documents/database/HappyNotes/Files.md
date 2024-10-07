@@ -1,15 +1,15 @@
 # Database: HappyNotes Table: Files
 
- Field    | Type      | Null | Default | Comment
-----------|-----------|------|---------|---------
- Id       | bigint    | NO   |         |
- Md5      | char(32)  | NO   |         |
- Path     | char(20)  | NO   |         |
- FileExt  | char(4)   | NO   |         |
- RefCount | int       | YES  |         |
- CreateAt | bigint    | YES  |         |
- UpdateAt | bigint    | YES  |         |
- FileName | char(128) | YES  |         |
+ Field     | Type      | Null | Default | Comment
+-----------|-----------|------|---------|---------
+ Id        | bigint    | NO   |         |
+ Md5       | char(32)  | NO   |         |
+ Path      | char(20)  | NO   |         |
+ FileExt   | char(5)   | NO   |         |
+ RefCount  | int       | YES  |         |
+ CreatedAt | bigint    | YES  |         |
+ UpdatedAt | bigint    | YES  |         |
+ FileName  | char(128) | YES  |         |
 
 ## Indexes: 
 

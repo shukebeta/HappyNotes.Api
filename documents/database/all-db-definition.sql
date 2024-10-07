@@ -34,10 +34,10 @@ CREATE TABLE `Files` (
   `Id` bigint NOT NULL AUTO_INCREMENT,
   `Md5` char(32) NOT NULL,
   `Path` char(20) NOT NULL,
-  `FileExt` char(4) NOT NULL,
+  `FileExt` char(5) NOT NULL,
   `RefCount` int DEFAULT NULL,
-  `CreateAt` bigint DEFAULT NULL,
-  `UpdateAt` bigint DEFAULT NULL,
+  `CreatedAt` bigint DEFAULT NULL,
+  `UpdatedAt` bigint DEFAULT NULL,
   `FileName` char(128) DEFAULT NULL,
   PRIMARY KEY (`Id`),
   UNIQUE KEY `Md5` (`Md5`)
