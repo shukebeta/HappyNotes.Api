@@ -77,6 +77,99 @@ CREATE TABLE `LongNote` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `MastodonApplications`
+--
+
+DROP TABLE IF EXISTS `MastodonApplications`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `MastodonApplications` (
+  `Id` int NOT NULL AUTO_INCREMENT,
+  `InstanceUrl` varchar(255) NOT NULL,
+  `ApplicationId` varchar(255) NOT NULL,
+  `ClientId` varchar(255) NOT NULL,
+  `ClientSecret` varchar(255) NOT NULL,
+  `MaxTootChars` int NOT NULL DEFAULT '500',
+  `Name` varchar(255) NOT NULL,
+  `Website` varchar(255) DEFAULT NULL,
+  `RedirectUri` varchar(255) NOT NULL,
+  `Scopes` varchar(255) NOT NULL,
+  `CreatedAt` bigint NOT NULL,
+  `UpdatedAt` bigint NOT NULL,
+  PRIMARY KEY (`Id`),
+  UNIQUE KEY `InstanceUrl` (`InstanceUrl`,`ApplicationId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `MastodonSyncStatus`
+--
+
+DROP TABLE IF EXISTS `MastodonSyncStatus`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `MastodonSyncStatus` (
+  `Id` bigint NOT NULL AUTO_INCREMENT,
+  `NoteId` bigint NOT NULL,
+  `UserId` bigint NOT NULL,
+  `ApplicationId` int NOT NULL,
+  `TootId` varchar(255) DEFAULT NULL,
+  `SyncStatus` int NOT NULL,
+  `LastSyncAttempt` bigint DEFAULT NULL,
+  `ErrorMessage` varchar(1024) DEFAULT NULL,
+  `CreatedAt` bigint NOT NULL,
+  `UpdatedAt` bigint NOT NULL,
+  PRIMARY KEY (`Id`),
+  UNIQUE KEY `ApplicationId` (`ApplicationId`,`TootId`),
+  KEY `SyncStatus` (`SyncStatus`),
+  KEY `NoteId` (`NoteId`),
+  CONSTRAINT `MastodonSyncStatus_ibfk_1` FOREIGN KEY (`SyncStatus`) REFERENCES `MastodonSyncStatusValues` (`Id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `MastodonSyncStatusValues`
+--
+
+DROP TABLE IF EXISTS `MastodonSyncStatusValues`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `MastodonSyncStatusValues` (
+  `Id` int NOT NULL,
+  `Status` varchar(20) NOT NULL,
+  PRIMARY KEY (`Id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `MastodonUserAccounts`
+--
+
+DROP TABLE IF EXISTS `MastodonUserAccounts`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `MastodonUserAccounts` (
+  `Id` bigint NOT NULL AUTO_INCREMENT,
+  `UserId` bigint NOT NULL,
+  `ApplicationId` int NOT NULL,
+  `MastodonUserId` varchar(255) NOT NULL,
+  `Username` varchar(255) NOT NULL,
+  `DisplayName` varchar(255) DEFAULT NULL,
+  `AvatarUrl` varchar(255) DEFAULT NULL,
+  `AccessToken` varchar(255) NOT NULL,
+  `RefreshToken` varchar(255) DEFAULT NULL,
+  `TokenType` varchar(50) NOT NULL,
+  `Scope` varchar(255) NOT NULL,
+  `ExpiresAt` bigint DEFAULT NULL,
+  `CreatedAt` bigint NOT NULL,
+  `UpdatedAt` bigint NOT NULL,
+  PRIMARY KEY (`Id`),
+  UNIQUE KEY `UserId` (`UserId`,`ApplicationId`),
+  KEY `UserId_2` (`UserId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `Note`
 --
 
@@ -89,6 +182,7 @@ CREATE TABLE `Note` (
   `Content` varchar(1024) NOT NULL,
   `Tags` varchar(512) DEFAULT NULL,
   `TelegramMessageIds` varchar(512) DEFAULT NULL COMMENT 'Common separated telegram MessageId list',
+  `MastodonTootIds` varchar(512) DEFAULT NULL COMMENT 'Comma-separated ApplicationId:TootId list',
   `FavoriteCount` int NOT NULL DEFAULT '0',
   `IsLong` tinyint NOT NULL DEFAULT '0',
   `IsPrivate` tinyint NOT NULL DEFAULT '1',

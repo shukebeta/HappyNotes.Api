@@ -7,6 +7,7 @@
  Content            | varchar(1024) | NO   |         |
  Tags               | varchar(512)  | YES  |         |
  TelegramMessageIds | varchar(512)  | YES  |         | Common separated telegram MessageId list
+ MastodonTootIds    | varchar(512)  | YES  |         | Comma-separated ApplicationId:TootId list
  FavoriteCount      | int           | NO   | 0       |
  IsLong             | tinyint       | NO   | 0       |
  IsPrivate          | tinyint       | NO   | 1       |
