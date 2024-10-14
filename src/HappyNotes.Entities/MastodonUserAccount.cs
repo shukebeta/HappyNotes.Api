@@ -23,7 +23,7 @@ public class MastodonUserAccount
     public string TokenType { get; set; }
 
     public MastodonUserAccountStatus Status { get; set; }
-    public string StatusMessage { get; set; }
+    public string StatusText { get; set; }
     public long CreatedAt { get; set; }
     public long ExpiresAt { get; set; }
     public long UpdatedAt { get; set; }

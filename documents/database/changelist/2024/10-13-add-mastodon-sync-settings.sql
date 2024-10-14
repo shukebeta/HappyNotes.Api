@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS MastodonUserAccount
     TokenType      VARCHAR(50)  NOT NULL,
     Scope          VARCHAR(255) NOT NULL,
     Status         INT          NOT NULL COMMENT 'Reference MastodonUserAccountStatus enum for details',
-    StatusMessage  VARCHAR(1024),
+    StatusText  VARCHAR(1024),
     ExpiresAt      BIGINT,
     CreatedAt      BIGINT       NOT NULL,
     UpdatedAt      BIGINT       NULL,

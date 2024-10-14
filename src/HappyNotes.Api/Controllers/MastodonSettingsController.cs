@@ -66,7 +66,7 @@ public class MastodonSettingsController(
             Scope = mastodonUserAccount.Scope,
             MastodonUserId = mastodonUserAccount.MastodonUserId,
             Status = MastodonUserAccountStatus.Created,
-            StatusMessage = "Created successfully",
+            StatusText = "Created successfully",
             CreatedAt = now,
         };
 
