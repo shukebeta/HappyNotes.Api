@@ -18,5 +18,6 @@ public static class ServiceExtensions
         services.AddSingleton<ITelegramService, TelegramService>();
         services.AddSingleton<IMemoryCache, MemoryCache>();
         services.AddSingleton<ITelegramSettingsCacheService, TelegramSettingsCacheService>();
+        services.AddSingleton<IMastodonUserAccountCacheService, MastodonUserAccountCacheService>();
     }
 }

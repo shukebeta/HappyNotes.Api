@@ -6,15 +6,16 @@ This document outlines the database design for integrating Mastodon synchronizat
 
 ## 2. Table Structures
 
-### 2.1 MastodonApplications
+### 2.1 MastodonApplication
 
 Stores information about Mastodon instances and their associated application credentials.
 
 ```sql
-CREATE TABLE IF NOT EXISTS MastodonApplications (
+CREATE TABLE IF NOT EXISTS MastodonApplication (
     Id            INT AUTO_INCREMENT PRIMARY KEY,
     InstanceUrl   VARCHAR(255) NOT NULL,
     ApplicationId VARCHAR(255) NOT NULL,
+    InstanceUrl   VARCHAR(255) NOT NULL,
     ClientId      VARCHAR(255) NOT NULL,
     ClientSecret  VARCHAR(255) NOT NULL,
     MaxTootChars  INT          NOT NULL DEFAULT '500',
@@ -28,12 +29,12 @@ CREATE TABLE IF NOT EXISTS MastodonApplications (
 );
 ```
 
-### 2.2 MastodonUserAccounts
+### 2.2 MastodonUserAccount
 
 Manages user-specific Mastodon account information and authentication tokens.
 
 ```sql
-CREATE TABLE IF NOT EXISTS MastodonUserAccounts (
+CREATE TABLE IF NOT EXISTS MastodonUserAccount (
     Id             BIGINT AUTO_INCREMENT PRIMARY KEY,
     UserId         BIGINT       NOT NULL,
     ApplicationId  INT          NOT NULL,
@@ -64,7 +65,7 @@ CREATE TABLE IF NOT EXISTS MastodonSyncStatus (
     UserId          BIGINT NOT NULL,
     ApplicationId   INT    NOT NULL,
     TootId          VARCHAR(255),
-    SyncStatus      INT    NOT NULL DEFAULT '0',
+    SyncStatus      INT    NOT NULL,
     LastSyncAttempt BIGINT,
     ErrorMessage    VARCHAR(1024),
     CreatedAt       BIGINT NOT NULL,
@@ -106,10 +107,10 @@ COMMENT 'Comma-separated ApplicationId:TootId list';
 
 ## 4. Relationships
 
-- MastodonUserAccounts.UserId references the main User table.
-- MastodonUserAccounts.ApplicationId references MastodonApplications.Id.
+- MastodonUserAccount.UserId references the main User table.
+- MastodonUserAccount.ApplicationId references MastodonApplication.Id.
 - MastodonSyncStatus.UserId references the main User table.
-- MastodonSyncStatus.ApplicationId references MastodonApplications.Id.
+- MastodonSyncStatus.ApplicationId references MastodonApplication.Id.
 - MastodonSyncStatus.SyncStatus references MastodonSyncStatusValues.Id.
 - Note.MastodonTootIds indirectly references MastodonSyncStatus entries.
 
@@ -122,7 +123,7 @@ COMMENT 'Comma-separated ApplicationId:TootId list';
 ## 6. Security Considerations
 
 - Sensitive data (e.g., ClientSecret, AccessToken) should be encrypted before storage.
-- Access to the MastodonApplications and MastodonUserAccounts tables should be strictly controlled.
+- Access to the MastodonApplication and MastodonUserAccount tables should be strictly controlled.
 
 ## 7. Future Enhancements
 

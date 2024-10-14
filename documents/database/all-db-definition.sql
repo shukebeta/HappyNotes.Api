@@ -77,13 +77,13 @@ CREATE TABLE `LongNote` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Table structure for table `MastodonApplications`
+-- Table structure for table `MastodonApplication`
 --
 
-DROP TABLE IF EXISTS `MastodonApplications`;
+DROP TABLE IF EXISTS `MastodonApplication`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `MastodonApplications` (
+CREATE TABLE `MastodonApplication` (
   `Id` int NOT NULL AUTO_INCREMENT,
   `InstanceUrl` varchar(255) NOT NULL,
   `ApplicationId` varchar(255) NOT NULL,
@@ -142,13 +142,13 @@ CREATE TABLE `MastodonSyncStatusValues` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Table structure for table `MastodonUserAccounts`
+-- Table structure for table `MastodonUserAccount`
 --
 
-DROP TABLE IF EXISTS `MastodonUserAccounts`;
+DROP TABLE IF EXISTS `MastodonUserAccount`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `MastodonUserAccounts` (
+CREATE TABLE `MastodonUserAccount` (
   `Id` bigint NOT NULL AUTO_INCREMENT,
   `UserId` bigint NOT NULL,
   `ApplicationId` int NOT NULL,

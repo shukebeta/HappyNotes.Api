@@ -1,5 +1,6 @@
 USE HappyNotes;
-CREATE TABLE IF NOT EXISTS MastodonApplications
+DROP TABLE IF EXISTS MastodonApplication;
+CREATE TABLE IF NOT EXISTS MastodonApplication
 (
     Id            INT AUTO_INCREMENT PRIMARY KEY,
     InstanceUrl   VARCHAR(255) NOT NULL,
@@ -16,12 +17,14 @@ CREATE TABLE IF NOT EXISTS MastodonApplications
     UNIQUE KEY (InstanceUrl, ApplicationId)
 );
 
-CREATE TABLE IF NOT EXISTS MastodonUserAccounts
+DROP TABLE IF EXISTS MastodonUserAccount;
+CREATE TABLE IF NOT EXISTS MastodonUserAccount
 (
     Id             BIGINT AUTO_INCREMENT PRIMARY KEY,
     UserId         BIGINT       NOT NULL,
     ApplicationId  INT          NOT NULL,
     MastodonUserId VARCHAR(255) NOT NULL,
+    InstanceUrl    VARCHAR(255) NOT NULL,
     Username       VARCHAR(255) NOT NULL,
     DisplayName    VARCHAR(255),
     AvatarUrl      VARCHAR(255),
@@ -29,9 +32,11 @@ CREATE TABLE IF NOT EXISTS MastodonUserAccounts
     RefreshToken   VARCHAR(255),
     TokenType      VARCHAR(50)  NOT NULL,
     Scope          VARCHAR(255) NOT NULL,
+    Status         INT          NOT NULL COMMENT 'Reference MastodonUserAccountStatus enum for details',
+    StatusMessage  VARCHAR(1024),
     ExpiresAt      BIGINT,
     CreatedAt      BIGINT       NOT NULL,
-    UpdatedAt      BIGINT       NOT NULL,
+    UpdatedAt      BIGINT       NULL,
     UNIQUE KEY (UserId, ApplicationId),
     INDEX (UserId)
 );
@@ -70,7 +75,7 @@ WHERE TABLE_SCHEMA = 'HappyNotes'
 -- If the 'MastodonTootIds' field does not exist, add it
 SET @sql = IF(@exists = 0,
               'ALTER TABLE `HappyNotes`.`Note` ADD `MastodonTootIds` VARCHAR(512) NULL COMMENT ''Comma-separated ApplicationId:TootId list'' AFTER `TelegramMessageIds`;',
-              'SELECT "Column MastodonTootIds already exists." AS Result');
+              'SELECT ''Column MastodonTootIds already exists.'' AS Result');
 
 PREPARE stmt FROM @sql;
 EXECUTE stmt;

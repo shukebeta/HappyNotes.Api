@@ -1,4 +1,4 @@
-# Database: HappyNotes Table: MastodonApplications
+# Database: HappyNotes Table: MastodonApplication
 
  Field         | Type         | Null | Default | Comment
 ---------------|--------------|------|---------|---------

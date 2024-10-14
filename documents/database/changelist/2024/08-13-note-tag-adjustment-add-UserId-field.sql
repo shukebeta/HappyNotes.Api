@@ -7,7 +7,7 @@ SET @column_exists = (SELECT COUNT(*)
 
 -- Prepare and execute the statement only if the column does not exist
 SET @stmt = IF(@column_exists = 0, 'ALTER TABLE HappyNotes.NoteTag ADD UserId BIGINT NOT NULL COMMENT "=Note.UserId" AFTER Id',
-               'SELECT "Column already exists" AS Result');
+               'SELECT ''Column already exists'' AS Result');
 
 PREPARE stmt FROM @stmt;
 EXECUTE stmt;

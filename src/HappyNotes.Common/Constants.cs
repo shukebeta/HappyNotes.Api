@@ -8,4 +8,6 @@ public static class Constants
     public const int TelegramMessageLength = 4096;
     public const int TelegramCaptionLength = 1024;
     public const string TelegramSameTokenFlag = "the same token as the last setting";
+    public const string MastodonAppName = "HappyNotes";
+    public const string HappyNotesWebsite = "https://happynotes.shukebeta.com";
 }

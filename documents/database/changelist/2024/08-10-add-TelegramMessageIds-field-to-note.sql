@@ -7,7 +7,7 @@ WHERE TABLE_SCHEMA = 'HappyNotes'
 -- If the 'TelegramMessageIds' field does not exist, add it
 SET @sql = IF(@exists = 0,
               'ALTER TABLE `HappyNotes`.`Note` ADD `TelegramMessageIds` VARCHAR(512) NULL COMMENT ''Comma-separated telegram MessageId list'' AFTER `Tags`;',
-              'SELECT "Column TelegramMessageIds already exists." AS Result');
+              'SELECT ''Column TelegramMessageIds already exists.'' AS Result');
 
 PREPARE stmt FROM @sql;
 EXECUTE stmt;

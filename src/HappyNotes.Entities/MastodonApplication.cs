@@ -2,7 +2,7 @@ using SqlSugar;
 
 namespace HappyNotes.Entities;
 
-public class MastodonApplications
+public class MastodonApplication
 {
     [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
     public long Id { get; set; }
