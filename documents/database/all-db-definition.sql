@@ -86,7 +86,7 @@ DROP TABLE IF EXISTS `MastodonApplication`;
 CREATE TABLE `MastodonApplication` (
   `Id` int NOT NULL AUTO_INCREMENT,
   `InstanceUrl` varchar(255) NOT NULL,
-  `ApplicationId` varchar(255) NOT NULL,
+  `ApplicationId` int NOT NULL,
   `ClientId` varchar(255) NOT NULL,
   `ClientSecret` varchar(255) NOT NULL,
   `MaxTootChars` int NOT NULL DEFAULT '500',
@@ -97,7 +97,7 @@ CREATE TABLE `MastodonApplication` (
   `CreatedAt` bigint NOT NULL,
   `UpdatedAt` bigint NOT NULL,
   PRIMARY KEY (`Id`),
-  UNIQUE KEY `InstanceUrl` (`InstanceUrl`,`ApplicationId`)
+  UNIQUE KEY `InstanceUrl` (`InstanceUrl`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -110,6 +110,7 @@ DROP TABLE IF EXISTS `MastodonSyncStatus`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `MastodonSyncStatus` (
   `Id` bigint NOT NULL AUTO_INCREMENT,
+  `InstanceUrl` varchar(255) NOT NULL,
   `NoteId` bigint NOT NULL,
   `UserId` bigint NOT NULL,
   `ApplicationId` int NOT NULL,
@@ -120,7 +121,7 @@ CREATE TABLE `MastodonSyncStatus` (
   `CreatedAt` bigint NOT NULL,
   `UpdatedAt` bigint NOT NULL,
   PRIMARY KEY (`Id`),
-  UNIQUE KEY `ApplicationId` (`ApplicationId`,`TootId`),
+  UNIQUE KEY `InstanceUrl` (`InstanceUrl`,`NoteId`),
   KEY `SyncStatus` (`SyncStatus`),
   KEY `NoteId` (`NoteId`),
   CONSTRAINT `MastodonSyncStatus_ibfk_1` FOREIGN KEY (`SyncStatus`) REFERENCES `MastodonSyncStatusValues` (`Id`)
@@ -151,24 +152,15 @@ DROP TABLE IF EXISTS `MastodonUserAccount`;
 CREATE TABLE `MastodonUserAccount` (
   `Id` bigint NOT NULL AUTO_INCREMENT,
   `UserId` bigint NOT NULL,
-  `ApplicationId` int NOT NULL,
-  `MastodonUserId` varchar(255) NOT NULL,
   `InstanceUrl` varchar(255) NOT NULL,
-  `Username` varchar(255) NOT NULL,
-  `DisplayName` varchar(255) DEFAULT NULL,
-  `AvatarUrl` varchar(255) DEFAULT NULL,
   `AccessToken` varchar(255) NOT NULL,
-  `RefreshToken` varchar(255) DEFAULT NULL,
   `TokenType` varchar(50) NOT NULL,
   `Scope` varchar(255) NOT NULL,
   `Status` int NOT NULL COMMENT 'Reference MastodonUserAccountStatus enum for details',
-  `StatusText` varchar(1024) DEFAULT NULL,
-  `ExpiresAt` bigint DEFAULT NULL,
   `CreatedAt` bigint NOT NULL,
-  `UpdatedAt` bigint DEFAULT NULL,
   PRIMARY KEY (`Id`),
-  UNIQUE KEY `UserId` (`UserId`,`ApplicationId`),
-  KEY `UserId_2` (`UserId`)
+  UNIQUE KEY `InstanceUrl` (`InstanceUrl`,`UserId`),
+  KEY `UserId` (`UserId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

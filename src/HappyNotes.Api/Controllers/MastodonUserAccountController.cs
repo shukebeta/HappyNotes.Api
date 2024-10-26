@@ -1,7 +1,4 @@
 using Api.Framework;
-using Api.Framework.Extensions;
-using Api.Framework.Helper;
-using Api.Framework.Models;
 using Api.Framework.Result;
 using AutoMapper;
 using HappyNotes.Common;
@@ -10,21 +7,16 @@ using HappyNotes.Entities;
 using HappyNotes.Models;
 using HappyNotes.Services.interfaces;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 
 namespace HappyNotes.Api.Controllers;
 
-public class MastodonSettingsController(
+public class MastodonUserAccountController(
     IMapper mapper,
     CurrentUser currentUser,
     IRepositoryBase<MastodonUserAccount> mastodonUserAccountsRepository,
-    IMastodonUserAccountCacheService mastodonUserAccountsCacheService,
-    // ITelegramService telegramService,
-    IOptions<JwtConfig> jwtConfig
+    IMastodonUserAccountCacheService mastodonUserAccountsCacheService
 ) : BaseController
 {
-    private readonly JwtConfig _jwtConfig = jwtConfig.Value;
-
     [HttpGet]
     public async Task<ApiResult<List<MastodonUserAccount>>> GetAll()
     {
@@ -34,53 +26,11 @@ public class MastodonSettingsController(
     }
 
     [HttpPost]
-    public async Task<ApiResult<bool>> Add(MastodonUserAccount mastodonUserAccount)
-    {
-        var userId = currentUser.Id;
-        var existingSetting = await mastodonUserAccountsRepository.GetFirstOrDefaultAsync(
-            s => s.UserId == userId && s.ApplicationId == mastodonUserAccount.ApplicationId);
-
-        if (existingSetting != null)
-        {
-            throw new Exception(
-                $"Mastodon instance: {mastodonUserAccount.InstanceUrl} has already been set");
-        }
-
-        // todo: more verification before inserting the settings
-        var now = DateTime.UtcNow.ToUnixTimeSeconds();
-        var settings = new MastodonUserAccount()
-        {
-            UserId = userId,
-            ApplicationId = mastodonUserAccount.ApplicationId,
-            InstanceUrl = mastodonUserAccount.InstanceUrl,
-            TokenType = mastodonUserAccount.TokenType,
-            // _jwtConfig.SymmetricSecurityKey is being used for two purposes, I know it is not good, but it is convenient.
-            AccessToken =
-                TextEncryptionHelper.Encrypt(mastodonUserAccount.AccessToken,  _jwtConfig.SymmetricSecurityKey),
-            RefreshToken =
-                TextEncryptionHelper.Encrypt(mastodonUserAccount.RefreshToken,  _jwtConfig.SymmetricSecurityKey),
-            ExpiresAt = mastodonUserAccount.ExpiresAt,
-            Username = mastodonUserAccount.Username,
-            DisplayName = mastodonUserAccount.DisplayName,
-            AvatarUrl = mastodonUserAccount.AvatarUrl,
-            Scope = mastodonUserAccount.Scope,
-            MastodonUserId = mastodonUserAccount.MastodonUserId,
-            Status = MastodonUserAccountStatus.Created,
-            StatusText = "Created successfully",
-            CreatedAt = now,
-        };
-
-        var result = await mastodonUserAccountsRepository.InsertAsync(settings);
-        if (result) mastodonUserAccountsCacheService.ClearCache(userId);
-        return result ? new SuccessfulResult<bool>(true) : new FailedResult<bool>(false, "0 rows inserted");
-    }
-
-    [HttpPost]
     public async Task<ApiResult<bool>> Disable(MastodonUserAccount mastodonUserAccount)
     {
         var userId = currentUser.Id;
         var existingSetting = await mastodonUserAccountsRepository.GetFirstOrDefaultAsync(
-            s => s.UserId == userId && s.ApplicationId == mastodonUserAccount.ApplicationId);
+            s => s.UserId == userId && s.InstanceUrl == mastodonUserAccount.InstanceUrl);
         if (existingSetting == null)
         {
             throw new Exception(
@@ -97,7 +47,7 @@ public class MastodonSettingsController(
 
         var result = await mastodonUserAccountsRepository.UpdateAsync(existingSetting);
         if (result) mastodonUserAccountsCacheService.ClearCache(userId);
-        return result ? new SuccessfulResult<bool>(true) : new FailedResult<bool>(false, "0 rows Updated");
+        return result ? Success() : new FailedResult<bool>(false, "0 rows Updated");
     }
 
     [HttpPost]
@@ -105,18 +55,18 @@ public class MastodonSettingsController(
     {
         var userId = currentUser.Id;
         var existingSetting = await mastodonUserAccountsRepository.GetFirstOrDefaultAsync(
-            s => s.UserId == userId && s.ApplicationId == mastodonUserAccount.ApplicationId);
+            s => s.UserId == userId && s.InstanceUrl == mastodonUserAccount.InstanceUrl);
 
         if (existingSetting == null)
         {
             throw new Exception(
-                $"Setting with {mastodonUserAccount.ApplicationId} doesn't exist.");
+                $"Setting with {mastodonUserAccount.InstanceUrl} doesn't exist.");
         }
 
         if (!existingSetting.Status.Has(TelegramSettingStatus.Inactive))
         {
             throw new Exception(
-                $"Setting with {mastodonUserAccount.Id} is already active");
+                $"Setting with {mastodonUserAccount.InstanceUrl} is already active");
         }
 
         existingSetting.Status = existingSetting.Status.Remove(MastodonUserAccountStatus.Inactive);
@@ -131,7 +81,7 @@ public class MastodonSettingsController(
     {
         var userId = currentUser.Id;
         var existingSetting = await mastodonUserAccountsRepository.GetFirstOrDefaultAsync(
-            s => s.UserId == userId && s.ApplicationId == mastodonUserAccount.ApplicationId);
+            s => s.UserId == userId && s.InstanceUrl == mastodonUserAccount.InstanceUrl);
 
         if (existingSetting == null)
         {
@@ -140,7 +90,7 @@ public class MastodonSettingsController(
         }
 
         var result = await mastodonUserAccountsRepository.DeleteAsync(s => s.UserId == userId &&
-                                                                           s.ApplicationId == existingSetting.ApplicationId);
+                                                                           s.InstanceUrl == existingSetting.InstanceUrl);
         if (result) mastodonUserAccountsCacheService.ClearCache(userId);
         return result ? new SuccessfulResult<bool>(true) : new FailedResult<bool>(false, "0 rows deleted");
     }
@@ -150,7 +100,7 @@ public class MastodonSettingsController(
     {
         var userId = currentUser.Id;
         var existingSetting = await mastodonUserAccountsRepository.GetFirstOrDefaultAsync(
-            s => s.UserId == userId && s.ApplicationId == mastodonUserAccount.ApplicationId);
+            s => s.UserId == userId && s.InstanceUrl == mastodonUserAccount.InstanceUrl);
 
         if (existingSetting == null)
         {

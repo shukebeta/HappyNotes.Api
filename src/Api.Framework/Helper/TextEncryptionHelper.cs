@@ -16,9 +16,9 @@ public static class TextEncryptionHelper
         return aes;
     }
 
-    public static string Encrypt(string plainString, string keyStr)
+    public static string Encrypt(string? plainString, string keyStr)
     {
-        var data = Encoding.UTF8.GetBytes(plainString);
+        var data = Encoding.UTF8.GetBytes(plainString ?? string.Empty);
         using var aes = GetCryptoProvider(keyStr);
         var iv = aes.IV;
         using var encryptor = aes.CreateEncryptor();

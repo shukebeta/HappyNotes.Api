@@ -15,11 +15,11 @@ public class Note: EntityBase
     public bool IsLong { get; set; }
     public bool IsMarkdown { get; set; }
     public bool IsPrivate { get; set; }
-    public string Tags { get; set; }
+    public string Tags { get; set; } = string.Empty;
     public string? TelegramMessageIds { get; set; }
 
     [SugarColumn(IsIgnore = true)] public User User { get; set; } = default!;
-    [SugarColumn(IsIgnore = true)] public List<string> TagList { get; set; }
+    [SugarColumn(IsIgnore = true)] public List<string> TagList { get; set; } = [];
 
     public void UpdateTelegramMessageIds(List<SyncedChannel> channels)
     {

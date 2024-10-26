@@ -8,6 +8,6 @@ public class NoteTag
     public long Id { get; set; }
     public long UserId { get; set; }
     public long NoteId { get; set; }
-    public string Tag { get; set; }
+    public string Tag { get; set; } = string.Empty;
     public long CreatedAt { get; set; }
 }

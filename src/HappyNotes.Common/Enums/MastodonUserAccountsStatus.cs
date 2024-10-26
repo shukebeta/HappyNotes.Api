@@ -32,3 +32,38 @@ public enum MastodonUserAccountStatus
     /// </summary>
     Disabled = Normal | Inactive,
 }
+public static class MastodonUserAccountStatusExtensions
+{
+    /// <summary>
+    /// Gets the human-friendly status text for the given MastodonUserAccountStatus.
+    /// </summary>
+    /// <param name="status">The status to convert to text.</param>
+    /// <returns>A string representing the human-friendly status text.</returns>
+    public static string StatusText(this MastodonUserAccountStatus status)
+    {
+        switch (status)
+        {
+            case MastodonUserAccountStatus.Created:
+            case MastodonUserAccountStatus.Tested:
+            case MastodonUserAccountStatus.Normal:
+            case MastodonUserAccountStatus.Disabled:
+                return status.ToString();
+            default:
+                var statuses = new List<string>();
+
+                if (status.HasFlag(MastodonUserAccountStatus.Created))
+                    statuses.Add("Created");
+
+                if (status.HasFlag(MastodonUserAccountStatus.Tested))
+                    statuses.Add("Tested");
+
+                if (status.HasFlag(MastodonUserAccountStatus.Inactive))
+                    statuses.Add("Inactive");
+
+                if (status.HasFlag(MastodonUserAccountStatus.Error))
+                    statuses.Add("Error");
+
+                return statuses.Count > 0 ? string.Join(", ", statuses) : $"Unknown Status: {(int)status}";
+        }
+    }
+}

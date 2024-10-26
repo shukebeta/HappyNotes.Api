@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS MastodonApplication
 (
     Id            INT AUTO_INCREMENT PRIMARY KEY,
     InstanceUrl   VARCHAR(255) NOT NULL,
-    ApplicationId VARCHAR(255) NOT NULL,
+    ApplicationId INT          NOT NULL,
     ClientId      VARCHAR(255) NOT NULL,
     ClientSecret  VARCHAR(255) NOT NULL,
     MaxTootChars  INT          NOT NULL DEFAULT '500',
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS MastodonApplication
     Scopes        VARCHAR(255) NOT NULL,
     CreatedAt     BIGINT       NOT NULL,
     UpdatedAt     BIGINT       NOT NULL,
-    UNIQUE KEY (InstanceUrl, ApplicationId)
+    UNIQUE KEY (InstanceUrl)
 );
 
 DROP TABLE IF EXISTS MastodonUserAccount;
@@ -22,22 +22,13 @@ CREATE TABLE IF NOT EXISTS MastodonUserAccount
 (
     Id             BIGINT AUTO_INCREMENT PRIMARY KEY,
     UserId         BIGINT       NOT NULL,
-    ApplicationId  INT          NOT NULL,
-    MastodonUserId VARCHAR(255) NOT NULL,
     InstanceUrl    VARCHAR(255) NOT NULL,
-    Username       VARCHAR(255) NOT NULL,
-    DisplayName    VARCHAR(255),
-    AvatarUrl      VARCHAR(255),
     AccessToken    VARCHAR(255) NOT NULL,
-    RefreshToken   VARCHAR(255),
     TokenType      VARCHAR(50)  NOT NULL,
     Scope          VARCHAR(255) NOT NULL,
     Status         INT          NOT NULL COMMENT 'Reference MastodonUserAccountStatus enum for details',
-    StatusText  VARCHAR(1024),
-    ExpiresAt      BIGINT,
     CreatedAt      BIGINT       NOT NULL,
-    UpdatedAt      BIGINT       NULL,
-    UNIQUE KEY (UserId, ApplicationId),
+    UNIQUE KEY (InstanceUrl, UserId),
     INDEX (UserId)
 );
 
@@ -47,21 +38,23 @@ CREATE TABLE IF NOT EXISTS MastodonSyncStatusValues
     Status VARCHAR(20) NOT NULL -- can be 'Pending', 'Synced', or 'Failed'
 );
 
+DROP TABLE IF EXISTS MastodonSyncStatus;
 CREATE TABLE IF NOT EXISTS MastodonSyncStatus
 (
     Id              BIGINT AUTO_INCREMENT PRIMARY KEY,
-    NoteId          BIGINT NOT NULL,
-    UserId          BIGINT NOT NULL,
-    ApplicationId   INT    NOT NULL,
+    InstanceUrl     VARCHAR(255) NOT NULL,
+    NoteId          BIGINT       NOT NULL,
+    UserId          BIGINT       NOT NULL,
+    ApplicationId   INT          NOT NULL,
     TootId          VARCHAR(255),
-    SyncStatus      INT    NOT NULL,
+    SyncStatus      INT          NOT NULL,
     LastSyncAttempt BIGINT,
     ErrorMessage    VARCHAR(1024),
-    CreatedAt       BIGINT NOT NULL,
-    UpdatedAt       BIGINT NOT NULL,
+    CreatedAt       BIGINT       NOT NULL,
+    UpdatedAt       BIGINT       NOT NULL,
     FOREIGN KEY (SyncStatus) REFERENCES MastodonSyncStatusValues (Id),
     INDEX (NoteId),
-    UNIQUE KEY (ApplicationId, TootId)
+    UNIQUE KEY (InstanceUrl, NoteId)
 );
 
 -- Check if the 'MastodonTootIds' field exists

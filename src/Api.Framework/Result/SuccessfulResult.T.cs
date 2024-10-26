@@ -2,11 +2,11 @@ namespace Api.Framework.Result;
 
 public class SuccessfulResult<T>: ApiResult<T>
 {
-    public SuccessfulResult(T data)
+    public SuccessfulResult(T data, string? message = null)
     {
         Successful = true;
         ErrorCode = 0;
-        Message = "Successful";
+        Message = message ?? "Successful";
         Data = data;
     }
 }

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Api.Framework.Result;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HappyNotes.Api.Controllers;
@@ -8,13 +9,22 @@ namespace HappyNotes.Api.Controllers;
 [Produces("application/json")]
 public class BaseController : ControllerBase
 {
-    protected string RealIp => GetRealIp();
-
-    private string GetRealIp()
+    protected ApiResult<T> Fail<T>(string message, T? data = default)
     {
-        return Request.Headers.ContainsKey("X-Forwarded-For")
-            ? Request.Headers["X-Forwarded-For"].ToString()
-            : HttpContext.Connection.RemoteIpAddress?.MapToIPv4().ToString() ?? string.Empty;
+        return new FailedResult<T>(data, message);
     }
 
+    protected ApiResult<bool> Fail(string message)
+    {
+        return new FailedResult<bool>(false, message);
+    }
+
+    protected ApiResult<bool> Success(string? message = null)
+    {
+        return new SuccessfulResult<bool>(true, message);
+    }
+    protected ApiResult<T> Success<T>(T data)
+    {
+        return new SuccessfulResult<T>(data);
+    }
 }
