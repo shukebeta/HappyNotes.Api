@@ -1,10 +1,8 @@
 using System.Globalization;
 using Api.Framework;
 using Api.Framework.Extensions;
-using Api.Framework.Helper;
 using Api.Framework.Models;
 using HappyNotes.Common;
-using HappyNotes.Common.Enums;
 using HappyNotes.Entities;
 using HappyNotes.Extensions;
 using HappyNotes.Models;
@@ -16,13 +14,15 @@ using EventId = HappyNotes.Common.Enums.EventId;
 
 namespace HappyNotes.Services;
 
-public class NoteService(
+public partial class NoteService(
     ILogger<NoteService> logger,
     INoteRepository noteRepository,
     INoteTagService noteTagService,
     IRepositoryBase<LongNote> longNoteRepository,
     ITelegramService telegramService,
     ITelegramSettingsCacheService telegramSettingsCacheService,
+    IMastodonTootService mastodonTootService,
+    IMastodonUserAccountCacheService mastodonUserAccountCacheService,
     IOptions<JwtConfig> jwtConfig,
     CurrentUser currentUser
 ) : INoteService
@@ -73,155 +73,9 @@ public class NoteService(
 
         // Sync to Telegram asynchronously
         Task.Run(async () => await _NewNoteSendToTelegram(note, fullContent));
+        Task.Run(async () => await _NewNoteSendToMastodon(note, fullContent));
 
         return note.Id;
-    }
-
-    /// <summary>
-    /// new note: sendToTelegram
-    /// </summary>
-    /// <param name="note"></param>
-    /// <param name="fullContent"></param>
-    private async Task _NewNoteSendToTelegram(Note note, string fullContent)
-    {
-        try
-        {
-            var syncedChannels = new List<SyncedChannel>();
-            var validSettings = await telegramSettingsCacheService.GetAsync(note.UserId);
-            if (validSettings.Any())
-            {
-                var toSyncChannelIds = (await _GetRequiredChannelData(note)).toBeSent;
-                if (toSyncChannelIds.Any())
-                {
-                    var token = TextEncryptionHelper.Decrypt(validSettings.First().EncryptedToken,
-                        _jwtConfig.SymmetricSecurityKey);
-                    foreach (var channelId in toSyncChannelIds)
-                    {
-                        var messageId = await _SentNoteToChannel(note, fullContent, token, channelId);
-                        syncedChannels.Add(new SyncedChannel()
-                        {
-                            ChannelId = channelId,
-                            MessageId = messageId,
-                        });
-
-                    }
-                }
-            }
-            note.UpdateTelegramMessageIds(syncedChannels);
-            await noteRepository.UpdateAsync(note);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex.ToString());
-        }
-    }
-
-    /// <summary>
-    /// Obtain three groups of channel data:
-    /// 1. toBeUpdatedChannels: Channels that need note updates.
-    /// 2. toBeRemovedChannels: Channels where synced notes need to be removed.
-    /// 3. toBeSent: Channel IDs that need new note synchronization.
-    /// </summary>
-    /// <param name="note"></param>
-    /// <returns></returns>
-    private async Task<(List<SyncedChannel> toBeUpdatedChannels,
-        List<SyncedChannel> toBeRemovedChannels,
-        List<string> toBeSent)> _GetRequiredChannelData(Note note)
-    {
-        var syncedChannels = _GetSyncedChannels(note);
-        var toSyncChannelIds = _GetToSyncChannelIds(note, await telegramSettingsCacheService.GetAsync(note.UserId));
-
-        var toBeUpdated = _GetChannelsToBeUpdated(syncedChannels, toSyncChannelIds);
-        var toBeRemoved = _GetChannelsToBeRemoved(syncedChannels, toSyncChannelIds);
-        var toBeSentIds = _GetChannelsToBeSent(syncedChannels, toSyncChannelIds);
-
-        return (toBeUpdated, toBeRemoved, toBeSentIds);
-    }
-
-    /// <summary>
-    /// Gets channels that require note updates.
-    /// </summary>
-    private List<SyncedChannel> _GetChannelsToBeUpdated(List<SyncedChannel> syncedChannels,
-        List<string> toSyncChannelIds)
-    {
-        var idsToUpdate = syncedChannels.Select(s => s.ChannelId).Intersect(toSyncChannelIds).ToList();
-        return syncedChannels.Where(r => idsToUpdate.Contains(r.ChannelId)).ToList();
-    }
-
-    /// <summary>
-    /// Gets channels where synced notes need to be removed.
-    /// </summary>
-    private List<SyncedChannel> _GetChannelsToBeRemoved(List<SyncedChannel> syncedChannels,
-        List<string> toSyncChannelIds)
-    {
-        if (!toSyncChannelIds.Any()) return syncedChannels;
-
-        var idsToRemove = syncedChannels.Select(s => s.ChannelId).Except(toSyncChannelIds).ToList();
-        return syncedChannels.Where(r => idsToRemove.Contains(r.ChannelId)).ToList();
-    }
-
-    /// <summary>
-    /// Gets channel IDs that need new note synchronization.
-    /// </summary>
-    private List<string> _GetChannelsToBeSent(List<SyncedChannel> syncedChannels, List<string> toSyncChannelIds)
-    {
-        if (!syncedChannels.Any()) return toSyncChannelIds;
-        return toSyncChannelIds.Except(syncedChannels.Select(s => s.ChannelId)).ToList();
-    }
-
-    private async Task<int> _SentNoteToChannel(Note note, string fullContent, string token, string channelId)
-    {
-        var text = fullContent; // Or format the message as needed
-
-        // You can use different logic here based on the note's properties
-        if (fullContent.Length > Constants.TelegramMessageLength)
-        {
-            var message = await telegramService.SendLongMessageAsFileAsync(token, channelId, fullContent,
-                note.IsMarkdown ? ".md" : ".txt");
-            return message.MessageId;
-        }
-        else
-        {
-            var message = await telegramService.SendMessageAsync(token, channelId, text, note.IsMarkdown);
-            return message.MessageId;
-        }
-    }
-
-    private List<string> _GetToSyncChannelIds(Note note, IList<TelegramSettings> settings)
-    {
-        var targetChannelList = new List<string>();
-        foreach (var setting in settings)
-        {
-            switch (setting.SyncType)
-            {
-                case TelegramSyncType.All:
-                    targetChannelList.Add(setting.ChannelId);
-                    break;
-                case TelegramSyncType.Private:
-                    if (note.IsPrivate)
-                    {
-                        targetChannelList.Add(setting.ChannelId);
-                    }
-
-                    break;
-                case TelegramSyncType.Public:
-                    if (!note.IsPrivate)
-                    {
-                        targetChannelList.Add(setting.ChannelId);
-                    }
-
-                    break;
-                case TelegramSyncType.Tag:
-                    if (note.TagList.Contains(setting.SyncValue))
-                    {
-                        targetChannelList.Add(setting.ChannelId);
-                    }
-
-                    break;
-            }
-        }
-
-        return targetChannelList.Distinct().ToList();
     }
 
     public async Task<bool> Update(long id, PostNoteRequest request)
@@ -257,158 +111,6 @@ public class NoteService(
         note.Content = fullContent.GetShort();
         Task.Run(async () => await _UpdateTelegramMessageAsync(note, fullContent));
         return await noteRepository.UpdateAsync(note);
-    }
-
-    private async Task _UpdateTelegramMessageAsync(Note note, string fullContent)
-    {
-        var settings = await telegramSettingsCacheService.GetAsync(note.UserId);
-        if (!settings.Any()) return;
-        var syncedChannels = new List<SyncedChannel>();
-
-        var channelData = await _GetRequiredChannelData(note);
-        var toBeSent = channelData.toBeSent;
-        // there are existing synced channels
-        if (!string.IsNullOrWhiteSpace(note.TelegramMessageIds))
-        {
-            var tobeRemoved = channelData.toBeRemovedChannels;
-            foreach (var channel in tobeRemoved)
-            {
-                var setting = settings.FirstOrDefault(s => s.ChannelId.Equals(channel.ChannelId));
-                if (setting != null) await _DeleteMessage(setting, channel);
-            }
-
-            var tobeUpdated = channelData.toBeUpdatedChannels;
-            if (fullContent.Length <= Constants.TelegramMessageLength)
-            {
-                try
-                {
-                    foreach (var channel in tobeUpdated)
-                    {
-                        var channelId = channel.ChannelId;
-                        var setting = settings.FirstOrDefault(s => s.ChannelId.Equals(channelId));
-                        if (setting == null) continue;
-
-                        var token = TextEncryptionHelper.Decrypt(setting.EncryptedToken,
-                            _jwtConfig.SymmetricSecurityKey);
-                        try
-                        {
-                            await telegramService.EditMessageAsync(token, channelId, channel.MessageId, fullContent,
-                                note.IsMarkdown);
-                        }
-                        catch (Telegram.Bot.Exceptions.ApiRequestException ex)
-                        {
-                            logger.LogError(ex.ToString());
-                            if (note.IsMarkdown)
-                            {
-                                // exception can be caused by the Markdown parser, so we do the edit again without setting markdown flag
-                                await telegramService.EditMessageAsync(token, channelId, channel.MessageId, fullContent,
-                                    false);
-                            }
-                        }
-                        finally
-                        {
-                            syncedChannels.Add(new SyncedChannel()
-                            {
-                                ChannelId = channelId,
-                                MessageId = channel.MessageId,
-                            });
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex.ToString());
-                }
-            }
-            else
-            {
-                // delete existing message, then resend as message with attachments
-                foreach (var channel in tobeUpdated)
-                {
-                    var setting = settings.FirstOrDefault(s => s.ChannelId.Equals(channel.ChannelId));
-                    if (setting != null)
-                    {
-                        await _DeleteMessage(setting, channel);
-                        toBeSent.Add(channel.ChannelId);
-                    }
-                }
-            }
-        }
-
-        foreach (var channelId in toBeSent)
-        {
-            var setting = settings.FirstOrDefault(s => s.ChannelId.Equals(channelId));
-            if (setting == null) continue;
-
-            var token = TextEncryptionHelper.Decrypt(setting.EncryptedToken,
-                            _jwtConfig.SymmetricSecurityKey);
-            var messageId = await _SentNoteToChannel(note, fullContent, token, channelId);
-            syncedChannels.Add(new SyncedChannel()
-            {
-                ChannelId = channelId,
-                MessageId = messageId,
-            });
-        }
-        note.UpdateTelegramMessageIds(syncedChannels);
-        await noteRepository.UpdateAsync(note);
-    }
-
-    private async Task _DeleteAllSyncedTelegramMessageAsync(Note note)
-    {
-        if (!string.IsNullOrWhiteSpace(note.TelegramMessageIds))
-        {
-            try
-            {
-                var settings = await telegramSettingsCacheService.GetAsync(note.UserId);
-
-                if (!settings.Any()) return;
-
-                var syncedChannels = _GetSyncedChannels(note);
-                foreach (var channel in syncedChannels)
-                {
-                    var channelId = channel.ChannelId;
-                    var setting = settings.FirstOrDefault(s => s.ChannelId.Equals(channelId));
-                    if (setting == null) continue;
-
-                    await _DeleteMessage(setting, channel);
-                }
-
-                note.TelegramMessageIds = null;
-                await noteRepository.UpdateAsync(note);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex.ToString());
-            }
-        }
-    }
-
-    private async Task _DeleteMessage(TelegramSettings setting, SyncedChannel channel)
-    {
-        var token = TextEncryptionHelper.Decrypt(setting.EncryptedToken,
-            _jwtConfig.SymmetricSecurityKey);
-        try
-        {
-            await telegramService.DeleteMessageAsync(token, channel.ChannelId, channel.MessageId);
-        }
-        catch (Telegram.Bot.Exceptions.ApiRequestException ex)
-        {
-            logger.LogError(ex.ToString());
-        }
-    }
-
-    private static List<SyncedChannel> _GetSyncedChannels(Note note)
-    {
-        if (string.IsNullOrWhiteSpace(note.TelegramMessageIds)) return [];
-        return note.TelegramMessageIds.Split(",").Select(s =>
-        {
-            var sync = s.Split(":");
-            return new SyncedChannel()
-            {
-                ChannelId = sync[0],
-                MessageId = int.TryParse(sync[1], out var messageId) ? messageId : 0,
-            };
-        }).ToList();
     }
 
     private async Task _UpdateNoteTags(Note note, string fullContent)

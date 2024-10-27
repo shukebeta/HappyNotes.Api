@@ -1,6 +1,6 @@
 namespace HappyNotes.Models;
 
-public class SyncedChannel
+public class SyncedTelegramChannel
 {
     public string ChannelId;
     public int MessageId;

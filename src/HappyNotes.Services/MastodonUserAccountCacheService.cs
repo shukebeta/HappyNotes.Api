@@ -32,9 +32,9 @@ public class MastodonUserAccountCacheService(
         return settings;
     }
 
-    public void Set(long userId, IList<MastodonUserAccount> settings)
+    public void Set(long userId, IList<MastodonUserAccount> account)
     {
-        cache.Set(CacheKey(userId), settings, CacheEntryOptions);
+        cache.Set(CacheKey(userId), account, CacheEntryOptions);
     }
 
 
