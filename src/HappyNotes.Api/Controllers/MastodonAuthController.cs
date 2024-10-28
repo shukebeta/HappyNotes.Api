@@ -104,7 +104,8 @@ public class MastodonAuthController(
                         TextEncryptionHelper.Encrypt(tokenResponse.access_token, _jwtConfig.SymmetricSecurityKey),
                     TokenType = tokenResponse.token_type,
                     Scope = tokenResponse.scope,
-                    Status = MastodonUserAccountStatus.Created,
+                    Status = MastodonUserAccountStatus.Normal,
+                    SyncType = MastodonSyncType.All,
                     CreatedAt = long.Parse(tokenResponse.created_at),
                 };
                 await mastodonUserAccountRepository.InsertAsync(mastodonUserAccount);
@@ -118,9 +119,6 @@ public class TokenResponse
 {
     // ReSharper disable once InconsistentNaming
     public string access_token { get; set; } = string.Empty;
-
-    // ReSharper disable once InconsistentNaming
-    public string refresh_token { get; set; } = string.Empty;
 
     // ReSharper disable once InconsistentNaming
     public string token_type { get; set; } = string.Empty;

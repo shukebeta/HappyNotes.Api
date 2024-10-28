@@ -101,7 +101,9 @@ public partial class NoteService
 
                         try
                         {
-                            await mastodonTootService.EditTootAsync(account.InstanceUrl, account.DecryptedAccessToken(_jwtConfig.SymmetricSecurityKey), instance.TootId, fullContent,
+                            await mastodonTootService.EditTootAsync(account.InstanceUrl,
+                                account.DecryptedAccessToken(_jwtConfig.SymmetricSecurityKey), instance.TootId,
+                                fullContent,
                                 note.IsPrivate);
                             instances.Add(new MastodonSyncedInstance()
                             {
@@ -142,10 +144,13 @@ public partial class NoteService
         }
 
         note.UpdateMastodonInstanceIds(instances);
-        await noteRepository.UpdateAsync(note);
+        await noteRepository.UpdateAsync(_ => new Note {MastodonTootIds = note.MastodonTootIds,},
+            n => n.Id == note.Id);
     }
 
-    private async Task<(List<MastodonSyncedInstance> toBeUpdated, List<MastodonSyncedInstance> toBeRemoved, List<MastodonUserAccount> toBeSent)> _GetInstancesData(Note note)
+    private async
+        Task<(List<MastodonSyncedInstance> toBeUpdated, List<MastodonSyncedInstance> toBeRemoved,
+            List<MastodonUserAccount> toBeSent)> _GetInstancesData(Note note)
     {
         var syncedChannels = _GetSyncedInstances(note);
         var toSyncInstances = await mastodonUserAccountCacheService.GetAsync(note.UserId);
@@ -182,10 +187,12 @@ public partial class NoteService
     /// <summary>
     /// Gets mastodon user accounts that need new note synchronization.
     /// </summary>
-    private List<MastodonUserAccount> _GetAccountsToBeSent(List<MastodonSyncedInstance> syncedInstances, IList<MastodonUserAccount> toSyncAccounts)
+    private List<MastodonUserAccount> _GetAccountsToBeSent(List<MastodonSyncedInstance> syncedInstances,
+        IList<MastodonUserAccount> toSyncAccounts)
     {
         if (!syncedInstances.Any()) return toSyncAccounts.ToList();
-        var toSendUserAccountId = toSyncAccounts.Select(t => t.Id).Except(syncedInstances.Select(s => s.UserAccountId)).ToList();
+        var toSendUserAccountId = toSyncAccounts.Select(t => t.Id).Except(syncedInstances.Select(s => s.UserAccountId))
+            .ToList();
         return toSyncAccounts.Where(t => toSendUserAccountId.Contains(t.Id)).ToList();
     }
 
@@ -224,7 +231,8 @@ public partial class NoteService
     {
         try
         {
-            await mastodonTootService.DeleteTootAsync(account.InstanceUrl, account.DecryptedAccessToken(_jwtConfig.SymmetricSecurityKey), instance.TootId);
+            await mastodonTootService.DeleteTootAsync(account.InstanceUrl,
+                account.DecryptedAccessToken(_jwtConfig.SymmetricSecurityKey), instance.TootId);
         }
         catch (Telegram.Bot.Exceptions.ApiRequestException ex)
         {

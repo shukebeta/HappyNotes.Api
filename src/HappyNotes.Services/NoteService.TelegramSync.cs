@@ -256,7 +256,10 @@ public partial class NoteService
             });
         }
         note.UpdateTelegramMessageIds(syncedChannels);
-        await noteRepository.UpdateAsync(note);
+        await noteRepository.UpdateAsync(_ => new Note()
+        {
+            TelegramMessageIds = note.TelegramMessageIds,
+        }, where => where.Id == note.Id);
     }
 
     private async Task _DeleteAllSyncedTelegramMessageAsync(Note note)

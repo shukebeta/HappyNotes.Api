@@ -110,6 +110,7 @@ public partial class NoteService(
 
         note.Content = fullContent.GetShort();
         Task.Run(async () => await _UpdateTelegramMessageAsync(note, fullContent));
+        Task.Run(async () => await _UpdateTootAsync(note, fullContent));
         return await noteRepository.UpdateAsync(note);
     }
 

@@ -51,6 +51,25 @@ public class MastodonUserAccountController(
     }
 
     [HttpPost]
+    public async Task<ApiResult<bool>> NextSyncType(MastodonUserAccount mastodonUserAccount)
+    {
+        var userId = currentUser.Id;
+        var existingSetting = await mastodonUserAccountsRepository.GetFirstOrDefaultAsync(
+            s => s.UserId == userId && s.InstanceUrl == mastodonUserAccount.InstanceUrl);
+
+        if (existingSetting == null)
+        {
+            throw new Exception(
+                $"Setting with {mastodonUserAccount.InstanceUrl} doesn't exist.");
+        }
+
+        existingSetting.SyncType = existingSetting.SyncType.Next();
+        var result = await mastodonUserAccountsRepository.UpdateAsync(existingSetting);
+        if (result) mastodonUserAccountsCacheService.ClearCache(userId);
+        return result ? new SuccessfulResult<bool>(true) : new FailedResult<bool>(false, "0 rows Updated");
+    }
+
+    [HttpPost]
     public async Task<ApiResult<bool>> Activate(MastodonUserAccount mastodonUserAccount)
     {
         var userId = currentUser.Id;
@@ -95,29 +114,4 @@ public class MastodonUserAccountController(
         return result ? new SuccessfulResult<bool>(true) : new FailedResult<bool>(false, "0 rows deleted");
     }
 
-    [HttpPost]
-    public async Task<ApiResult<bool>> Test(MastodonUserAccount mastodonUserAccount)
-    {
-        var userId = currentUser.Id;
-        var existingSetting = await mastodonUserAccountsRepository.GetFirstOrDefaultAsync(
-            s => s.UserId == userId && s.InstanceUrl == mastodonUserAccount.InstanceUrl);
-
-        if (existingSetting == null)
-        {
-            throw new Exception( $"Could find this setting.");
-        }
-        // if (string.IsNullOrWhiteSpace(existingSetting.EncryptedToken) || string.IsNullOrWhiteSpace(existingSetting.ChannelId))
-        // {
-        //     throw new Exception( $"token or channelId is empty, cannot test.");
-        // }
-        // var token = TextEncryptionHelper.Decrypt(existingSetting.EncryptedToken, _jwtConfig.SymmetricSecurityKey);
-        // var message = await telegramService.SendMessageAsync(token, existingSetting.ChannelId, "Hello *world!*", true);
-        // if (message.MessageId > 0)
-        // {
-        //     existingSetting.Status = existingSetting.Status.Add(TelegramSettingStatus.Tested);
-        //     await mastodonUserAccountsRepository.UpdateAsync(existingSetting);
-        // }
-        // return message.MessageId > 0 ? new SuccessfulResult<bool>(true) : new FailedResult<bool>(false, "test failed.");
-        return new FailedResult<bool>(false, "test failed");
-    }
 }

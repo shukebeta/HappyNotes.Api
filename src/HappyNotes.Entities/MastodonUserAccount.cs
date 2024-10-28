@@ -17,12 +17,13 @@ public class MastodonUserAccount
     public string TokenType { get; set; } = string.Empty;
 
     public MastodonUserAccountStatus Status { get; set; }
+    public MastodonSyncType SyncType { get; set; } = MastodonSyncType.All;
 
     /// <summary>
     /// Gets the status text representation of the current status.
     /// </summary>
     [SugarColumn(IsIgnore = true)]
-    public string StatusText => Status.StatusText();
+    public string StatusText => Status.ToString();
 
     public long CreatedAt { get; set; }
 

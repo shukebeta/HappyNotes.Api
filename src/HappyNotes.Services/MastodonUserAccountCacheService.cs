@@ -26,7 +26,7 @@ public class MastodonUserAccountCacheService(
 
         // If not in cache, load from the database
         var settings = await mastodonUserAccountsRepository.GetListAsync(
-            s => s.UserId == userId && s.Status == MastodonUserAccountStatus.Created);
+            s => s.UserId == userId && s.Status == MastodonUserAccountStatus.Normal);
 
         Set(userId, settings);
         return settings;
