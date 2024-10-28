@@ -2,6 +2,7 @@ using System.Globalization;
 using Api.Framework;
 using Api.Framework.Extensions;
 using Api.Framework.Models;
+using AutoMapper;
 using HappyNotes.Common;
 using HappyNotes.Entities;
 using HappyNotes.Extensions;
@@ -24,6 +25,7 @@ public partial class NoteService(
     IMastodonTootService mastodonTootService,
     IMastodonUserAccountCacheService mastodonUserAccountCacheService,
     IOptions<JwtConfig> jwtConfig,
+    IMapper mapper,
     CurrentUser currentUser
 ) : INoteService
 {
@@ -31,24 +33,14 @@ public partial class NoteService(
 
     public async Task<long> Post(PostNoteRequest request)
     {
-        var fullContent = request.Content?.Trim() ?? string.Empty;
-        if (string.IsNullOrEmpty(fullContent) && (request.Attachments == null || !request.Attachments.Any()))
+        request.Content = request.Content?.Trim() ?? string.Empty;
+        if (string.IsNullOrEmpty(request.Content) && (request.Attachments == null || !request.Attachments.Any()))
         {
             throw new ArgumentException("Nothing was submitted");
         }
 
-        var tagList = fullContent.GetTags();
-        var note = new Note
-        {
-            UserId = currentUser.Id,
-            IsPrivate = request.IsPrivate,
-            IsMarkdown = request.IsMarkdown,
-            CreatedAt = DateTime.UtcNow.ToUnixTimeSeconds(),
-            IsLong = fullContent.IsLong(),
-            Tags = string.Join(' ', tagList),
-            TagList = tagList,
-            Content = fullContent.IsLong() ? fullContent.GetShort() : fullContent
-        };
+        var note = mapper.Map<PostNoteRequest, Note>(request);
+        note.UserId = currentUser.Id;
 
         await noteRepository.InsertAsync(note);
 
@@ -57,13 +49,13 @@ public partial class NoteService(
             await longNoteRepository.InsertAsync(new LongNote
             {
                 Id = note.Id,
-                Content = fullContent
+                Content = request.Content
             });
         }
 
         try
         {
-            await _UpdateNoteTags(note, fullContent);
+            await _UpdateNoteTags(note, request.Content);
         }
         catch (Exception e)
         {
@@ -72,45 +64,45 @@ public partial class NoteService(
         }
 
         // Sync to Telegram asynchronously
-        Task.Run(async () => await _NewNoteSendToTelegram(note, fullContent));
-        Task.Run(async () => await _NewNoteSendToMastodon(note, fullContent));
+        Task.Run(async () => await _NewNoteSendToTelegram(note, request.Content));
+        Task.Run(async () => await _NewNoteSendToMastodon(note, request.Content));
 
         return note.Id;
     }
 
     public async Task<bool> Update(long id, PostNoteRequest request)
     {
-        var note = await noteRepository.GetFirstOrDefaultAsync(x => x.Id == id);
-        if (note == null)
+        var existedNote = await noteRepository.GetFirstOrDefaultAsync(x => x.Id == id);
+        if (existedNote == null)
         {
             throw ExceptionHelper.New(id, EventId._00100_NoteNotFound, id);
         }
 
-        if (_NoteIsNotYours(note))
+        if (_NoteIsNotYours(existedNote))
         {
             throw ExceptionHelper.New(id, EventId._00102_NoteIsNotYours, id);
         }
 
-        var fullContent = request.Content?.Trim() ?? string.Empty;
-        await _UpdateNoteTags(note, fullContent);
+        request.Content = request.Content?.Trim() ?? string.Empty;
+        // update note tags first
+        await _UpdateNoteTags(existedNote, request.Content);
 
-        note.IsPrivate = request.IsPrivate;
-        note.IsMarkdown = request.IsMarkdown;
+        var note = mapper.Map<PostNoteRequest, Note>(request);
+        note.Id = existedNote.Id;
+        note.UserId = existedNote.UserId;
+        note.MastodonTootIds = existedNote.MastodonTootIds;
+        note.TelegramMessageIds = existedNote.TelegramMessageIds;
+        note.CreatedAt = existedNote.CreatedAt;
         note.UpdatedAt = DateTime.UtcNow.ToUnixTimeSeconds();
-        note.IsLong = fullContent.IsLong();
-        var tagList = fullContent.GetTags();
-        note.TagList = tagList;
-        note.Tags = string.Join(' ', tagList);
 
         if (note.IsLong)
         {
-            var longNote = new LongNote {Id = id, Content = fullContent};
+            var longNote = new LongNote {Id = id, Content = request.Content};
             await longNoteRepository.UpsertAsync(longNote, n => n.Id == id);
         }
 
-        note.Content = fullContent.GetShort();
-        Task.Run(async () => await _UpdateTelegramMessageAsync(note, fullContent));
-        Task.Run(async () => await _UpdateTootAsync(note, fullContent));
+        Task.Run(async () => await _UpdateTelegramMessageAsync(note, request.Content));
+        Task.Run(async () => await _UpdateTootAsync(note, request.Content));
         return await noteRepository.UpdateAsync(note);
     }
 
@@ -314,6 +306,7 @@ public partial class NoteService(
 
         note.DeletedAt = DateTime.UtcNow.ToUnixTimeSeconds();
         Task.Run(async () => await _DeleteAllSyncedTelegramMessageAsync(note));
+        Task.Run(async () => await _DeleteAllSyncedMastodonTootAsync(note));
         return await noteRepository.UpdateAsync(note);
     }
 

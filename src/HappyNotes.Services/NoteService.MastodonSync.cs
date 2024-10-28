@@ -29,7 +29,7 @@ public partial class NoteService
         var syncedInstances = new List<MastodonSyncedInstance>();
         try
         {
-            var accounts = await mastodonUserAccountCacheService.GetAsync(note.UserId);
+            var accounts = await _GetToSyncMastodonUserAccounts(note);
             if (accounts.Any())
             {
                 foreach (var account in accounts)
@@ -65,7 +65,7 @@ public partial class NoteService
         else
         {
             var toot = await mastodonTootService.SendTootAsync(account.InstanceUrl,
-                account.DecryptedAccessToken(_jwtConfig.SymmetricSecurityKey), text, note.IsMarkdown);
+                account.DecryptedAccessToken(_jwtConfig.SymmetricSecurityKey), text, note.IsPrivate);
             return toot.Id;
         }
     }
@@ -153,13 +153,44 @@ public partial class NoteService
             List<MastodonUserAccount> toBeSent)> _GetInstancesData(Note note)
     {
         var syncedChannels = _GetSyncedInstances(note);
-        var toSyncInstances = await mastodonUserAccountCacheService.GetAsync(note.UserId);
+        var toSyncInstances = await _GetToSyncMastodonUserAccounts(note);
 
         var toBeUpdated = _getInstancesToBeUpdated(syncedChannels, toSyncInstances);
         var toBeRemoved = _GetInstancesToBeRemoved(syncedChannels, toSyncInstances);
         var toBeSent = _GetAccountsToBeSent(syncedChannels, toSyncInstances);
 
         return (toBeUpdated, toBeRemoved, toBeSent);
+    }
+
+    private async Task<IList<MastodonUserAccount>> _GetToSyncMastodonUserAccounts(Note note)
+    {
+        var result = new List<MastodonUserAccount>();
+        var all = await mastodonUserAccountCacheService.GetAsync(note.UserId);
+        foreach (var account in all)
+        {
+            switch (account.SyncType)
+            {
+                case MastodonSyncType.All:
+                    result.Add(account);
+                    break;
+                case MastodonSyncType.PublicOnly:
+                    if (!note.IsPrivate)
+                    {
+                        result.Add(account);
+                    }
+
+                    break;
+                case MastodonSyncType.TagMastodonOnly:
+                    if (note.TagList.Contains("mastodon"))
+                    {
+                        result.Add(account);
+                    }
+
+                    break;
+            }
+        }
+
+        return result;
     }
 
     /// <summary>
@@ -197,7 +228,7 @@ public partial class NoteService
     }
 
 
-    private async Task _DeleteAllSyncedTootAsync(Note note)
+    private async Task _DeleteAllSyncedMastodonTootAsync(Note note)
     {
         if (!string.IsNullOrWhiteSpace(note.MastodonTootIds))
         {
