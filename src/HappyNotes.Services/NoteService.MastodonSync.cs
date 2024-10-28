@@ -10,6 +10,7 @@ using HappyNotes.Extensions;
 using HappyNotes.Models;
 using HappyNotes.Repositories.interfaces;
 using HappyNotes.Services.interfaces;
+using Mastonet.Entities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WeihanLi.Extensions;
@@ -57,17 +58,19 @@ public partial class NoteService
         var text = fullContent; // Or format the message as needed
 
         // You can use different logic here based on the note's properties
+        Status toot;
         if (fullContent.Length > Constants.MastodonTootLength)
         {
-            // todo, skip
-            return string.Empty;
+            toot = await mastodonTootService.SendLongTootAsPhotoAsync(account.InstanceUrl,
+                account.DecryptedAccessToken(_jwtConfig.SymmetricSecurityKey), text, note.IsPrivate);
         }
         else
         {
-            var toot = await mastodonTootService.SendTootAsync(account.InstanceUrl,
+            toot = await mastodonTootService.SendTootAsync(account.InstanceUrl,
                 account.DecryptedAccessToken(_jwtConfig.SymmetricSecurityKey), text, note.IsPrivate);
-            return toot.Id;
         }
+
+        return toot.Id;
     }
 
     private async Task _UpdateTootAsync(Note note, string fullContent)
@@ -126,9 +129,15 @@ public partial class NoteService
             else
             {
                 // delete existing message, then resend as message with attachments
-                foreach (var channel in tobeUpdated)
+                foreach (var instance in tobeUpdated)
                 {
-                    // todo, convert text to image, and edit the toot with image
+                    var userAccountId = instance.UserAccountId;
+                    var account = accounts.FirstOrDefault(s => s.Id.Equals(userAccountId));
+                    if (account == null) continue;
+                    await mastodonTootService.DeleteTootAsync(account.InstanceUrl,
+                        account.DecryptedAccessToken(_jwtConfig.SymmetricSecurityKey), instance.TootId);
+                    await mastodonTootService.SendLongTootAsPhotoAsync(account.InstanceUrl,
+                        account.DecryptedAccessToken(_jwtConfig.SymmetricSecurityKey), fullContent, note.IsPrivate);
                 }
             }
         }

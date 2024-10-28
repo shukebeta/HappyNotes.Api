@@ -1,5 +1,4 @@
 USE HappyNotes;
-DROP TABLE IF EXISTS MastodonApplication;
 CREATE TABLE IF NOT EXISTS MastodonApplication
 (
     Id            INT AUTO_INCREMENT PRIMARY KEY,
@@ -17,7 +16,6 @@ CREATE TABLE IF NOT EXISTS MastodonApplication
     UNIQUE KEY (InstanceUrl)
 );
 
-DROP TABLE IF EXISTS MastodonUserAccount;
 CREATE TABLE IF NOT EXISTS MastodonUserAccount
 (
     Id             BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -38,7 +36,6 @@ CREATE TABLE IF NOT EXISTS MastodonSyncStatusValues
     Status VARCHAR(20) NOT NULL -- can be 'Pending', 'Synced', or 'Failed'
 );
 
-DROP TABLE IF EXISTS MastodonSyncStatus;
 CREATE TABLE IF NOT EXISTS MastodonSyncStatus
 (
     Id              BIGINT AUTO_INCREMENT PRIMARY KEY,
