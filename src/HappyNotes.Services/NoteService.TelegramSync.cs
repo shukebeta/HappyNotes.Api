@@ -1,18 +1,9 @@
-using System.Globalization;
-using Api.Framework;
-using Api.Framework.Extensions;
 using Api.Framework.Helper;
-using Api.Framework.Models;
 using HappyNotes.Common;
 using HappyNotes.Common.Enums;
 using HappyNotes.Entities;
-using HappyNotes.Extensions;
 using HappyNotes.Models;
-using HappyNotes.Repositories.interfaces;
-using HappyNotes.Services.interfaces;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using EventId = HappyNotes.Common.Enums.EventId;
 
 namespace HappyNotes.Services;
 

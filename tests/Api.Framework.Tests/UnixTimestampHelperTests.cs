@@ -1,4 +1,3 @@
-using Api.Framework.Extensions;
 using Api.Framework.Helper;
 namespace Api.Framework.Tests;
 

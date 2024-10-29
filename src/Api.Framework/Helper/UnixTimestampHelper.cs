@@ -1,4 +1,3 @@
-using System.Globalization;
 using Api.Framework.Extensions;
 
 namespace Api.Framework.Helper;

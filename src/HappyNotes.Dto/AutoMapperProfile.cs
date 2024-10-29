@@ -4,7 +4,6 @@ using AutoMapper;
 using HappyNotes.Common;
 using HappyNotes.Entities;
 using HappyNotes.Models;
-using Microsoft.AspNetCore.SignalR;
 
 namespace HappyNotes.Dto;
 

@@ -1,20 +1,9 @@
-using System.Globalization;
-using Api.Framework;
-using Api.Framework.Extensions;
-using Api.Framework.Helper;
-using Api.Framework.Models;
 using HappyNotes.Common;
 using HappyNotes.Common.Enums;
 using HappyNotes.Entities;
-using HappyNotes.Extensions;
 using HappyNotes.Models;
-using HappyNotes.Repositories.interfaces;
-using HappyNotes.Services.interfaces;
 using Mastonet.Entities;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using WeihanLi.Extensions;
-using EventId = HappyNotes.Common.Enums.EventId;
 
 namespace HappyNotes.Services;
 
@@ -62,7 +51,7 @@ public partial class NoteService
         if (fullContent.Length > Constants.MastodonTootLength)
         {
             toot = await mastodonTootService.SendLongTootAsPhotoAsync(account.InstanceUrl,
-                account.DecryptedAccessToken(_jwtConfig.SymmetricSecurityKey), text, note.IsPrivate);
+                account.DecryptedAccessToken(_jwtConfig.SymmetricSecurityKey), text, note.IsMarkdown, note.IsPrivate);
         }
         else
         {
@@ -137,7 +126,7 @@ public partial class NoteService
                     await mastodonTootService.DeleteTootAsync(account.InstanceUrl,
                         account.DecryptedAccessToken(_jwtConfig.SymmetricSecurityKey), instance.TootId);
                     await mastodonTootService.SendLongTootAsPhotoAsync(account.InstanceUrl,
-                        account.DecryptedAccessToken(_jwtConfig.SymmetricSecurityKey), fullContent, note.IsPrivate);
+                        account.DecryptedAccessToken(_jwtConfig.SymmetricSecurityKey), fullContent, note.IsMarkdown, note.IsPrivate);
                 }
             }
         }

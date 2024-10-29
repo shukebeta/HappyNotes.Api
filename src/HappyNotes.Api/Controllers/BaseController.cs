@@ -1,5 +1,4 @@
 ﻿using Api.Framework.Result;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HappyNotes.Api.Controllers;

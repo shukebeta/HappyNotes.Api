@@ -1,6 +1,4 @@
-using System.Drawing.Imaging;
 using CoreHtmlToImage;
-using HappyNotes.Common;
 using HappyNotes.Services.interfaces;
 using Markdig;
 using Mastonet;
@@ -31,7 +29,7 @@ public class MastodonTootService : IMastodonTootService
         return await client.EditStatus(tootId, newText);
     }
 
-    public async Task<Status> SendLongTootAsPhotoAsync(string instanceUrl, string accessToken, string longText, bool isPrivate)
+    public async Task<Status> SendLongTootAsPhotoAsync(string instanceUrl, string accessToken, string longText, bool isMarkdown, bool isPrivate)
     {
         var client = new MastodonClient(instanceUrl, accessToken);
         var filePath = Path.GetTempFileName();
@@ -39,9 +37,9 @@ public class MastodonTootService : IMastodonTootService
         try
         {
             var converter = new HtmlConverter();
-            string htmlContent = Markdown.ToHtml(longText);
-            htmlContent = $"<html lang=\"en\" dir=\"ltr\">\n<head>\n<meta charset=\"UTF-8\">\n<link rel=\"stylesheet\" href=\"https://files.shukebeta.com/markdown.css\" />\n</head>\n<body>\n{htmlContent}</body></html>";
-            var bytes = converter.FromHtmlString(htmlContent, width: 600);
+            var htmlContent = isMarkdown ? Markdown.ToHtml(longText) : $"<p>{longText}</p>";
+            htmlContent = $"<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<link rel=\"stylesheet\" href=\"https://files.shukebeta.com/markdown.css\" />\n</head>\n<body>\n{htmlContent}</body></html>";
+            var bytes = converter.FromHtmlString(htmlContent, width: 640);
             var memoryStream = new MemoryStream(bytes);
             var media = await client.UploadMedia(memoryStream, "long_text.jpg");
 

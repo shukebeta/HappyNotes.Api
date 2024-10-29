@@ -1,5 +1,4 @@
 using Api.Framework;
-using HappyNotes.Common;
 using HappyNotes.Models;
 using SqlSugar;
 
