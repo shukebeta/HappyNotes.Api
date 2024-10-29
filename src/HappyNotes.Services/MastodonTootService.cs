@@ -46,7 +46,7 @@ public class MastodonTootService : IMastodonTootService
             var media = await client.UploadMedia(memoryStream, "long_text.jpg");
 
             return await client.PublishStatus(
-                "This toot is a bit long; please click on the image to view the full content. 此嘟略长，请点击图片查看全文。",
+                "Tap the image for full content. 点击图片查看全文。",
                 isPrivate ? Visibility.Private : Visibility.Public,
                 mediaIds: [media.Id,]
             );
