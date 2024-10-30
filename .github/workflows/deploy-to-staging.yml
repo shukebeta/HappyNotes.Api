@@ -24,6 +24,12 @@ jobs:
         with:
           dotnet-version: ${{ matrix.dotnet-version }}
 
+      - name: Fetch Git Commit Hash
+        id: get_commit
+        run: |
+          echo "::set-output name=commit_hash::$(git rev-parse --short HEAD)"
+          echo "::set-output name=build_date::$(date '+%Y-%b-%d')"
+
       - name: Install dependencies
         run: dotnet restore
 
@@ -38,6 +44,10 @@ jobs:
           pwd
           sed -i "s/password-placeholder/${{ secrets.STAGING_MYSQL_PASSWORD }}/g" /var/www/HappyNotes.Api/appsettings.json
           sed -i "s/symmetric-security-key-placeholder/${{ secrets.STAGING_SYMMETRIC_SECURITY_KEY }}/g" /var/www/HappyNotes.Api/appsettings.json
+          COMMIT_HASH=${{ steps.get_commit.outputs.commit_hash }}
+          BUILD_DATE=${{ steps.get_commit.outputs.build_date }}
+          VERSION_INFO="$COMMIT_HASH ($BUILD_DATE)"
+          sed -i "s/VERSION_PLACEHOLDER/$VERSION_INFO/" .env
 
       - name: Restart the app
         run: |
