@@ -1,20 +1,29 @@
+using Api.Framework.Models;
 using HappyNotes.Common;
 using HappyNotes.Common.Enums;
 using HappyNotes.Entities;
 using HappyNotes.Models;
+using HappyNotes.Repositories.interfaces;
+using HappyNotes.Services.interfaces;
 using Mastonet.Entities;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace HappyNotes.Services;
 
-public partial class NoteService
+public class MastodonSyncNoteService(
+    IMastodonTootService mastodonTootService,
+    INoteRepository noteRepository,
+    IMastodonUserAccountCacheService mastodonUserAccountCacheService,
+    IOptions<JwtConfig> jwtConfig,
+    ILogger<MastodonSyncNoteService> logger
+)
+    : ISyncNoteService
 {
-    /// <summary>
-    /// new note: send to Mastodon
-    /// </summary>
-    /// <param name="note"></param>
-    /// <param name="fullContent"></param>
-    private async Task _NewNoteSendToMastodon(Note note, string fullContent)
+    private readonly JwtConfig _jwtConfig = jwtConfig.Value;
+    private string TokenKey => _jwtConfig.SymmetricSecurityKey;
+
+    public async Task SyncNewNote(Note note, string fullContent)
     {
         var syncedInstances = new List<MastodonSyncedInstance>();
         try
@@ -42,27 +51,7 @@ public partial class NoteService
         }
     }
 
-    private async Task<string> _SentNoteToMastodon(Note note, string fullContent, MastodonUserAccount account)
-    {
-        var text = fullContent; // Or format the message as needed
-
-        // You can use different logic here based on the note's properties
-        Status toot;
-        if (fullContent.Length > Constants.MastodonTootLength)
-        {
-            toot = await mastodonTootService.SendLongTootAsPhotoAsync(account.InstanceUrl,
-                account.DecryptedAccessToken(_jwtConfig.SymmetricSecurityKey), text, note.IsMarkdown, note.IsPrivate);
-        }
-        else
-        {
-            toot = await mastodonTootService.SendTootAsync(account.InstanceUrl,
-                account.DecryptedAccessToken(_jwtConfig.SymmetricSecurityKey), text, note.IsPrivate);
-        }
-
-        return toot.Id;
-    }
-
-    private async Task _UpdateTootAsync(Note note, string fullContent)
+    public async Task SyncEditNote(Note note, string fullContent)
     {
         var accounts = await mastodonUserAccountCacheService.GetAsync(note.UserId);
         if (!accounts.Any()) return;
@@ -94,7 +83,7 @@ public partial class NoteService
                         try
                         {
                             await mastodonTootService.EditTootAsync(account.InstanceUrl,
-                                account.DecryptedAccessToken(_jwtConfig.SymmetricSecurityKey), instance.TootId,
+                                account.DecryptedAccessToken(TokenKey), instance.TootId,
                                 fullContent,
                                 note.IsPrivate);
                             instances.Add(new MastodonSyncedInstance()
@@ -124,9 +113,10 @@ public partial class NoteService
                     var account = accounts.FirstOrDefault(s => s.Id.Equals(userAccountId));
                     if (account == null) continue;
                     await mastodonTootService.DeleteTootAsync(account.InstanceUrl,
-                        account.DecryptedAccessToken(_jwtConfig.SymmetricSecurityKey), instance.TootId);
+                        account.DecryptedAccessToken(TokenKey), instance.TootId);
                     await mastodonTootService.SendLongTootAsPhotoAsync(account.InstanceUrl,
-                        account.DecryptedAccessToken(_jwtConfig.SymmetricSecurityKey), fullContent, note.IsMarkdown, note.IsPrivate);
+                        account.DecryptedAccessToken(TokenKey), fullContent, note.IsMarkdown,
+                        note.IsPrivate);
                 }
             }
         }
@@ -144,6 +134,56 @@ public partial class NoteService
         note.UpdateMastodonInstanceIds(instances);
         await noteRepository.UpdateAsync(_ => new Note {MastodonTootIds = note.MastodonTootIds,},
             n => n.Id == note.Id);
+    }
+
+    public async Task SyncDeleteNote(Note note)
+    {
+        if (!string.IsNullOrWhiteSpace(note.MastodonTootIds))
+        {
+            try
+            {
+                var accounts = await mastodonUserAccountCacheService.GetAsync(note.UserId);
+
+                if (!accounts.Any()) return;
+
+                var syncedInstances = _GetSyncedInstances(note);
+                foreach (var instance in syncedInstances)
+                {
+                    var userAccountId = instance.UserAccountId;
+                    var account = accounts.FirstOrDefault(s => s.Id.Equals(userAccountId));
+                    if (account == null) continue;
+
+                    await _DeleteToot(instance, account);
+                }
+
+                note.MastodonTootIds = null;
+                await noteRepository.UpdateAsync(note);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex.ToString());
+            }
+        }
+    }
+
+    private async Task<string> _SentNoteToMastodon(Note note, string fullContent, MastodonUserAccount account)
+    {
+        var text = fullContent; // Or format the message as needed
+
+        // You can use different logic here based on the note's properties
+        Status toot;
+        if (fullContent.Length > Constants.MastodonTootLength)
+        {
+            toot = await mastodonTootService.SendLongTootAsPhotoAsync(account.InstanceUrl,
+                account.DecryptedAccessToken(TokenKey), text, note.IsMarkdown, note.IsPrivate);
+        }
+        else
+        {
+            toot = await mastodonTootService.SendTootAsync(account.InstanceUrl,
+                account.DecryptedAccessToken(TokenKey), text, note.IsPrivate);
+        }
+
+        return toot.Id;
     }
 
     private async
@@ -225,43 +265,12 @@ public partial class NoteService
         return toSyncAccounts.Where(t => toSendUserAccountId.Contains(t.Id)).ToList();
     }
 
-
-    private async Task _DeleteAllSyncedMastodonTootAsync(Note note)
-    {
-        if (!string.IsNullOrWhiteSpace(note.MastodonTootIds))
-        {
-            try
-            {
-                var accounts = await mastodonUserAccountCacheService.GetAsync(note.UserId);
-
-                if (!accounts.Any()) return;
-
-                var syncedInstances = _GetSyncedInstances(note);
-                foreach (var instance in syncedInstances)
-                {
-                    var userAccountId = instance.UserAccountId;
-                    var account = accounts.FirstOrDefault(s => s.Id.Equals(userAccountId));
-                    if (account == null) continue;
-
-                    await _DeleteToot(instance, account);
-                }
-
-                note.MastodonTootIds = null;
-                await noteRepository.UpdateAsync(note);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex.ToString());
-            }
-        }
-    }
-
     private async Task _DeleteToot(MastodonSyncedInstance instance, MastodonUserAccount account)
     {
         try
         {
             await mastodonTootService.DeleteTootAsync(account.InstanceUrl,
-                account.DecryptedAccessToken(_jwtConfig.SymmetricSecurityKey), instance.TootId);
+                account.DecryptedAccessToken(TokenKey), instance.TootId);
         }
         catch (Telegram.Bot.Exceptions.ApiRequestException ex)
         {

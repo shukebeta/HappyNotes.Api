@@ -10,27 +10,20 @@ using HappyNotes.Models;
 using HappyNotes.Repositories.interfaces;
 using HappyNotes.Services.interfaces;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using EventId = HappyNotes.Common.Enums.EventId;
 
 namespace HappyNotes.Services;
 
-public partial class NoteService(
-    ILogger<NoteService> logger,
-    INoteRepository noteRepository,
+public class NoteService(
+    IEnumerable<ISyncNoteService> syncNoteServices,
     INoteTagService noteTagService,
+    INoteRepository noteRepository,
     IRepositoryBase<LongNote> longNoteRepository,
-    ITelegramService telegramService,
-    ITelegramSettingsCacheService telegramSettingsCacheService,
-    IMastodonTootService mastodonTootService,
-    IMastodonUserAccountCacheService mastodonUserAccountCacheService,
-    IOptions<JwtConfig> jwtConfig,
     IMapper mapper,
-    CurrentUser currentUser
+    CurrentUser currentUser,
+    ILogger<NoteService> logger
 ) : INoteService
 {
-    private readonly JwtConfig _jwtConfig = jwtConfig.Value;
-
     public async Task<long> Post(PostNoteRequest request)
     {
         request.Content = request.Content?.Trim() ?? string.Empty;
@@ -63,10 +56,11 @@ public partial class NoteService(
             // ate the exception to avoid interrupting the main process
         }
 
-        // Sync to Telegram asynchronously
-        Task.Run(async () => await _NewNoteSendToTelegram(note, request.Content));
-        Task.Run(async () => await _NewNoteSendToMastodon(note, request.Content));
-
+        // Sync to all targets asynchronously
+        foreach (var syncNoteService in syncNoteServices)
+        {
+            Task.Run(async () => await syncNoteService.SyncNewNote(note, request.Content));
+        }
         return note.Id;
     }
 
@@ -101,8 +95,10 @@ public partial class NoteService(
             await longNoteRepository.UpsertAsync(longNote, n => n.Id == id);
         }
 
-        Task.Run(async () => await _UpdateTelegramMessageAsync(note, request.Content));
-        Task.Run(async () => await _UpdateTootAsync(note, request.Content));
+        foreach (var syncNoteService in syncNoteServices)
+        {
+            Task.Run(async () => await syncNoteService.SyncEditNote(note, request.Content));
+        }
         return await noteRepository.UpdateAsync(note);
     }
 
@@ -305,8 +301,10 @@ public partial class NoteService(
         }
 
         note.DeletedAt = DateTime.UtcNow.ToUnixTimeSeconds();
-        Task.Run(async () => await _DeleteAllSyncedTelegramMessageAsync(note));
-        Task.Run(async () => await _DeleteAllSyncedMastodonTootAsync(note));
+        foreach (var syncNoteService in syncNoteServices)
+        {
+            Task.Run(async () => await syncNoteService.SyncDeleteNote(note));
+        }
         return await noteRepository.UpdateAsync(note);
     }
 
