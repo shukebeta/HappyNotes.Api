@@ -39,7 +39,7 @@ public class MastodonTootService : IMastodonTootService
             var converter = new HtmlConverter();
             var htmlContent = isMarkdown ? Markdown.ToHtml(longText) : $"<p>{longText}</p>";
             htmlContent = $"<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<link rel=\"stylesheet\" href=\"https://files.shukebeta.com/markdown.css\" />\n</head>\n<body>\n{htmlContent}</body></html>";
-            var bytes = converter.FromHtmlString(htmlContent, width: 640);
+            var bytes = converter.FromHtmlString(htmlContent, width: 600);
             var memoryStream = new MemoryStream(bytes);
             var media = await client.UploadMedia(memoryStream, "long_text.jpg");
 
