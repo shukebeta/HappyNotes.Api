@@ -74,7 +74,7 @@ public class MastodonSyncNoteServiceTests
             .ReturnsAsync(mastodonUserAccounts);
 
         _mockMastodonTootService
-            .Setup(s => s.SendTootAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .Setup(s => s.SendTootAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), false))
             .ReturnsAsync(new Status {Id = "12345"});
 
         // Act

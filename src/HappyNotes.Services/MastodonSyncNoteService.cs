@@ -85,7 +85,7 @@ public class MastodonSyncNoteService(
                             await mastodonTootService.EditTootAsync(account.InstanceUrl,
                                 account.DecryptedAccessToken(TokenKey), instance.TootId,
                                 fullContent,
-                                note.IsPrivate);
+                                note.IsPrivate, note.IsMarkdown);
                             instances.Add(new MastodonSyncedInstance()
                             {
                                 UserAccountId = userAccountId,
@@ -180,7 +180,7 @@ public class MastodonSyncNoteService(
         else
         {
             toot = await mastodonTootService.SendTootAsync(account.InstanceUrl,
-                account.DecryptedAccessToken(TokenKey), text, note.IsPrivate);
+                account.DecryptedAccessToken(TokenKey), text, note.IsPrivate, note.IsMarkdown);
         }
 
         return toot.Id;
