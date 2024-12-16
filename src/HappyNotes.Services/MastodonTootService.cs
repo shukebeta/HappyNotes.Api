@@ -11,11 +11,13 @@ public class MastodonTootService : IMastodonTootService
 {
     private static readonly Regex ImagePattern = new(@"!\[(.*?)\]\((.*?)\)", RegexOptions.Compiled);
     private const int MaxImages = 4;
-    public async Task<Status> SendTootAsync(string instanceUrl, string accessToken, string text, bool isPrivate, bool isMarkdown=false)
+
+    public async Task<Status> SendTootAsync(string instanceUrl, string accessToken, string text, bool isPrivate,
+        bool isMarkdown = false)
     {
         var client = new MastodonClient(instanceUrl, accessToken);
 
-        if (!isMarkdown) return await client.PublishStatus(text, isPrivate ? Visibility.Private: Visibility.Public);
+        if (!isMarkdown) return await client.PublishStatus(text, isPrivate ? Visibility.Private : Visibility.Public);
         var (processedText, mediaIds) = await ProcessMarkdownImagesAsync(client, text);
 
         return await client.PublishStatus(
@@ -63,11 +65,12 @@ public class MastodonTootService : IMastodonTootService
         return await client.EditStatus(
             tootId,
             processedText,
-            mediaIds: isMarkdown ? mediaIds : null  // Only include mediaIds if markdown was processed
+            mediaIds: isMarkdown ? mediaIds : null // Only include mediaIds if markdown was processed
         );
     }
 
-    public async Task<Status> SendLongTootAsPhotoAsync(string instanceUrl, string accessToken, string longText, bool isMarkdown, bool isPrivate)
+    public async Task<Status> SendLongTootAsPhotoAsync(string instanceUrl, string accessToken, string longText,
+        bool isMarkdown, bool isPrivate)
     {
         var client = new MastodonClient(instanceUrl, accessToken);
         var filePath = Path.GetTempFileName();
@@ -76,7 +79,8 @@ public class MastodonTootService : IMastodonTootService
         {
             var converter = new HtmlConverter();
             var htmlContent = isMarkdown ? Markdown.ToHtml(longText) : $"<p>{longText}</p>";
-            htmlContent = $"<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<link rel=\"stylesheet\" href=\"https://files.shukebeta.com/markdown.css\" />\n</head>\n<body>\n{htmlContent}</body></html>";
+            htmlContent =
+                $"<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<link rel=\"stylesheet\" href=\"https://files.shukebeta.com/markdown.css\" />\n</head>\n<body>\n{htmlContent}</body></html>";
             var bytes = converter.FromHtmlString(htmlContent, width: 600);
             var memoryStream = new MemoryStream(bytes);
             var media = await client.UploadMedia(memoryStream, "long_text.jpg");
@@ -106,14 +110,16 @@ public class MastodonTootService : IMastodonTootService
         MastodonClient client,
         string markdownText)
     {
-        var matches = ImagePattern.Matches(markdownText)
-                                .Take(MaxImages)
-                                .ToList();
-
-        if (!matches.Any())
+        var allMatches = ImagePattern.Matches(markdownText);
+        var picCount = allMatches.Count;
+        if (picCount == 0)
         {
             return (markdownText, Array.Empty<string>());
         }
+
+        var matches = allMatches
+            .Take(MaxImages)
+            .ToList();
 
         var uploadTasks = new List<Task<(int index, Attachment attachment)>>();
 
@@ -130,20 +136,33 @@ public class MastodonTootService : IMastodonTootService
 
         // Sort by original index to maintain order
         var mediaIds = results.OrderBy(r => r.index)
-                            .Select(r => r.attachment.Id)
-                            .ToList();
+            .Select(r => r.attachment.Id)
+            .ToList();
 
         // Replace markdown image syntax with reference text including alt text
         var processedText = markdownText;
         for (var i = 0; i < matches.Count; i++)
         {
             var altText = matches[i].Groups[1].Value.Trim();
+            altText = altText.Equals("image") ? string.Empty : altText;
+            var imageText = !string.IsNullOrWhiteSpace(altText)
+                ? $"image {i + 1}: {altText}"
+                : $"image {i + 1}";
+            if (picCount == 1)
+            {
+                imageText = !string.IsNullOrWhiteSpace(altText)
+                    ? $"image: {altText}"
+                    : $"image";
+            }
+
             processedText = processedText.Replace(
                 matches[i].Value,
-                !string.IsNullOrWhiteSpace(altText)
-                    ? $"see image {i + 1}: {altText}"
-                    : $"see image {i + 1}"
+                imageText
             );
+            if (i == 0 && processedText.Trim().Equals(imageText))
+            {
+                return (string.Empty, mediaIds);
+            }
         }
 
         return (processedText, mediaIds);
@@ -163,10 +182,10 @@ public class MastodonTootService : IMastodonTootService
             // Extract filename from URL or use default
             var filename = string.Join("_",
                 imageUrl.Split('/', StringSplitOptions.RemoveEmptyEntries)
-                       .Last()
-                       .Split('?')[0]
-                       .Split('#')[0]
-                       .Take(20)
+                    .Last()
+                    .Split('?')[0]
+                    .Split('#')[0]
+                    .Take(20)
             );
 
             if (string.IsNullOrWhiteSpace(filename))
