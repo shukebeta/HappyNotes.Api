@@ -152,7 +152,7 @@ public class MastodonTootService : IMastodonTootService
             {
                 imageText = !string.IsNullOrWhiteSpace(altText)
                     ? $"image: {altText}"
-                    : $"image";
+                    : string.Empty;
             }
 
             processedText = processedText.Replace(
