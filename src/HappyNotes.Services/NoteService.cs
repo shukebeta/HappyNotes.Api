@@ -163,7 +163,7 @@ public class NoteService(
     /// <returns></returns>
     public async Task<IList<Note>> Memories(string localTimezone)
     {
-        var earliest = await noteRepository.GetFirstOrDefaultAsync(w => w.UserId.Equals(currentUser.Id));
+        var earliest = await noteRepository.GetFirstOrDefaultAsync(w => w.UserId.Equals(currentUser.Id), "CreatedAt ASC");
         if (earliest == null) return [];
         var notes = new List<Note>();
         var periodList = _GetTimestamps(earliest.CreatedAt, localTimezone);
