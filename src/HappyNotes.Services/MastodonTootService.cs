@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using CoreHtmlToImage;
+using HappyNotes.Common;
 using HappyNotes.Services.interfaces;
 using Markdig;
 using Mastonet;
@@ -34,6 +35,15 @@ public class MastodonTootService : IMastodonTootService
         string newText,
         bool isPrivate,
         bool isMarkdown = false)
+    {
+        if (newText.Length <= Constants.MastodonTootLength)
+            return await _EditShortToot(instanceUrl, accessToken, tootId, newText, isPrivate, isMarkdown);
+        return await _EditLongTootAsPhotoAsync(instanceUrl, accessToken, tootId, newText, isPrivate, isMarkdown);
+    }
+
+    private async Task<Status> _EditShortToot(string instanceUrl, string accessToken, string tootId, string newText,
+        bool isPrivate,
+        bool isMarkdown)
     {
         var client = new MastodonClient(instanceUrl, accessToken);
         var visibility = isPrivate ? Visibility.Private : Visibility.Public;
@@ -77,13 +87,7 @@ public class MastodonTootService : IMastodonTootService
 
         try
         {
-            var converter = new HtmlConverter();
-            var htmlContent = isMarkdown ? Markdown.ToHtml(longText) : $"<p>{longText}</p>";
-            htmlContent =
-                $"<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<link rel=\"stylesheet\" href=\"https://files.shukebeta.com/markdown.css\" />\n</head>\n<body>\n{htmlContent}</body></html>";
-            var bytes = converter.FromHtmlString(htmlContent, width: 600);
-            var memoryStream = new MemoryStream(bytes);
-            var media = await client.UploadMedia(memoryStream, "long_text.jpg");
+            var media = await _UploadLongTextAsMedia(client, longText, isMarkdown);
 
             return await client.PublishStatus(
                 string.Empty,
@@ -100,10 +104,63 @@ public class MastodonTootService : IMastodonTootService
         }
     }
 
+    private static async Task<Attachment> _UploadLongTextAsMedia(MastodonClient client, string longText, bool isMarkdown)
+    {
+        var htmlContent = isMarkdown ? Markdown.ToHtml(longText) : $"<p>{longText}</p>";
+        htmlContent =
+            $"<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<link rel=\"stylesheet\" href=\"https://files.shukebeta.com/markdown.css\" />\n</head>\n<body>\n{htmlContent}</body></html>";
+        var converter = new HtmlConverter();
+        var bytes = converter.FromHtmlString(htmlContent, width: 600);
+        var memoryStream = new MemoryStream(bytes);
+        var media = await client.UploadMedia(memoryStream, "long_text.jpg");
+        return media;
+    }
+
     public async Task DeleteTootAsync(string instanceUrl, string accessToken, string tootId)
     {
         var client = new MastodonClient(instanceUrl, accessToken);
         await client.DeleteStatus(tootId);
+    }
+
+    private async Task<Status> _EditLongTootAsPhotoAsync(
+        string instanceUrl,
+        string accessToken,
+        string tootId,
+        string longText,
+        bool isPrivate,
+        bool isMarkdown)
+    {
+        var client = new MastodonClient(instanceUrl, accessToken);
+        var toot = await client.GetStatus(tootId);
+        var visibility = isPrivate ? Visibility.Private : Visibility.Public;
+
+        try
+        {
+
+            var media = await _UploadLongTextAsMedia(client, longText, isMarkdown);
+
+            // If visibility changed, we need to delete and recreate
+            if (toot.Visibility != visibility)
+            {
+                await client.DeleteStatus(tootId);
+                return await client.PublishStatus(
+                    string.Empty,
+                    visibility: visibility,
+                    mediaIds: [media.Id]
+                );
+            }
+
+            // Otherwise, edit the existing toot
+            return await client.EditStatus(
+                tootId,
+                string.Empty,
+                mediaIds: [media.Id]
+            );
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Failed to edit long toot as photo: {ex.Message}", ex);
+        }
     }
 
     private async Task<(string text, IEnumerable<string> mediaIds)> ProcessMarkdownImagesAsync(

@@ -70,54 +70,36 @@ public class MastodonSyncNoteService(
             }
 
             var tobeUpdated = instanceData.toBeUpdated;
-            if (fullContent.Length <= Constants.MastodonTootLength)
+            try
             {
-                try
-                {
-                    foreach (var instance in tobeUpdated)
-                    {
-                        var userAccountId = instance.UserAccountId;
-                        var account = accounts.FirstOrDefault(s => s.Id.Equals(userAccountId));
-                        if (account == null) continue;
-
-                        try
-                        {
-                            await mastodonTootService.EditTootAsync(account.InstanceUrl,
-                                account.DecryptedAccessToken(TokenKey), instance.TootId,
-                                fullContent,
-                                note.IsPrivate, note.IsMarkdown);
-                            instances.Add(new MastodonSyncedInstance()
-                            {
-                                UserAccountId = userAccountId,
-                                TootId = instance.TootId,
-                            });
-                        }
-                        catch (Exception ex)
-                        {
-                            logger.LogError(ex.ToString());
-                            throw;
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex.ToString());
-                }
-            }
-            else
-            {
-                // delete existing message, then resend as message with attachments
                 foreach (var instance in tobeUpdated)
                 {
                     var userAccountId = instance.UserAccountId;
                     var account = accounts.FirstOrDefault(s => s.Id.Equals(userAccountId));
                     if (account == null) continue;
-                    await mastodonTootService.DeleteTootAsync(account.InstanceUrl,
-                        account.DecryptedAccessToken(TokenKey), instance.TootId);
-                    await mastodonTootService.SendLongTootAsPhotoAsync(account.InstanceUrl,
-                        account.DecryptedAccessToken(TokenKey), fullContent, note.IsMarkdown,
-                        note.IsPrivate);
+
+                    try
+                    {
+                        await mastodonTootService.EditTootAsync(account.InstanceUrl,
+                            account.DecryptedAccessToken(TokenKey), instance.TootId,
+                            fullContent,
+                            note.IsPrivate, note.IsMarkdown);
+                        instances.Add(new MastodonSyncedInstance()
+                        {
+                            UserAccountId = userAccountId,
+                            TootId = instance.TootId,
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex.ToString());
+                        throw;
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex.ToString());
             }
         }
 
