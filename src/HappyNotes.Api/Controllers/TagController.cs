@@ -12,9 +12,9 @@ public class TagController(CurrentUser currentUser
 ): BaseController
 {
     [HttpGet]
-    public async Task<ApiResult<List<TagCount>>> MyTagCloud()
+    public async Task<ApiResult<List<TagCount>>> MyTagCloud(int limit = 80)
     {
-        var tagCountList = await noteTagService.GetTagData(currentUser.Id);
+        var tagCountList = await noteTagService.GetTagData(currentUser.Id, limit);
         return new SuccessfulResult<List<TagCount>>(tagCountList);
     }
 }
