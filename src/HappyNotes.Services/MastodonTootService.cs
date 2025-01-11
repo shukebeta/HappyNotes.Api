@@ -12,7 +12,7 @@ public class MastodonTootService : IMastodonTootService
 {
     private static readonly Regex ImagePattern = new(@"!\[(.*?)\]\((.*?)\)", RegexOptions.Compiled);
     private const int MaxImages = 4;
-    private static string _GetStringTags(string longText) => string.Join(' ', longText.GetTags().Select(t => $"#{t}"));
+    private static string _GetStringTags(string longText) => string.Join(' ', longText.GetTags().Where(t => !t.StartsWith("@")).Select(t => $"#{t}"));
 
     public async Task<Status> SendTootAsync(string instanceUrl, string accessToken, string text, bool isPrivate,
         bool isMarkdown = false)
