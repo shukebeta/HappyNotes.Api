@@ -28,20 +28,32 @@ public class UnixTimestampHelperTests
         // Arrange
         string localTimezone = "America/Los_Angeles";
         DateTimeOffset currentUtcTime = DateTimeOffset.UtcNow;
+        var timezone = TimeZoneInfo.FindSystemTimeZoneById(localTimezone);
+
+        // Convert to local time first
+        DateTimeOffset localTime = TimeZoneInfo.ConvertTime(currentUtcTime, timezone);
+
+        // Create start of day using local components
+        DateTimeOffset startOfDay = new DateTimeOffset(
+            localTime.Year,
+            localTime.Month,
+            localTime.Day,
+            0, 0, 0,
+            timezone.GetUtcOffset(localTime.DateTime));
 
         // Act
         (long startUnixTimestamp, long endUnixTimestamp) =
             UnixTimestampHelper.GetDayUnixTimestamps(localTimezone, null);
 
         // Assert
-        DateTimeOffset startOfDay = new DateTimeOffset(currentUtcTime.Year, currentUtcTime.Month, currentUtcTime.Day, 0,
-            0, 0, TimeZoneInfo.FindSystemTimeZoneById(localTimezone).GetUtcOffset(currentUtcTime.DateTime));
         DateTimeOffset endOfDay = startOfDay.AddDays(1).AddTicks(-1);
-
         long expectedStartUnixTimestamp = startOfDay.ToUnixTimeSeconds();
         long expectedEndUnixTimestamp = endOfDay.ToUnixTimeSeconds();
 
-        Assert.That(startUnixTimestamp, Is.EqualTo(expectedStartUnixTimestamp));
-        Assert.That(endUnixTimestamp, Is.EqualTo(expectedEndUnixTimestamp));
+        Assert.Multiple(() =>
+        {
+            Assert.That(startUnixTimestamp, Is.EqualTo(expectedStartUnixTimestamp));
+            Assert.That(endUnixTimestamp, Is.EqualTo(expectedEndUnixTimestamp));
+        });
     }
 }

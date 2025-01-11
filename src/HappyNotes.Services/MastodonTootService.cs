@@ -12,12 +12,17 @@ public class MastodonTootService : IMastodonTootService
 {
     private static readonly Regex ImagePattern = new(@"!\[(.*?)\]\((.*?)\)", RegexOptions.Compiled);
     private const int MaxImages = 4;
+    private static string _GetStringTags(string longText) => string.Join(' ', longText.GetTags().Select(t => $"#{t}"));
 
     public async Task<Status> SendTootAsync(string instanceUrl, string accessToken, string text, bool isPrivate,
         bool isMarkdown = false)
     {
-        var client = new MastodonClient(instanceUrl, accessToken);
+        if (text.Length > Constants.MastodonTootLength)
+        {
+            return await _SendLongTootAsPhotoAsync(instanceUrl, accessToken, text, isPrivate, isMarkdown);
+        }
 
+        var client = new MastodonClient(instanceUrl, accessToken);
         if (!isMarkdown) return await client.PublishStatus(text, isPrivate ? Visibility.Private : Visibility.Public);
         var (processedText, mediaIds) = await ProcessMarkdownImagesAsync(client, text);
 
@@ -28,6 +33,31 @@ public class MastodonTootService : IMastodonTootService
         );
     }
 
+    private static async Task<Status> _SendLongTootAsPhotoAsync(string instanceUrl, string accessToken, string longText,
+        bool isMarkdown, bool isPrivate)
+    {
+        var client = new MastodonClient(instanceUrl, accessToken);
+        var filePath = Path.GetTempFileName();
+
+        try
+        {
+            var media = await _UploadLongTextAsMedia(client, longText, isMarkdown);
+
+            return await client.PublishStatus(
+                _GetStringTags(longText),
+                isPrivate ? Visibility.Private : Visibility.Public,
+                mediaIds: [media.Id,]
+            );
+        }
+        finally
+        {
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
+        }
+    }
+
     public async Task<Status> EditTootAsync(
         string instanceUrl,
         string accessToken,
@@ -36,15 +66,11 @@ public class MastodonTootService : IMastodonTootService
         bool isPrivate,
         bool isMarkdown = false)
     {
-        if (newText.Length <= Constants.MastodonTootLength)
-            return await _EditShortToot(instanceUrl, accessToken, tootId, newText, isPrivate, isMarkdown);
-        return await _EditLongTootAsPhotoAsync(instanceUrl, accessToken, tootId, newText, isPrivate, isMarkdown);
-    }
+        if (newText.Length > Constants.MastodonTootLength)
+        {
+            return await _EditLongTootAsPhotoAsync(instanceUrl, accessToken, tootId, newText, isPrivate, isMarkdown);
+        }
 
-    private async Task<Status> _EditShortToot(string instanceUrl, string accessToken, string tootId, string newText,
-        bool isPrivate,
-        bool isMarkdown)
-    {
         var client = new MastodonClient(instanceUrl, accessToken);
         var visibility = isPrivate ? Visibility.Private : Visibility.Public;
 
@@ -79,31 +105,6 @@ public class MastodonTootService : IMastodonTootService
         );
     }
 
-    public async Task<Status> SendLongTootAsPhotoAsync(string instanceUrl, string accessToken, string longText,
-        bool isMarkdown, bool isPrivate)
-    {
-        var client = new MastodonClient(instanceUrl, accessToken);
-        var filePath = Path.GetTempFileName();
-
-        try
-        {
-            var media = await _UploadLongTextAsMedia(client, longText, isMarkdown);
-
-            return await client.PublishStatus(
-                string.Empty,
-                isPrivate ? Visibility.Private : Visibility.Public,
-                mediaIds: [media.Id,]
-            );
-        }
-        finally
-        {
-            if (File.Exists(filePath))
-            {
-                File.Delete(filePath);
-            }
-        }
-    }
-
     private static async Task<Attachment> _UploadLongTextAsMedia(MastodonClient client, string longText, bool isMarkdown)
     {
         var htmlContent = isMarkdown ? Markdown.ToHtml(longText) : $"<p>{longText}</p>";
@@ -122,7 +123,7 @@ public class MastodonTootService : IMastodonTootService
         await client.DeleteStatus(tootId);
     }
 
-    private async Task<Status> _EditLongTootAsPhotoAsync(
+    private static async Task<Status> _EditLongTootAsPhotoAsync(
         string instanceUrl,
         string accessToken,
         string tootId,
@@ -153,7 +154,7 @@ public class MastodonTootService : IMastodonTootService
             // Otherwise, edit the existing toot
             return await client.EditStatus(
                 tootId,
-                string.Empty,
+                _GetStringTags(longText),
                 mediaIds: [media.Id]
             );
         }

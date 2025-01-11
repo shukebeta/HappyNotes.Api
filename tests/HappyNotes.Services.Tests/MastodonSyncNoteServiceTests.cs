@@ -81,7 +81,7 @@ public class MastodonSyncNoteServiceTests
         await _mastodonSyncNoteService.SyncNewNote(note, fullContent);
 
         // Assert
-        _mockNoteRepository.Verify(repo => repo.UpdateAsync(It.Is<Note>(n => n.MastodonTootIds.Contains("12345"))),
+        _mockNoteRepository.Verify(repo => repo.UpdateAsync(It.Is<Note>(n => n.MastodonTootIds!.Contains("12345"))),
             shouldSync ? Times.Once : Times.Never);
     }
 }

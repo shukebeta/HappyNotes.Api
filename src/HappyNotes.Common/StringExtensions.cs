@@ -37,8 +37,7 @@ public static partial class StringExtensions
         var parts = Separator.Split(str, 2);
 
         maxLength = maxLength <= 0 ? Constants.ShortNotesMaxLength : maxLength;
-        if (parts[0].Length <= maxLength) return parts[0];
-        return str[..maxLength];
+        return parts[0].Length <= maxLength ? parts[0] : str[..maxLength];
     }
 
     public static List<string> GetNoteIds(this string? str, int maxIdLength = 33, int maxTotalLength = 160)

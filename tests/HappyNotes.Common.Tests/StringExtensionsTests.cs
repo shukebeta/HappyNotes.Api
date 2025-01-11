@@ -96,6 +96,6 @@ public class StringExtensionsTests
         var matches = input.GetNoteIds();
         var result = matches.Any() ? matches[0][1..] : null;
 
-        Assert.AreEqual(expected, result);
+        Assert.That(result, Is.EqualTo(expected));
     }
 }

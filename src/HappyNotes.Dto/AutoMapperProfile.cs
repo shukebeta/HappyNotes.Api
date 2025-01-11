@@ -5,7 +5,6 @@ using AutoMapper;
 using HappyNotes.Common;
 using HappyNotes.Entities;
 using HappyNotes.Models;
-using WeihanLi.Extensions;
 
 namespace HappyNotes.Dto;
 
@@ -20,13 +19,13 @@ public class AutoMapperProfile: Profile
         CreateMap<PostMastodonApplicationRequest, MastodonApplication>();
         CreateMap<TelegramSettings, TelegramSettingsDto>();
         CreateMap<PostNoteRequest, Note>()
-            .ForMember(m => m.TagList, _ => _.MapFrom((src,dst) => src.Content.GetTags()))
-            .ForMember(m => m.IsLong, _ => _.MapFrom((src,dst) => src.Content.IsLong()))
-            .ForMember(m => m.CreatedAt, _ => _.MapFrom<CreatedAtResolver>())
+            .ForMember(m => m.TagList, m => m.MapFrom((src,_) => src.Content.GetTags()))
+            .ForMember(m => m.IsLong, m => m.MapFrom((src,_) => src.Content.IsLong()))
+            .ForMember(m => m.CreatedAt, m => m.MapFrom<CreatedAtResolver>())
             .AfterMap((src, dst) =>
             {
                 dst.Tags = string.Join(" ", dst.TagList);
-                dst.Content = dst.IsLong ? src.Content.GetShort() : src.Content;
+                dst.Content = dst.IsLong ? src.Content.GetShort() : src.Content ?? string.Empty;
             })
             ;
 

@@ -150,20 +150,8 @@ public class MastodonSyncNoteService(
 
     private async Task<string> _SentNoteToMastodon(Note note, string fullContent, MastodonUserAccount account)
     {
-        var text = fullContent; // Or format the message as needed
-
-        // You can use different logic here based on the note's properties
-        Status toot;
-        if (fullContent.Length > Constants.MastodonTootLength)
-        {
-            toot = await mastodonTootService.SendLongTootAsPhotoAsync(account.InstanceUrl,
-                account.DecryptedAccessToken(TokenKey), text, note.IsMarkdown, note.IsPrivate);
-        }
-        else
-        {
-            toot = await mastodonTootService.SendTootAsync(account.InstanceUrl,
-                account.DecryptedAccessToken(TokenKey), text, note.IsPrivate, note.IsMarkdown);
-        }
+        var toot = await mastodonTootService.SendTootAsync(account.InstanceUrl,
+                account.DecryptedAccessToken(TokenKey), fullContent, note.IsPrivate, note.IsMarkdown);
 
         return toot.Id;
     }

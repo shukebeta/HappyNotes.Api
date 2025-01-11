@@ -21,7 +21,7 @@ public static class EnumExtensions
         try
         {
             return (((int) (object) type &
-                     (int) (object) value) == (int) (object) value);
+                     (int) (object) value!) == (int) (object) value);
         }
         catch
         {
@@ -32,7 +32,7 @@ public static class EnumExtensions
     //checks if the value is only the provided type
     public static bool Is<T>(this Enum type, T value) {
         try {
-            return (int)(object)type == (int)(object)value;
+            return (int)(object)type == (int)(object)value!;
         }
         catch {
             return false;
@@ -42,7 +42,7 @@ public static class EnumExtensions
     //appends a value
     public static T Add<T>(this Enum type, T value) {
         try {
-            return (T)(object)(((int)(object)type | (int)(object)value));
+            return (T)(object)(((int)(object)type | (int)(object)value!));
         }
         catch(Exception ex) {
             throw new ArgumentException(
@@ -53,7 +53,7 @@ public static class EnumExtensions
     //completely removes the value
     public static T Remove<T>(this Enum type, T value) {
         try {
-            return (T)(object)(((int)(object)type & ~(int)(object)value));
+            return (T)(object)(((int)(object)type & ~(int)(object)value!));
         }
         catch (Exception ex) {
             throw new ArgumentException(
