@@ -5,6 +5,21 @@ All notable changes to the HappyNote.Api project will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2025-01-11
+
+- Add limit parameter to /tag/myTagCloud API
+- Filter out tags start with @ character in /tag/myTagCloud API
+- Keep tags clickable when syncing long text to Mastodon
+
+## 2025-01-03
+- Add PublishDateTime/TimeZoneId support to PostNoteRequest, so we gain the ability to post notes on a past/future date.
+
+## 2024-11-24
+- Add markdown image support to MastodonTootService
+
+## 2024-10-30
+- Add Mastodon sync feature
+
 ## 2024-08-15
 
 ### Added
