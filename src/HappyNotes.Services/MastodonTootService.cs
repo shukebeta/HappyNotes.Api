@@ -34,7 +34,7 @@ public class MastodonTootService : IMastodonTootService
     }
 
     private static async Task<Status> _SendLongTootAsPhotoAsync(string instanceUrl, string accessToken, string longText,
-        bool isMarkdown, bool isPrivate)
+        bool isPrivate, bool isMarkdown)
     {
         var client = new MastodonClient(instanceUrl, accessToken);
         var filePath = Path.GetTempFileName();
