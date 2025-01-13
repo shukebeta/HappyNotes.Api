@@ -17,14 +17,15 @@ public class MastodonTootService : IMastodonTootService
     public async Task<Status> SendTootAsync(string instanceUrl, string accessToken, string text, bool isPrivate,
         bool isMarkdown = false)
     {
-        if (text.Length > Constants.MastodonTootLength)
+        var fullText = _GetFullText(text, isMarkdown);
+        if (fullText.Length > Constants.MastodonTootLength)
         {
-            return await _SendLongTootAsPhotoAsync(instanceUrl, accessToken, text, isPrivate, isMarkdown);
+            return await _SendLongTootAsPhotoAsync(instanceUrl, accessToken, fullText, isPrivate, isMarkdown);
         }
 
         var client = new MastodonClient(instanceUrl, accessToken);
-        if (!isMarkdown) return await client.PublishStatus(text, isPrivate ? Visibility.Private : Visibility.Public);
-        var (processedText, mediaIds) = await ProcessMarkdownImagesAsync(client, text);
+        if (!isMarkdown) return await client.PublishStatus(fullText, isPrivate ? Visibility.Private : Visibility.Public);
+        var (processedText, mediaIds) = await ProcessMarkdownImagesAsync(client, fullText);
 
         return await client.PublishStatus(
             processedText,
@@ -66,9 +67,10 @@ public class MastodonTootService : IMastodonTootService
         bool isPrivate,
         bool isMarkdown = false)
     {
-        if (newText.Length > Constants.MastodonTootLength)
+        var fullText = _GetFullText(newText, isMarkdown);
+        if (fullText.Length > Constants.MastodonTootLength)
         {
-            return await _EditLongTootAsPhotoAsync(instanceUrl, accessToken, tootId, newText, isPrivate, isMarkdown);
+            return await _EditLongTootAsPhotoAsync(instanceUrl, accessToken, tootId, fullText, isPrivate, isMarkdown);
         }
 
         var client = new MastodonClient(instanceUrl, accessToken);
@@ -78,7 +80,7 @@ public class MastodonTootService : IMastodonTootService
         var toot = await client.GetStatus(tootId);
 
         // Process markdown if enabled
-        var processedText = newText;
+        var processedText = fullText;
         IEnumerable<string> mediaIds = Array.Empty<string>();
 
         if (isMarkdown)
@@ -105,11 +107,16 @@ public class MastodonTootService : IMastodonTootService
         );
     }
 
+    private static string _GetFullText(string text, bool isMarkdown)
+    {
+        return isMarkdown && text.Length > Constants.MastodonTootLength ? Markdown.ToHtml(text) : text;
+    }
+
     private static async Task<Attachment> _UploadLongTextAsMedia(MastodonClient client, string longText, bool isMarkdown)
     {
-        var htmlContent = isMarkdown ? Markdown.ToHtml(longText) : $"<p>{longText}</p>";
+        var htmlContent = isMarkdown ? longText : longText.Replace("\n", "<br>");
         htmlContent =
-            $"<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<link rel=\"stylesheet\" href=\"https://files.shukebeta.com/markdown.css\" />\n</head>\n<body>\n{htmlContent}</body></html>";
+            $"<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<link rel=\"stylesheet\" href=\"https://files.shukebeta.com/markdown.css?v1\" />\n</head>\n<body>\n{htmlContent}</body></html>";
         var converter = new HtmlConverter();
         var bytes = converter.FromHtmlString(htmlContent, width: 600);
         var memoryStream = new MemoryStream(bytes);
