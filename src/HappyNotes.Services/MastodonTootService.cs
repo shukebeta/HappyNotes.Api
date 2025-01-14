@@ -110,14 +110,21 @@ public class MastodonTootService : IMastodonTootService
 
     private static string _GetFullText(string text, bool isMarkdown)
     {
-        return isMarkdown && text.Length > Constants.MastodonTootLength ? Markdown.ToHtml(text) : text;
+        if (isMarkdown && text.Length > Constants.MastodonTootLength)
+        {
+            var pipeline = new MarkdownPipelineBuilder()
+                .UseAdvancedExtensions()  // This includes tables
+                .Build();
+            return Markdown.ToHtml(text, pipeline);
+        }
+        return text;
     }
 
     private static async Task<Attachment> _UploadLongTextAsMedia(MastodonClient client, string longText, bool isMarkdown)
     {
         var htmlContent = isMarkdown ? longText : longText.Replace("\n", "<br>");
         htmlContent =
-            $"<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<link rel=\"stylesheet\" href=\"https://files.shukebeta.com/markdown.css?v1\" />\n</head>\n<body>\n{htmlContent}</body></html>";
+            $"<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<link rel=\"stylesheet\" href=\"https://files.shukebeta.com/markdown.css?v2\" />\n</head>\n<body>\n{htmlContent}</body></html>";
         var converter = new HtmlConverter();
         var bytes = converter.FromHtmlString(htmlContent, width: 600);
         var memoryStream = new MemoryStream(bytes);
