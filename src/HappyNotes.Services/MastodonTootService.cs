@@ -11,6 +11,7 @@ namespace HappyNotes.Services;
 public class MastodonTootService : IMastodonTootService
 {
     private static readonly Regex ImagePattern = new(@"!\[(.*?)\]\((.*?)\)", RegexOptions.Compiled);
+    private static readonly Regex ImagesSuffixPattern = new(@"((?:\s*image\s*\d\s*)+)", RegexOptions.Compiled);
     private const int MaxImages = 4;
     private static string _GetStringTags(string longText) => string.Join(' ', longText.GetTags().Where(t => !t.StartsWith("@")).Select(t => $"#{t}"));
 
@@ -228,6 +229,11 @@ public class MastodonTootService : IMastodonTootService
             {
                 return (string.Empty, mediaIds);
             }
+        }
+        var imagesTextMatch = ImagesSuffixPattern.Match(processedText);
+        if (imagesTextMatch.Success)
+        {
+            processedText = processedText.Replace(imagesTextMatch.Value, " ").Trim();
         }
 
         return (processedText, mediaIds);
