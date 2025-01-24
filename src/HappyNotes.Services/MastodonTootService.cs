@@ -146,12 +146,11 @@ public class MastodonTootService : IMastodonTootService
         bool isPrivate,
         bool isMarkdown)
     {
-        var client = new MastodonClient(instanceUrl, accessToken);
-        var toot = await client.GetStatus(tootId);
-        var visibility = isPrivate ? Visibility.Private : Visibility.Public;
-
         try
         {
+            var client = new MastodonClient(instanceUrl, accessToken);
+            var toot = await client.GetStatus(tootId);
+            var visibility = isPrivate ? Visibility.Private : Visibility.Public;
             var media = await _UploadLongTextAsMedia(client, longText, isMarkdown);
 
             // If visibility changed, we need to delete and recreate
