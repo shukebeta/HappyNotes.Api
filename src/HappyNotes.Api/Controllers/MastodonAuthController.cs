@@ -4,7 +4,7 @@ using Api.Framework.Models;
 using Api.Framework.Result;
 using HappyNotes.Common.Enums;
 using HappyNotes.Entities;
-using HappyNotes.Models;
+using HappyNotes.Services;
 using HappyNotes.Services.interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -18,7 +18,7 @@ namespace HappyNotes.Api.Controllers;
 public class MastodonAuthController(
     IRepositoryBase<MastodonApplication> mastodonApplicationRepository,
     IRepositoryBase<MastodonUserAccount> mastodonUserAccountRepository,
-    CurrentUser currentUser,
+    ICurrentUser currentUser,
     ILogger<MastodonAuthController> logger,
     IOptions<JwtConfig> jwtConfig,
     IGeneralMemoryCacheService generalMemoryCacheService) : BaseController

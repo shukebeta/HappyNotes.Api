@@ -1,5 +1,6 @@
 using Api.Framework.Result;
 using HappyNotes.Models;
+using HappyNotes.Services;
 using HappyNotes.Services.interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -7,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace HappyNotes.Api.Controllers;
 
 [Authorize]
-public class TagController(CurrentUser currentUser
+public class TagController(ICurrentUser currentUser
     , INoteTagService noteTagService
 ): BaseController
 {

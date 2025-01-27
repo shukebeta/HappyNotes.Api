@@ -4,7 +4,7 @@ using AutoMapper;
 using HappyNotes.Common;
 using HappyNotes.Common.Enums;
 using HappyNotes.Entities;
-using HappyNotes.Models;
+using HappyNotes.Services;
 using HappyNotes.Services.interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,7 +12,7 @@ namespace HappyNotes.Api.Controllers;
 
 public class MastodonUserAccountController(
     IMapper mapper,
-    CurrentUser currentUser,
+    ICurrentUser currentUser,
     IRepositoryBase<MastodonUserAccount> mastodonUserAccountsRepository,
     IMastodonUserAccountCacheService mastodonUserAccountsCacheService
 ) : BaseController

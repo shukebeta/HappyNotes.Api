@@ -10,4 +10,8 @@
       <ProjectReference Include="..\Api.Framework\Api.Framework.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <PackageReference Include="ReverseMarkdown" Version="4.6.0" />
+    </ItemGroup>
+
 </Project>

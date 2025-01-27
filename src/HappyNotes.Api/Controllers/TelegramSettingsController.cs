@@ -8,7 +8,7 @@ using HappyNotes.Common;
 using HappyNotes.Common.Enums;
 using HappyNotes.Dto;
 using HappyNotes.Entities;
-using HappyNotes.Models;
+using HappyNotes.Services;
 using HappyNotes.Services.interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -17,7 +17,7 @@ namespace HappyNotes.Api.Controllers;
 
 public class TelegramSettingsController(
     IMapper mapper,
-    CurrentUser currentUser,
+    ICurrentUser currentUser,
     IRepositoryBase<TelegramSettings> telegramSyncSettingsRepository,
     ITelegramSettingsCacheService telegramSettingsCacheService,
     ITelegramService telegramService,

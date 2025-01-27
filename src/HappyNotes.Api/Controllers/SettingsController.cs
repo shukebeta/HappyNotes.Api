@@ -6,14 +6,15 @@ using HappyNotes.Common.Enums;
 using HappyNotes.Dto;
 using HappyNotes.Entities;
 using HappyNotes.Extensions;
-using HappyNotes.Models;
+using HappyNotes.Services;
+using HappyNotes.Services.interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HappyNotes.Api.Controllers;
 
 public class SettingsController(
     IMapper mapper,
-    CurrentUser currentUser,
+    ICurrentUser currentUser,
     IRepositoryBase<UserSettings> userSettingsRepository
 ) : BaseController
 {

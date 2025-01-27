@@ -1,11 +1,9 @@
 using Api.Framework.Models;
-using HappyNotes.Common;
 using HappyNotes.Common.Enums;
 using HappyNotes.Entities;
 using HappyNotes.Models;
 using HappyNotes.Repositories.interfaces;
 using HappyNotes.Services.interfaces;
-using Mastonet.Entities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 

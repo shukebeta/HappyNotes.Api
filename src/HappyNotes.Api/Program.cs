@@ -1,5 +1,4 @@
 using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using Api.Framework;
@@ -8,7 +7,8 @@ using Api.Framework.Extensions;
 using Api.Framework.Models;
 using HappyNotes.Api;
 using HappyNotes.Dto;
-using HappyNotes.Models;
+using HappyNotes.Services;
+using HappyNotes.Services.interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Cors.Infrastructure;
@@ -20,7 +20,6 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using NLog.Web;
 using Swashbuckle.AspNetCore.SwaggerGen;
-using WeihanLi.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 var logger = LoggerFactory.Create(config =>
@@ -40,18 +39,19 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 builder.Services.AddAutoMapper(typeof(AutoMapperProfile));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(SetupSwaggerGen());
-builder.Services.AddSingleton(typeof(IRepositoryBase<>), typeof(RepositoryBase<>));
+builder.Services.AddScoped(typeof(IRepositoryBase<>), typeof(RepositoryBase<>));
 builder.Services.AddSingleton(typeof(ILogger<>), typeof(Logger<>));
 
 builder.Services.AddSqlSugarSetup(builder.Configuration.GetSection("DatabaseConnectionOptions")
     .Get<DatabaseConnectionOptions>()!, logger);
-builder.Services.RegisterServices();
 
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.AddCors(SetupCors(builder));
 ConfigAuthentication(builder);
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUser, CurrentUser>();
+builder.Services.RegisterServices();
 
 var app = builder.Build();
 if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Local"))
@@ -63,6 +63,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Local"))
 app.UseCors("AllowOrigins");
 app.UseExceptionHandler();
 app.UseHttpsRedirection();
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 logger.LogInformation(envName);
@@ -75,7 +76,6 @@ void ConfigAuthentication(WebApplicationBuilder b)
 {
     var services = b.Services;
 
-    services.AddSingleton<CurrentUser>();
     var configuration = b.Configuration;
     services.Configure<JwtConfig>(configuration.GetSection("Jwt"));
     var jwtConfig = configuration.GetSection("Jwt").Get<JwtConfig>();
@@ -97,31 +97,9 @@ void ConfigAuthentication(WebApplicationBuilder b)
                 ValidateLifetime = true,
                 ClockSkew = TimeSpan.FromMinutes(5)
             };
-            options.Events = new JwtBearerEvents
-            {
-                OnTokenValidated = PopulateCurrentUser(),
-            };
         });
 
     JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
-}
-
-Func<TokenValidatedContext, Task> PopulateCurrentUser()
-{
-    return context =>
-    {
-        var currentUser = context.HttpContext.RequestServices.GetService<CurrentUser>();
-        var claims = context.Principal?.Claims.ToArray();
-        if (claims.HasValue())
-        {
-            currentUser!.Id = int.Parse(claims.First(x => x.Type == ClaimTypes.NameIdentifier).Value);
-            currentUser.Username = claims.First(x => x.Type == ClaimTypes.Name).Value;
-            currentUser.Email = claims.First(x => x.Type == ClaimTypes.Email).Value;
-            currentUser.TokenValidTo = context.SecurityToken.ValidTo.ToUnixTimeSeconds();
-        }
-
-        return Task.CompletedTask;
-    };
 }
 
 Action<SwaggerGenOptions> SetupSwaggerGen()

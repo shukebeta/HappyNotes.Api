@@ -20,7 +20,7 @@ public class NoteService(
     INoteRepository noteRepository,
     IRepositoryBase<LongNote> longNoteRepository,
     IMapper mapper,
-    CurrentUser currentUser,
+    ICurrentUser currentUser,
     ILogger<NoteService> logger
 ) : INoteService
 {
@@ -78,6 +78,16 @@ public class NoteService(
         }
 
         request.Content = request.Content?.Trim() ?? string.Empty;
+        // the following is a hack for user shukebeta only
+        if (existedNote.UserId == 1 && (request.Content?.IsHtml() ?? false))
+        {
+            request.Content = request.Content?.ToMarkdown();
+            if (!request.IsMarkdown)
+            {
+                request.IsMarkdown = true;
+            }
+        }
+
         // update note tags first
         await _UpdateNoteTags(existedNote, request.Content);
 

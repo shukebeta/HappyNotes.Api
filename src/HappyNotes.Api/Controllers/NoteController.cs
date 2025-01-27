@@ -13,7 +13,7 @@ namespace HappyNotes.Api.Controllers;
 
 [Authorize]
 public class NoteController(IMapper mapper
-    , CurrentUser currentUser
+    , ICurrentUser currentUser
     , INoteService noteService
 ): BaseController
 {

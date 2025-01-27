@@ -1,4 +1,5 @@
 ﻿using System.Text.RegularExpressions;
+using ReverseMarkdown;
 
 namespace HappyNotes.Common;
 
@@ -8,6 +9,7 @@ public static partial class StringExtensions
     private static readonly Regex Tags = _Tags();
     private static readonly Regex Space = _Space();
     private static readonly Regex NoteId = _NoteId();
+    private static readonly Converter MarkdownConverter = new Converter();
 
     /// <summary>
     /// 4 new line in a row or <!-- more --> means a manual separated long note
@@ -92,5 +94,17 @@ public static partial class StringExtensions
 
         }
         return tags.Concat(str.GetNoteIds()).ToList();
+    }
+
+    public static bool IsHtml(this string input)
+    {
+        return Regex.IsMatch(input, @"<\s*([a-zA-Z]+)[^>]*>.*</\s*\1\s*>",
+                   RegexOptions.Singleline | RegexOptions.IgnoreCase)
+               || Regex.IsMatch(input, @"<\s*([a-zA-Z]+)*[^>]*/>", RegexOptions.IgnoreCase);
+    }
+
+    public static string ToMarkdown(this string htmlInput)
+    {
+        return IsHtml(htmlInput) ? MarkdownConverter.Convert(htmlInput).Trim() : htmlInput;
     }
 }

@@ -3,7 +3,7 @@ using Api.Framework.Result;
 using AutoMapper;
 using HappyNotes.Common;
 using HappyNotes.Dto;
-using HappyNotes.Models;
+using HappyNotes.Services;
 using HappyNotes.Services.interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,7 +13,7 @@ namespace HappyNotes.Api.Controllers;
 [Authorize]
 public class NotesController(IMapper mapper
     , INoteService noteService
-    , CurrentUser currentUser
+    , ICurrentUser currentUser
 ): BaseController
 {
     [HttpGet("{pageSize:int}/{pageNumber:int}")]
