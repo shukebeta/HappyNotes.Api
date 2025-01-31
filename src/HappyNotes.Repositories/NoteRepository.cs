@@ -48,8 +48,16 @@ public class NoteRepository(ISqlSugarClient dbClient) : RepositoryBase<Note>(dbC
     public async Task<PageData<Note>> GetUserNotes(long userId, int pageSize, int pageNumber,
         bool includePrivate = true, bool isAsc = false)
     {
+        if (includePrivate)
+        {
+            return await _GetPageDataAsync(pageSize, pageNumber,
+                n => n.UserId == userId && n.DeletedAt == null ,
+                n => n.CreatedAt, isAsc);
+
+        }
+
         return await _GetPageDataAsync(pageSize, pageNumber,
-            n => n.DeletedAt == null && n.UserId == userId && (includePrivate || n.IsPrivate == false),
+            n => n.UserId == userId && n.DeletedAt == null && n.IsPrivate == false,
             n => n.CreatedAt, isAsc);
     }
 
@@ -80,9 +88,7 @@ public class NoteRepository(ISqlSugarClient dbClient) : RepositoryBase<Note>(dbC
             PageSize = pageSize,
         };
         RefAsync<int> totalCount = 0;
-        var result = await db.Queryable<Note, User>((n, u) => new JoinQueryInfos(
-                JoinType.Inner, n.UserId == u.Id
-            )).WhereIF(null != where, where)
+        var result = await db.Queryable<Note>().WhereIF(null != where, where)
             .OrderByIF(orderBy != null, orderBy, isAsc ? OrderByType.Asc : OrderByType.Desc)
             .Mapper(n => n.User, n => n.UserId)
             .ToPageListAsync(pageNumber, pageSize, totalCount);

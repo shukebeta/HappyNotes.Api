@@ -10,8 +10,6 @@ namespace HappyNotes.Services;
 
 public class MastodonTootService : IMastodonTootService
 {
-    private static readonly Regex ImagePattern = new(@"!\[(.*?)\]\((.*?)\)", RegexOptions.Compiled);
-    private static readonly Regex ImagesSuffixPattern = new(@"((?:\s*image\s*\d\s*)+)", RegexOptions.Compiled);
     private const int MaxImages = 4;
     private static string _GetStringTags(string longText) => string.Join(' ', longText.GetTags().Where(t => !t.StartsWith("@")).Select(t => $"#{t}"));
 
@@ -181,26 +179,21 @@ public class MastodonTootService : IMastodonTootService
         MastodonClient client,
         string markdownText)
     {
-        var allMatches = ImagePattern.Matches(markdownText);
-        var picCount = allMatches.Count;
-        if (picCount == 0)
+        var imgInfos = markdownText.GetImgInfos();
+        if (imgInfos.Count == 0)
         {
             return (markdownText, Array.Empty<string>());
         }
 
-        var matches = allMatches
+        var matches = imgInfos
             .Take(MaxImages)
             .ToList();
 
         var uploadTasks = new List<Task<(int index, Attachment attachment)>>();
 
-        for (var i = 0; i < matches.Count; i++)
+        for (var index = 0; index < matches.Count; index++)
         {
-            var match = matches[i];
-            var altText = match.Groups[1].Value.Trim();
-            var imageUrl = match.Groups[2].Value;
-            var index = i;
-            uploadTasks.Add(UploadImageAsync(client, imageUrl, altText, index));
+            uploadTasks.Add(UploadImageAsync(client, matches[index].ImgUrl, matches[index].Alt, index));
         }
 
         var results = await Task.WhenAll(uploadTasks);
@@ -211,37 +204,32 @@ public class MastodonTootService : IMastodonTootService
             .ToList();
 
         // Replace markdown image syntax with reference text including alt text
-        var processedText = markdownText;
         for (var i = 0; i < matches.Count; i++)
         {
-            var altText = matches[i].Groups[1].Value.Trim();
+            var altText = matches[i].Alt;
             altText = altText.Equals("image") ? string.Empty : altText;
             var imageText = !string.IsNullOrWhiteSpace(altText)
                 ? $"image {i + 1}: {altText}"
                 : $"image {i + 1}";
-            if (picCount == 1)
+            // if there is only one picture
+            if (matches.Count == 1)
             {
                 imageText = !string.IsNullOrWhiteSpace(altText)
                     ? $"image: {altText}"
                     : string.Empty;
             }
 
-            processedText = processedText.Replace(
-                matches[i].Value,
+            markdownText = markdownText.Replace(
+                matches[i].Match.Value,
                 imageText
             );
-            if (i == 0 && processedText.Trim().Equals(imageText))
+            if (i == 0 && markdownText.Trim().Equals(imageText))
             {
                 return (string.Empty, mediaIds);
             }
         }
-        var imagesTextMatch = ImagesSuffixPattern.Match(processedText);
-        if (imagesTextMatch.Success)
-        {
-            processedText = processedText.Replace(imagesTextMatch.Value, " ").Trim();
-        }
 
-        return (processedText, mediaIds);
+        return (markdownText.RemoveImageReference(), mediaIds);
     }
 
     private async Task<(int index, Attachment attachment)> UploadImageAsync(

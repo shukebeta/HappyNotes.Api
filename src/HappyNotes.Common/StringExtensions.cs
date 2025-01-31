@@ -9,7 +9,9 @@ public static partial class StringExtensions
     private static readonly Regex Tags = _Tags();
     private static readonly Regex Space = _Space();
     private static readonly Regex NoteId = _NoteId();
-    private static readonly Converter MarkdownConverter = new Converter();
+    private static readonly Regex ImagePattern = _ImagePattern();
+    private static readonly Regex ImagesSuffixPattern = _ImagesSuffixPattern();
+    private static readonly Converter MarkdownConverter = new();
 
     /// <summary>
     /// 4 new line in a row or <!-- more --> means a manual separated long note
@@ -46,28 +48,24 @@ public static partial class StringExtensions
     {
         if (str is null) return [];
         var matches = NoteId.Matches(str);
-        if (matches.Any())
+        if (matches.Count == 0) return [];
+        var noteIds = new List<string>();
+        var totalLength = 0;
+        // Join multiple match into one string, then split it to one unique list
+        var candidate = Space.Split(string.Join(' ', matches)).Distinct();
+        foreach (var tag in candidate)
         {
-            var noteIds = new List<string>();
-            var totalLength = 0;
-            // Join multiple match into one string, then split it to one unique list
-            var candidate = Space.Split(string.Join(' ', matches)).Distinct();
-            foreach (var tag in candidate)
-            {
-                if (tag.Length > maxIdLength)
-                    continue;
+            if (tag.Length > maxIdLength)
+                continue;
 
-                // Check if adding this tag (plus a space) would exceed the max total length
-                totalLength += tag.Length + 1; // +1 for the space
-                if (totalLength > maxTotalLength)
-                    break;
-                noteIds.Add(tag);
-            }
-
-            return noteIds;
+            // Check if adding this tag (plus a space) would exceed the max total length
+            totalLength += tag.Length + 1; // +1 for the space
+            if (totalLength > maxTotalLength)
+                break;
+            noteIds.Add(tag);
         }
 
-        return [];
+        return noteIds;
     }
 
     public static List<string> GetTags(this string? str, int maxTagLength = 32, int maxTotalLength = 352)
@@ -107,4 +105,35 @@ public static partial class StringExtensions
     {
         return IsHtml(htmlInput) ? MarkdownConverter.Convert(htmlInput).Trim() : htmlInput;
     }
+
+    public static List<(string Alt, string ImgUrl, Match Match)> GetImgInfos(this string? markdownInput)
+    {
+        if (markdownInput is null) return [];
+        var matches = ImagePattern.Matches(markdownInput);
+        var imgInfos = new List<(string Alt, string ImgUrl, Match Match)>();
+        if (matches.Count == 0) return imgInfos;
+        foreach (Match match in matches)
+        {
+            var altText = match.Groups[1].Value.Trim();
+            var imageUrl = match.Groups[2].Value.Trim();
+            imgInfos.Add((altText, imageUrl, match));
+        }
+        return imgInfos;
+    }
+
+    public static string RemoveImageReference(this string? markdownInput)
+    {
+        if (markdownInput is null) return string.Empty;
+        var match = ImagesSuffixPattern.Match(markdownInput);
+        if (match.Success)
+        {
+            markdownInput = markdownInput.Replace(match.Value, " ").Trim();
+        }
+        return markdownInput;
+    }
+
+    [GeneratedRegex(@"!\[(.*?)\]\((.*?)\)", RegexOptions.Compiled)]
+    private static partial Regex _ImagePattern();
+    [GeneratedRegex(@"((?:\s*image\s*\d\s*)+)", RegexOptions.Compiled | RegexOptions.Singleline)]
+    private static partial Regex _ImagesSuffixPattern();
 }

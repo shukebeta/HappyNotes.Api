@@ -99,4 +99,19 @@ public class StringExtensionsTests
 
         Assert.That(result, Is.EqualTo(expected));
     }
+
+    [TestCase("this is a note image 1 image 2 image 3", "this is a note")]
+    [TestCase("this is a note image 1 image 2", "this is a note")]
+    [TestCase("this is a note image 1", "this is a note")]
+    [TestCase("this is a note", "this is a note")]
+    [TestCase(null, "")]
+    public void RemoveImageReferenceTest(string input, string expected)
+    {
+        // Act
+        var result = input.RemoveImageReference();
+
+        // Assert
+        Assert.That(result, Is.EqualTo(expected));
+    }
+
 }
