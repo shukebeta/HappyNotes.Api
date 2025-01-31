@@ -1,17 +1,19 @@
-using System.Text.RegularExpressions;
 using CoreHtmlToImage;
 using HappyNotes.Common;
 using HappyNotes.Services.interfaces;
 using Markdig;
 using Mastonet;
 using Mastonet.Entities;
+using Microsoft.Extensions.Logging;
 
 namespace HappyNotes.Services;
 
-public class MastodonTootService : IMastodonTootService
+public class MastodonTootService(ILogger<MastodonTootService> logger) : IMastodonTootService
 {
     private const int MaxImages = 4;
-    private static string _GetStringTags(string longText) => string.Join(' ', longText.GetTags().Where(t => !t.StartsWith("@")).Select(t => $"#{t}"));
+
+    private static string _GetStringTags(string longText) =>
+        string.Join(' ', longText.GetTags().Where(t => !t.StartsWith("@")).Select(t => $"#{t}"));
 
     public async Task<Status> SendTootAsync(string instanceUrl, string accessToken, string text, bool isPrivate,
         bool isMarkdown = false)
@@ -23,7 +25,8 @@ public class MastodonTootService : IMastodonTootService
         }
 
         var client = new MastodonClient(instanceUrl, accessToken);
-        if (!isMarkdown) return await client.PublishStatus(fullText, isPrivate ? Visibility.Private : Visibility.Public);
+        if (!isMarkdown)
+            return await client.PublishStatus(fullText, isPrivate ? Visibility.Private : Visibility.Public);
         var (processedText, mediaIds) = await ProcessMarkdownImagesAsync(client, fullText);
 
         return await client.PublishStatus(
@@ -111,14 +114,16 @@ public class MastodonTootService : IMastodonTootService
         if (isMarkdown && text.Length > Constants.MastodonTootLength)
         {
             var pipeline = new MarkdownPipelineBuilder()
-                .UseAdvancedExtensions()  // This includes tables
+                .UseAdvancedExtensions() // This includes tables
                 .Build();
             return Markdown.ToHtml(text, pipeline);
         }
+
         return text;
     }
 
-    private static async Task<Attachment> _UploadLongTextAsMedia(MastodonClient client, string longText, bool isMarkdown)
+    private static async Task<Attachment> _UploadLongTextAsMedia(MastodonClient client, string longText,
+        bool isMarkdown)
     {
         var htmlContent = isMarkdown ? longText : longText.Replace("\n", "<br>");
         htmlContent =
@@ -196,37 +201,67 @@ public class MastodonTootService : IMastodonTootService
             uploadTasks.Add(UploadImageAsync(client, matches[index].ImgUrl, matches[index].Alt, index));
         }
 
-        var results = await Task.WhenAll(uploadTasks);
+        var successfulUploads = new List<(int index, Attachment attachment)>();
 
-        // Sort by original index to maintain order
-        var mediaIds = results.OrderBy(r => r.index)
+        try
+        {
+            var results = await Task.WhenAll(uploadTasks);
+            // if all good, add to successfulUploads
+            successfulUploads.AddRange(results);
+        }
+        catch
+        {
+            // collect successful results only from all tasks
+            for(var i = 0; i < uploadTasks.Count; i++)
+            {
+                var task = uploadTasks[i];
+                if (task.Status == TaskStatus.RanToCompletion)
+                {
+                    successfulUploads.Add(await task);
+                }
+                else if (task.Status == TaskStatus.Faulted)
+                {
+                    logger.LogError(task.Exception, $"Failed to upload image: {matches[i].ImgUrl}");
+                }
+            }
+        }
+
+        // Sort by original index to maintain order, but only keep the successful uploads
+        var mediaIds = successfulUploads
+            .OrderBy(r => r.index)
             .Select(r => r.attachment.Id)
             .ToList();
 
-        // Replace markdown image syntax with reference text including alt text
-        for (var i = 0; i < matches.Count; i++)
+        if (successfulUploads.Count < matches.Count)
         {
-            var altText = matches[i].Alt;
+            // todo: collect all failure images and send a message to user that some images failed to upload
+        }
+
+        // Replace markdown image syntax with reference text including alt text
+        foreach (var task in successfulUploads)
+        {
+            var altText = matches[task.index].Alt;
             altText = altText.Equals("image") ? string.Empty : altText;
+
             var imageText = !string.IsNullOrWhiteSpace(altText)
-                ? $"image {i + 1}: {altText}"
-                : $"image {i + 1}";
+                ? $"image {task.index + 1}: {altText}"
+                : $"image {task.index + 1}";
             // if there is only one picture
-            if (matches.Count == 1)
+            if (successfulUploads.Count == 1)
             {
                 imageText = !string.IsNullOrWhiteSpace(altText)
                     ? $"image: {altText}"
                     : string.Empty;
+                if (markdownText.Trim().Equals(imageText))
+                {
+                    return (string.Empty, mediaIds);
+                }
             }
 
             markdownText = markdownText.Replace(
-                matches[i].Match.Value,
+                matches[task.index].Match.Value,
                 imageText
             );
-            if (i == 0 && markdownText.Trim().Equals(imageText))
-            {
-                return (string.Empty, mediaIds);
-            }
         }
 
         return (markdownText.RemoveImageReference(), mediaIds);
@@ -238,36 +273,69 @@ public class MastodonTootService : IMastodonTootService
         string altText,
         int index)
     {
-        try
+        const int maxRetries = 3;
+        var retryDelay = TimeSpan.FromSeconds(1);
+
+        for (var attempt = 1; attempt <= maxRetries; attempt++)
         {
-            using var httpClient = new HttpClient();
-            await using var imageStream = await httpClient.GetStreamAsync(imageUrl);
-
-            // Extract filename from URL or use default
-            var filename = string.Join("_",
-                imageUrl.Split('/', StringSplitOptions.RemoveEmptyEntries)
-                    .Last()
-                    .Split('?')[0]
-                    .Split('#')[0]
-                    .Take(20)
-            );
-
-            if (string.IsNullOrWhiteSpace(filename))
+            try
             {
-                filename = $"image_{index}.jpg";
+                using var httpClient = new HttpClient();
+                using var response = await httpClient.GetAsync(imageUrl, HttpCompletionOption.ResponseHeadersRead);
+
+                // Validate response
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new Exception($"Failed to fetch image. Status code: {response.StatusCode}");
+                }
+
+                // Verify content type
+                var contentType = response.Content.Headers.ContentType?.MediaType;
+                if (string.IsNullOrEmpty(contentType) || !contentType.StartsWith("image/"))
+                {
+                    throw new Exception($"Invalid content type: {contentType}. Expected image/*");
+                }
+
+                // Extract filename from URL or use default
+                var filename = string.Join("_",
+                    imageUrl.Split('/', StringSplitOptions.RemoveEmptyEntries)
+                        .Last()
+                        .Split('?')[0]
+                        .Split('#')[0]
+                        .Take(20)
+                );
+
+                if (string.IsNullOrWhiteSpace(filename))
+                {
+                    filename = $"image_{index}.jpg";
+                }
+
+                // Read the content as a stream
+                await using var imageStream = await response.Content.ReadAsStreamAsync();
+
+                // Upload with alt text if provided
+                var attachment = !string.IsNullOrWhiteSpace(altText)
+                    ? await client.UploadMedia(imageStream, filename, altText)
+                    : await client.UploadMedia(imageStream, filename);
+
+                return (index, attachment);
             }
+            catch (Exception ex)
+            {
+                // If this was our last retry, throw the exception
+                if (attempt == maxRetries)
+                {
+                    throw new Exception($"Failed to upload image {imageUrl} after {maxRetries} attempts: {ex.Message}",
+                        ex);
+                }
 
-            // Upload with alt text if provided
-            var attachment = !string.IsNullOrWhiteSpace(altText)
-                ? await client.UploadMedia(imageStream, filename, altText)
-                : await client.UploadMedia(imageStream, filename);
+                // Wait before retrying, using exponential backoff
+                await Task.Delay(retryDelay);
+                retryDelay *= 2; // Double the delay for next attempt
+            }
+        }
 
-            return (index, attachment);
-        }
-        catch (Exception ex)
-        {
-            // Log error here if needed
-            throw new Exception($"Failed to upload image {imageUrl}: {ex.Message}", ex);
-        }
+        // This shouldn't be reached due to the throw in the catch block, but compiler needs it
+        throw new Exception($"Failed to upload image {imageUrl}");
     }
 }

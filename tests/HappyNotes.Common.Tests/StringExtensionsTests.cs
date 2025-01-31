@@ -105,6 +105,8 @@ public class StringExtensionsTests
     [TestCase("this is a note image 1", "this is a note")]
     [TestCase("this is a note", "this is a note")]
     [TestCase(null, "")]
+    [TestCase("this is a note see image 1: bird", "this is a note see image 1: bird")]
+    [TestCase("this is a note see image 1: bird image 2", "this is a note see image 1: bird")]
     public void RemoveImageReferenceTest(string input, string expected)
     {
         // Act

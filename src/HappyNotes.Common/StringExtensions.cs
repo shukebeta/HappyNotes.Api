@@ -134,6 +134,6 @@ public static partial class StringExtensions
 
     [GeneratedRegex(@"!\[(.*?)\]\((.*?)\)", RegexOptions.Compiled)]
     private static partial Regex _ImagePattern();
-    [GeneratedRegex(@"((?:\s*image\s*\d\s*)+)", RegexOptions.Compiled | RegexOptions.Singleline)]
+    [GeneratedRegex(@"((?:\s*image\s*\d(?!:)\s*)+)", RegexOptions.Compiled | RegexOptions.Singleline)]
     private static partial Regex _ImagesSuffixPattern();
 }
