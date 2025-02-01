@@ -8,7 +8,8 @@ using Microsoft.Extensions.Logging;
 
 namespace HappyNotes.Services;
 
-public class MastodonTootService(ILogger<MastodonTootService> logger) : IMastodonTootService
+public class MastodonTootService(ILogger<MastodonTootService> logger
+, IHttpClientFactory httpClientFactory) : IMastodonTootService
 {
     private const int MaxImages = 4;
 
@@ -280,7 +281,7 @@ public class MastodonTootService(ILogger<MastodonTootService> logger) : IMastodo
         {
             try
             {
-                using var httpClient = new HttpClient();
+                using var httpClient = httpClientFactory.CreateClient();
                 using var response = await httpClient.GetAsync(imageUrl, HttpCompletionOption.ResponseHeadersRead);
 
                 // Validate response
