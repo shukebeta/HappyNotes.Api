@@ -1,7 +1,3 @@
-Here’s a refined version of your `changelist.md` with concise, meaningful updates and polished English. I’ve maintained the structure and improved clarity while ensuring brevity:
-
----
-
 # Changelog
 
 All notable changes to the HappyNote.Api project will be documented in this file.
