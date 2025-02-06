@@ -34,6 +34,11 @@ public class NoteService(
 
         var note = mapper.Map<PostNoteRequest, Note>(request);
         note.UserId = currentUser.Id;
+        var now = DateTime.Now.ToUnixTimeSeconds();
+        if (now - note.CreatedAt > 300) // 5 mins
+        {
+            note.UpdatedAt = now;
+        }
 
         await noteRepository.InsertAsync(note);
 
