@@ -36,14 +36,16 @@ public class NoteTagService(
 
     public async Task<List<TagCount>> GetTagData(long userId, int limit = 50)
     {
-        return await noteTagRepository.db.Queryable<NoteTag>().Where(w => w.UserId == userId).
-            GroupBy(g => g.Tag).
-            Select(s => new TagCount()
+        return await noteTagRepository.db.Queryable<NoteTag>().InnerJoin<Note>((nt, n) => nt.NoteId == n.Id)
+            .Where((nt, n) => nt.UserId == userId && n.DeletedAt == null)
+            .GroupBy(nt => nt.Tag)
+            .Select(nt => new TagCount()
             {
-                Tag = s.Tag,
-                Count = SqlFunc.AggregateCount(s.Tag)
-            }).
-            OrderByDescending(o => o.Count).
+                Tag = nt.Tag,
+                Count = SqlFunc.AggregateCount(nt.Tag)
+            })
+            .MergeTable()
+            .OrderByDescending(t => t.Count).
             Take(limit).
             ToListAsync();
     }

@@ -39,7 +39,7 @@ public class NoteRepository(ISqlSugarClient dbClient) : RepositoryBase<Note>(dbC
         bool isAsc = false)
     {
         return await _GetPageDataByTagAsync(pageSize, pageNumber,
-            (n, u, t) =>
+            (n, t) =>
                 t.Tag.Equals(tag.ToLower()) &&
                 n.DeletedAt == null && (n.UserId == userId || n.IsPrivate == false),
             n => n.CreatedAt, isAsc);
@@ -71,7 +71,7 @@ public class NoteRepository(ISqlSugarClient dbClient) : RepositoryBase<Note>(dbC
     public async Task<PageData<Note>> GetLinkedNotes(long userId, long noteId, int max = 100)
     {
         return await _GetPageDataByTagAsync(max, 1,
-            (n, u, t) =>
+            (n, t) =>
                 t.Tag.Equals($"@{noteId}") &&
                 n.DeletedAt == null &&
                 (t.UserId == userId || n.IsPrivate == false),
@@ -98,7 +98,7 @@ public class NoteRepository(ISqlSugarClient dbClient) : RepositoryBase<Note>(dbC
     }
 
     private async Task<PageData<Note>> _GetPageDataByTagAsync(int pageSize = 20, int pageNumber = 1,
-        Expression<Func<Note, User, NoteTag, bool>>? where = null,
+        Expression<Func<Note, NoteTag, bool>>? where = null,
         Expression<Func<Note, object>>? orderBy = null,
         bool isAsc = true)
     {
@@ -108,19 +108,13 @@ public class NoteRepository(ISqlSugarClient dbClient) : RepositoryBase<Note>(dbC
             PageSize = pageSize,
         };
         RefAsync<int> totalCount = 0;
-        var queryable = db.Queryable<Note, User, NoteTag>((n, u, t) => new JoinQueryInfos(
-                JoinType.Inner, n.UserId == u.Id,
+        var queryable = db.Queryable<Note, NoteTag>((n, t) => new JoinQueryInfos(
                 JoinType.Inner, n.Id == t.NoteId
             )).WhereIF(null != where, where)
             .OrderByIF(orderBy != null, orderBy, isAsc ? OrderByType.Asc : OrderByType.Desc);
         Console.WriteLine(queryable.ToSqlString());
 
         List<Note> result = await queryable
-            // db.Queryable<Note, User, NoteTag>((n, u, t) => new JoinQueryInfos(
-            //     JoinType.Inner, n.UserId == u.Id,
-            //     JoinType.Inner, n.Id == t.NoteId
-            // )).WhereIF(null != where, where)
-            // .OrderByIF(orderBy != null, orderBy, isAsc ? OrderByType.Asc : OrderByType.Desc)
             .Mapper(n => n.User, n => n.UserId)
             .ToPageListAsync(pageNumber, pageSize, totalCount);
         pageData.TotalCount = totalCount;
