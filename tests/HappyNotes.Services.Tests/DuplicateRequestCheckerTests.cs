@@ -47,6 +47,8 @@ public class DuplicateRequestCheckerTests
     public async Task PeriodicCleanup_ShouldRemoveOldEntries()
     {
         // Arrange
+        await Task.Delay(TimeSpan.FromSeconds(3)); // Wait for cleanup
+
         var userId = 3;
         var request = new PostNoteRequest { Content = "Old entry content", Attachments = null };
 
