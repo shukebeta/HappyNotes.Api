@@ -19,7 +19,7 @@ public class DuplicateRequestCheckerTests
     {
         // Arrange
         var userId = 1;
-        var request = new PostNoteRequest { Content = "Unique content", Attachments = null };
+        var request = new PostNoteRequest { Content = "Unique content", };
 
         // Act
         var isDuplicate = DuplicateRequestChecker.IsDuplicate(userId, request);
@@ -33,7 +33,7 @@ public class DuplicateRequestCheckerTests
     {
         // Arrange
         var userId = 2;
-        var request = new PostNoteRequest { Content = "Duplicate content", Attachments = null };
+        var request = new PostNoteRequest { Content = "Duplicate content", };
 
         // Act
         DuplicateRequestChecker.IsDuplicate(userId, request);
@@ -50,7 +50,7 @@ public class DuplicateRequestCheckerTests
         await Task.Delay(TimeSpan.FromSeconds(3)); // Wait for cleanup
 
         var userId = 3;
-        var request = new PostNoteRequest { Content = "Old entry content", Attachments = null };
+        var request = new PostNoteRequest { Content = "Old entry content", };
 
         // Add an old entry
         DuplicateRequestChecker.IsDuplicate(userId, request);

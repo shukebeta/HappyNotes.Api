@@ -26,8 +26,8 @@ public class NoteService(
 {
     public async Task<long> Post(PostNoteRequest request)
     {
-        request.Content = request.Content?.Trim() ?? string.Empty;
-        if (string.IsNullOrEmpty(request.Content) && (request.Attachments == null || !request.Attachments.Any()))
+        var fullContent = request.Content?.Trim() ?? string.Empty;
+        if (string.IsNullOrEmpty(request.Content))
         {
             throw new ArgumentException("Nothing was submitted");
         }
@@ -35,7 +35,7 @@ public class NoteService(
         var note = mapper.Map<PostNoteRequest, Note>(request);
         note.UserId = currentUser.Id;
         var now = DateTime.Now.ToUnixTimeSeconds();
-        if (now - note.CreatedAt > 300) // 5 mins
+        if (_IsPostingOrImportingOldNote(note, now)) // 5 mins
         {
             note.UpdatedAt = now;
         }
@@ -47,13 +47,13 @@ public class NoteService(
             await longNoteRepository.InsertAsync(new LongNote
             {
                 Id = note.Id,
-                Content = request.Content
+                Content = fullContent,
             });
         }
 
         try
         {
-            await _UpdateNoteTags(note, request.Content);
+            await _UpdateNoteTags(note, note.TagList);
         }
         catch (Exception e)
         {
@@ -64,76 +64,63 @@ public class NoteService(
         // Sync to all targets asynchronously
         foreach (var syncNoteService in syncNoteServices)
         {
-            Task.Run(async () => await syncNoteService.SyncNewNote(note, request.Content));
+            Task.Run(async () => await syncNoteService.SyncNewNote(note, fullContent));
         }
         return note.Id;
     }
 
     public async Task<bool> Update(long id, PostNoteRequest request)
     {
-        var existedNote = await noteRepository.GetFirstOrDefaultAsync(x => x.Id == id);
-        if (existedNote == null)
+        var existingNote = await noteRepository.GetFirstOrDefaultAsync(x => x.Id == id);
+        if (existingNote == null)
         {
             throw ExceptionHelper.New(id, EventId._00100_NoteNotFound, id);
         }
 
-        if (_NoteIsNotYours(existedNote))
+        if (_NoteIsNotYours(existingNote))
         {
             throw ExceptionHelper.New(id, EventId._00102_NoteIsNotYours, id);
         }
 
-        request.Content = request.Content?.Trim() ?? string.Empty;
+        var newNote = mapper.Map<PostNoteRequest, Note>(request);
+        var fullContent = request.Content ?? string.Empty;
+
         // the following is a hack for user shukebeta only
-        if (existedNote.UserId == 1 && (request.Content?.IsHtml() ?? false))
+        if (existingNote.UserId == 1 && fullContent.IsHtml())
         {
-            request.Content = request.Content?.ToMarkdown();
-            if (!request.IsMarkdown)
+            fullContent = fullContent.ToMarkdown();
+            // redo the following that automapper has done
+            newNote.IsLong = fullContent.IsLong();
+            newNote.Content = newNote.IsLong ? fullContent.GetShort() : fullContent;
+            if (!newNote.IsMarkdown)
             {
-                request.IsMarkdown = true;
+                newNote.IsMarkdown = true;
             }
+            newNote.TagList = fullContent.GetTags();
+            newNote.Tags = string.Join(",", newNote.TagList);
         }
 
         // update note tags first
-        await _UpdateNoteTags(existedNote, request.Content);
+        await _UpdateNoteTags(existingNote, newNote.TagList);
 
-        var note = mapper.Map<PostNoteRequest, Note>(request);
-        note.Id = existedNote.Id;
-        note.UserId = existedNote.UserId;
-        note.MastodonTootIds = existedNote.MastodonTootIds;
-        note.TelegramMessageIds = existedNote.TelegramMessageIds;
-        note.CreatedAt = existedNote.CreatedAt;
-        note.UpdatedAt = DateTime.UtcNow.ToUnixTimeSeconds();
+        newNote.Id = existingNote.Id;
+        newNote.UserId = existingNote.UserId;
+        newNote.MastodonTootIds = existingNote.MastodonTootIds;
+        newNote.TelegramMessageIds = existingNote.TelegramMessageIds;
+        newNote.CreatedAt = existingNote.CreatedAt;
+        newNote.UpdatedAt = DateTime.UtcNow.ToUnixTimeSeconds();
 
-        if (note.IsLong)
+        if (newNote.IsLong)
         {
-            var longNote = new LongNote {Id = id, Content = request.Content};
+            var longNote = new LongNote {Id = id, Content = newNote.Content};
             await longNoteRepository.UpsertAsync(longNote, n => n.Id == id);
         }
 
         foreach (var syncNoteService in syncNoteServices)
         {
-            Task.Run(async () => await syncNoteService.SyncEditNote(note, request.Content));
+            Task.Run(async () => await syncNoteService.SyncEditNote(newNote, newNote.Content));
         }
-        return await noteRepository.UpdateAsync(note);
-    }
-
-    private async Task _UpdateNoteTags(Note note, string fullContent)
-    {
-        var oldTags = (string.IsNullOrWhiteSpace(note.Tags)) ? [] : note.Tags.Split(" ").ToList();
-        var tags = fullContent.GetTags();
-        if (oldTags.Any())
-        {
-            var toDelete = oldTags.Except(tags).ToList();
-            if (toDelete.Any())
-            {
-                await noteTagService.Delete(note.Id, toDelete);
-            }
-        }
-
-        if (tags.Any())
-        {
-            await noteTagService.Upsert(note, tags);
-        }
+        return await noteRepository.UpdateAsync(newNote);
     }
 
     public async Task<PageData<Note>> GetUserNotes(long userId, int pageSize, int pageNumber,
@@ -209,6 +196,104 @@ public class NoteService(
         return (notes);
     }
 
+    public async Task<Note> Get(long noteId)
+    {
+        var note = await noteRepository.Get(noteId);
+        if (note is null)
+        {
+            throw ExceptionHelper.New(noteId, EventId._00100_NoteNotFound, noteId);
+        }
+
+        if (note.IsPrivate && _NoteIsNotYours(note))
+        {
+            throw ExceptionHelper.New(noteId, EventId._00101_NoteIsPrivate, noteId);
+        }
+
+        if (note.DeletedAt.HasValue)
+        {
+            throw ExceptionHelper.New(noteId, EventId._00104_NoteIsDeleted, noteId);
+        }
+
+        return note;
+    }
+
+    public async Task<bool> Delete(long id)
+    {
+        var note = await noteRepository.GetFirstOrDefaultAsync(x => x.Id == id);
+        if (note == null)
+        {
+            throw new Exception($"Note with Id: {id} does not exist");
+        }
+
+        if (_NoteIsNotYours(note))
+        {
+            throw ExceptionHelper.New(id, EventId._00102_NoteIsNotYours, id);
+        }
+
+        // already deleted before
+        if (note.DeletedAt is not null)
+        {
+            return true;
+        }
+
+        note.DeletedAt = DateTime.UtcNow.ToUnixTimeSeconds();
+        foreach (var syncNoteService in syncNoteServices)
+        {
+            Task.Run(async () => await syncNoteService.SyncDeleteNote(note));
+        }
+        return await noteRepository.UpdateAsync(note);
+    }
+
+    public async Task<bool> Undelete(long id)
+    {
+        var note = await noteRepository.GetFirstOrDefaultAsync(x => x.Id == id);
+        if (note is null)
+        {
+            throw ExceptionHelper.New(id, EventId._00100_NoteNotFound, id);
+        }
+
+        if (note.DeletedAt is null)
+        {
+            throw ExceptionHelper.New(id, EventId._00103_NoteIsNotDeleted, id);
+        }
+
+        if (_NoteIsNotYours(note))
+        {
+            throw ExceptionHelper.New(id, EventId._00102_NoteIsNotYours, id);
+        }
+
+        note.DeletedAt = null;
+        return await noteRepository.UpdateAsync(note);
+    }
+
+    private static bool _IsPostingOrImportingOldNote(Note note, long currentTimestamp)
+    {
+        return currentTimestamp - note.CreatedAt > 300;
+    }
+
+    private bool _NoteIsNotYours(Note note)
+    {
+        return currentUser.Id != note.UserId;
+    }
+
+    private async Task _UpdateNoteTags(Note note, List<string> newTags)
+    {
+        var oldTags = string.IsNullOrWhiteSpace(note.Tags) ? [] : note.Tags.Split(" ").ToList();
+        if (oldTags.Count != 0)
+        {
+            var toDelete = oldTags.Except(newTags).ToList();
+            if (toDelete.Any())
+            {
+                await noteTagService.Delete(note.Id, toDelete);
+            }
+        }
+
+        if (newTags.Count != 0)
+        {
+            await noteTagService.Upsert(note, newTags);
+        }
+    }
+
     private static long[] _GetTimestamps(long initialUnixTimestamp, string timeZoneId)
     {
         var targetTimeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
@@ -268,80 +353,5 @@ public class NoteService(
         timestamps.Add(todayStartTimeOffset.AddDays(-1).ToUnixTimeSeconds());
         timestamps.Add(todayStartTimeOffset.ToUnixTimeSeconds());
         return timestamps.ToArray();
-    }
-
-    public async Task<Note> Get(long noteId)
-    {
-        var note = await noteRepository.Get(noteId);
-        if (note is null)
-        {
-            throw ExceptionHelper.New(noteId, EventId._00100_NoteNotFound, noteId);
-        }
-
-        if (note.IsPrivate && _NoteIsNotYours(note))
-        {
-            throw ExceptionHelper.New(noteId, EventId._00101_NoteIsPrivate, noteId);
-        }
-
-        if (note.DeletedAt.HasValue)
-        {
-            throw ExceptionHelper.New(noteId, EventId._00104_NoteIsDeleted, noteId);
-        }
-
-        return note;
-    }
-
-    private bool _NoteIsNotYours(Note note)
-    {
-        return currentUser.Id != note.UserId;
-    }
-
-    public async Task<bool> Delete(long id)
-    {
-        var note = await noteRepository.GetFirstOrDefaultAsync(x => x.Id == id);
-        if (note == null)
-        {
-            throw new Exception($"Note with Id: {id} does not exist");
-        }
-
-        if (_NoteIsNotYours(note))
-        {
-            throw ExceptionHelper.New(id, EventId._00102_NoteIsNotYours, id);
-        }
-
-        // already deleted before
-        if (note.DeletedAt is not null)
-        {
-            return true;
-        }
-
-        note.DeletedAt = DateTime.UtcNow.ToUnixTimeSeconds();
-        foreach (var syncNoteService in syncNoteServices)
-        {
-            Task.Run(async () => await syncNoteService.SyncDeleteNote(note));
-        }
-        return await noteRepository.UpdateAsync(note);
-    }
-
-    public async Task<bool> Undelete(long id)
-    {
-        var note = await noteRepository.GetFirstOrDefaultAsync(x => x.Id == id);
-        if (note is null)
-        {
-            throw ExceptionHelper.New(id, EventId._00100_NoteNotFound, id);
-        }
-
-        if (note.DeletedAt is null)
-        {
-            throw ExceptionHelper.New(id, EventId._00103_NoteIsNotDeleted, id);
-        }
-
-        if (_NoteIsNotYours(note))
-        {
-            throw ExceptionHelper.New(id, EventId._00102_NoteIsNotYours, id);
-        }
-
-        note.DeletedAt = null;
-        return await noteRepository.UpdateAsync(note);
     }
 }
