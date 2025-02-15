@@ -58,9 +58,9 @@ public class StringExtensionGetImgInfosTest
         var result = input.GetImgInfos();
 
         // Assert
-        var expected = new List<(string, string)> {
-            ("First", "img1.png"),
-            ("Second", "img2.jpg")
+        var expected = new List<(string, string, string)> {
+            ("First", "img1.png", "![First](img1.png)"),
+            ("Second", "img2.jpg", "![Second](img2.jpg)"),
         };
 
         Assert.That(result, Is.EqualTo(expected));

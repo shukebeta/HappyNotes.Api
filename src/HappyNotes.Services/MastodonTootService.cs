@@ -241,7 +241,8 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
         // Replace markdown image syntax with reference text including alt text
         foreach (var task in successfulUploads)
         {
-            var altText = matches[task.index].Alt;
+            var img = matches[task.index];
+            var altText = img.Alt;
             altText = altText.Equals("image") ? string.Empty : altText;
 
             var imageText = !string.IsNullOrWhiteSpace(altText)
@@ -260,7 +261,7 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
             }
 
             markdownText = markdownText.Replace(
-                matches[task.index].Match.Value,
+                img.Match,
                 imageText
             );
         }

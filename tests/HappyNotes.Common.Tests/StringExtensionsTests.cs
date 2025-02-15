@@ -92,6 +92,7 @@ public class StringExtensionsTests
     [TestCase("@", null)]  // Invalid - no digits
     [TestCase("abcd", null)]  // Invalid - no @ symbol
     [TestCase("@123456789012345678901234567890123", null)]  // Invalid - more than 32 digits
+    [TestCase(@"\@1234567890", null)]  // Invalid - @ is escaped
     public void NoteIdRegex_ShouldMatchExpected(string input, string expected)
     {
         var matches = input.GetNoteIds();

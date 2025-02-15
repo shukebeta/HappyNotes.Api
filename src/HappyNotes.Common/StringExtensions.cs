@@ -26,7 +26,7 @@ public static partial class StringExtensions
     [GeneratedRegex(@"(?<=(?:^|[^\\])#)[\p{L}_\p{N}]{1,32}(?=[^\p{L}\p{N}_]|$)", RegexOptions.Singleline, "")]
     private static partial Regex _Tags();
 
-    [GeneratedRegex(@"@[1-9][0-9]{0,31}(?=[^\d]|$)", RegexOptions.Singleline, "")]
+    [GeneratedRegex(@"(?<=(?:^|[^\\]))@[1-9][0-9]{0,31}(?=[^\d]|$)", RegexOptions.Singleline, "")]
     private static partial Regex _NoteId();
 
     public static bool IsLong(this string? str)
@@ -106,17 +106,17 @@ public static partial class StringExtensions
         return IsHtml(htmlInput) ? MarkdownConverter.Convert(htmlInput).Trim() : htmlInput;
     }
 
-    public static List<(string Alt, string ImgUrl, Match Match)> GetImgInfos(this string? markdownInput)
+    public static List<(string Alt, string ImgUrl, string Match)> GetImgInfos(this string? markdownInput)
     {
         if (markdownInput is null) return [];
         var matches = ImagePattern.Matches(markdownInput);
-        var imgInfos = new List<(string Alt, string ImgUrl, Match Match)>();
+        var imgInfos = new List<(string Alt, string ImgUrl, string Match)>();
         if (matches.Count == 0) return imgInfos;
         foreach (Match match in matches)
         {
             var altText = match.Groups[1].Value.Trim();
             var imageUrl = match.Groups[2].Value.Trim();
-            imgInfos.Add((altText, imageUrl, match));
+            imgInfos.Add((altText, imageUrl, match.Value));
         }
         return imgInfos;
     }
