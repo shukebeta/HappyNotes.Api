@@ -112,13 +112,13 @@ public class NoteService(
 
         if (newNote.IsLong)
         {
-            var longNote = new LongNote {Id = id, Content = newNote.Content};
+            var longNote = new LongNote {Id = id, Content = fullContent};
             await longNoteRepository.UpsertAsync(longNote, n => n.Id == id);
         }
 
         foreach (var syncNoteService in syncNoteServices)
         {
-            Task.Run(async () => await syncNoteService.SyncEditNote(newNote, newNote.Content));
+            Task.Run(async () => await syncNoteService.SyncEditNote(newNote, fullContent));
         }
         return await noteRepository.UpdateAsync(newNote);
     }
