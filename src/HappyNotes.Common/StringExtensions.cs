@@ -96,9 +96,8 @@ public static partial class StringExtensions
 
     public static bool IsHtml(this string input)
     {
-        return Regex.IsMatch(input, @"<\s*([a-zA-Z]+)[^>]*>.*</\s*\1\s*>",
-                   RegexOptions.Singleline | RegexOptions.IgnoreCase)
-               || Regex.IsMatch(input, @"<\s*([a-zA-Z]+)*[^>]*/>", RegexOptions.IgnoreCase);
+        return Regex.IsMatch(input, @"<\s*(?!https?)([a-zA-Z]+)[^>]*>.*</\s*\1\s*>|<\s*(?!https?)([a-zA-Z]+)[^>]*/>",
+            RegexOptions.Singleline | RegexOptions.IgnoreCase);
     }
 
     public static string ToMarkdown(this string htmlInput)

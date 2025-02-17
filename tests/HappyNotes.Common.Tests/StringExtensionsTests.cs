@@ -117,4 +117,18 @@ public class StringExtensionsTests
         Assert.That(result, Is.EqualTo(expected));
     }
 
+    [TestCase("<p>hello, world</p>", true)]
+    [TestCase("<p/>", true)]
+    [TestCase("<br/>", true)]
+    [TestCase("<https://abc.com/>", false)]
+    [TestCase("<http://abc.com/>", false)]
+    public void IsHtmlTest(string input, bool expected)
+    {
+        // Act
+        var result = input.IsHtml();
+
+        // Assert
+        Assert.That(result, Is.EqualTo(expected));
+    }
+
 }
