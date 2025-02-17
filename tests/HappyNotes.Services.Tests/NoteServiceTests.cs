@@ -125,12 +125,12 @@ public class NoteServiceTests
         // Arrange
         var noteId = 1L;
         _mockNoteRepository.Setup(r => r.Get(noteId))
-            .ReturnsAsync((Note)null);
+            .ReturnsAsync((Note)null!);
 
         // Act & Assert
         var ex = Assert.ThrowsAsync<CustomException<object>>(async () =>
             await _noteService.Get(noteId));
-        Assert.That(ex.CustomData.ErrorCode, NUnit.Framework.Is.EqualTo((int)EventId._00100_NoteNotFound));
+        Assert.That(ex.CustomData!.ErrorCode, Is.EqualTo((int)EventId._00100_NoteNotFound));
     }
 
     [Test]
@@ -153,7 +153,7 @@ public class NoteServiceTests
         // Act & Assert
         var ex = Assert.ThrowsAsync<CustomException<object>>(async () =>
             await _noteService.Get(noteId));
-        Assert.That(ex.CustomData.ErrorCode, Is.EqualTo((int)EventId._00101_NoteIsPrivate));
+        Assert.That(ex.CustomData!.ErrorCode, Is.EqualTo((int)EventId._00101_NoteIsPrivate));
     }
 
     [Test]

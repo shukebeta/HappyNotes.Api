@@ -17,16 +17,16 @@ public static partial class StringExtensions
     /// 4 new line in a row or <!-- more --> means a manual separated long note
     /// </summary>
     /// <returns></returns>
-    [GeneratedRegex(@"\n{4,}|\r{4,}|(?:\r\n){4,}|<!--\s*more\s*-->", RegexOptions.IgnoreCase, "")]
+    [GeneratedRegex(@"\n{4,}|\r{4,}|(?:\r\n){4,}|<!--\s*more\s*-->", RegexOptions.IgnoreCase| RegexOptions.Singleline)]
     private static partial Regex _Separator();
 
-    [GeneratedRegex(@"\s+", RegexOptions.IgnoreCase, "")]
+    [GeneratedRegex(@"\s+", RegexOptions.IgnoreCase)]
     private static partial Regex _Space();
 
-    [GeneratedRegex(@"(?<=(?:^|[^\\])#)[\p{L}_\p{N}]{1,32}(?=[^\p{L}\p{N}_]|$)", RegexOptions.Singleline, "")]
+    [GeneratedRegex(@"(?<=(?:^|[^\\])#)[\p{L}_\p{N}]{1,32}(?=[^\p{L}\p{N}_]|$)", RegexOptions.Singleline)]
     private static partial Regex _Tags();
 
-    [GeneratedRegex(@"(?<=(?:^|[^\\]))@[1-9][0-9]{0,31}(?=[^\d]|$)", RegexOptions.Singleline, "")]
+    [GeneratedRegex(@"(?<=(?:^|[^\\]))@[1-9][0-9]{0,31}(?=[^\d]|$)", RegexOptions.Singleline)]
     private static partial Regex _NoteId();
 
     public static bool IsLong(this string? str)
@@ -96,8 +96,7 @@ public static partial class StringExtensions
 
     public static bool IsHtml(this string input)
     {
-        return Regex.IsMatch(input, @"<\s*(?!https?)([a-zA-Z]+)[^>]*>.*</\s*\1\s*>|<\s*(?!https?)([a-zA-Z]+)[^>]*/>",
-            RegexOptions.Singleline | RegexOptions.IgnoreCase);
+        return HtmlTagPattern().IsMatch(input);
     }
 
     public static string ToMarkdown(this string htmlInput)
@@ -133,6 +132,10 @@ public static partial class StringExtensions
 
     [GeneratedRegex(@"!\[(.*?)\]\((.*?)\)", RegexOptions.Compiled)]
     private static partial Regex _ImagePattern();
+
     [GeneratedRegex(@"((?:\s*image\s*\d(?!:)\s*)+)", RegexOptions.Compiled | RegexOptions.Singleline)]
     private static partial Regex _ImagesSuffixPattern();
+
+    [GeneratedRegex(@"<\s*(?!https?)([a-zA-Z]+)[^>]*>.*</\s*\1\s*>|<\s*(?!https?)([a-zA-Z]+)[^>]*/>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex HtmlTagPattern();
 }
