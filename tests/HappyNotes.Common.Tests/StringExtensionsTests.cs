@@ -59,6 +59,8 @@ public class StringExtensionsTests
     [TestCase("#123#124", "123")]
     [TestCase("#123 #124", "123")]
     [TestCase(@"\#123 #124", "124")]
+    [TestCase(@"`\#123 #124\``#333", "333")]
+    [TestCase(@"`\#123 \` #124`#333", "333")]
     public void GetTags_SingleLine(string input, string expected)
     {
         // Act
