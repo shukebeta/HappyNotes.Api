@@ -176,6 +176,8 @@ public class TelegramSettingsController(
         {
             existingSetting.Status = existingSetting.Status.Add(TelegramSettingStatus.Tested);
             await telegramSyncSettingsRepository.UpdateAsync(existingSetting);
+            // delete test message to avoid confusing
+            await telegramService.DeleteMessageAsync(token, existingSetting.ChannelId, message.MessageId);
         }
         return message.MessageId > 0 ? new SuccessfulResult<bool>(true) : new FailedResult<bool>(false, "test failed.");
     }
