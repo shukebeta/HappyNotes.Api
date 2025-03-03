@@ -6,8 +6,9 @@ namespace HappyNotes.Services;
 
 public static class DuplicateRequestChecker
 {
-    private const int TimeThresholdInMilliseconds = 1500;
-    private static readonly int ExpirationDurationInSeconds = 2;
+    // Default threshold of 10 minutes (600,000 ms) if not specified in environment
+    private static readonly int TimeThresholdInMilliseconds = GetTimeThresholdFromEnvironment();
+    private static readonly int ExpirationDurationInSeconds = GetExpirationDurationFromEnvironment();
     private const int CleanupIntervalInSeconds = 2;
 
     public static readonly ConcurrentDictionary<long, (DateTimeOffset Timestamp, string Hash)> RecentRequests = new();
@@ -97,5 +98,23 @@ public static class DuplicateRequestChecker
     public static void StopBackgroundTask()
     {
         CancellationTokenSource.Cancel();
+    }
+
+    private static int GetTimeThresholdFromEnvironment()
+    {
+        if (int.TryParse(Environment.GetEnvironmentVariable("HAPPYNOTES_DUPLICATE_THRESHOLD_MS"), out int threshold))
+        {
+            return threshold;
+        }
+        return 600000; // Default to 10 minutes (600,000 ms)
+    }
+
+    private static int GetExpirationDurationFromEnvironment()
+    {
+        if (int.TryParse(Environment.GetEnvironmentVariable("HAPPYNOTES_EXPIRATION_DURATION_SEC"), out int duration))
+        {
+            return duration;
+        }
+        return 660; // Default to 11 minutes (slightly longer than threshold)
     }
 }
