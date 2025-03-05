@@ -17,7 +17,7 @@ public static class DuplicateRequestChecker
     private static readonly object CleanupLock = new();
 
     private static readonly CancellationTokenSource CancellationTokenSource = new();
-    public static int Length => RecentRequests.Count;
+    public static int Length(long userId) => RecentRequests.Count(r => r.Key == userId);
 
     static DuplicateRequestChecker()
     {

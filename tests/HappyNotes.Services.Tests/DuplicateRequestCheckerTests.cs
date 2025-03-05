@@ -54,12 +54,12 @@ public class DuplicateRequestCheckerTests
 
         // Add an old entry
         DuplicateRequestChecker.IsDuplicate(userId, request);
-        Assert.That(DuplicateRequestChecker.Length, Is.EqualTo(1));
+        Assert.That(DuplicateRequestChecker.Length(3), Is.EqualTo(1));
 
         // Act
         await Task.Delay(TimeSpan.FromSeconds(3)); // Wait for cleanup
 
-        Assert.That(DuplicateRequestChecker.Length,Is.EqualTo(0));
+        Assert.That(DuplicateRequestChecker.Length(3), Is.EqualTo(0));
     }
 
     [Test]
