@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# 获取脚本所在目录的父目录（项目根目录）
+PROJECT_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
+
+# 切换到 API 项目目录
+cd "$PROJECT_ROOT/src/HappyNotes.Api"
+
+# 设置环境变量并运行项目
+echo "Starting HappyNotes.Api in Local environment..."
+ASPNETCORE_ENVIRONMENT=Local dotnet run 

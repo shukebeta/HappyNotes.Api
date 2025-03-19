@@ -12,7 +12,7 @@ public static class ServiceExtensions
     public static void RegisterServices(this IServiceCollection services)
     {
         services.AddHttpClient();
-        services.AddSingleton<IAccountService, AccountService>();
+        services.AddScoped<IAccountService, AccountService>();
         services.AddScoped<INoteService, NoteService>();
         services.AddScoped<INoteTagService, NoteTagService>();
         services.AddScoped<INoteRepository, NoteRepository>();
