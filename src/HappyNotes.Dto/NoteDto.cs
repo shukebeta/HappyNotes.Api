@@ -12,6 +12,7 @@ public class NoteDto
     public bool IsPrivate { get; set; }
     public int CreatedAt { get; set; }
     public int UpdatedAt { get; set; }
+    public int DeletedAt { get; set; }
 
     public UserDto User { get; set; } = new();
 }

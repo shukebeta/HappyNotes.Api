@@ -121,4 +121,43 @@ public class NoteRepository(ISqlSugarClient dbClient) : RepositoryBase<Note>(dbC
         pageData.DataList = result;
         return pageData;
     }
+
+    public async Task<PageData<Note>> GetUserDeletedNotes(long userId, int pageSize, int pageNumber)
+    {
+        // Use the existing helper, but filter for deleted notes and order by DeletedAt descending
+        return await _GetPageDataAsync(pageSize, pageNumber,
+            n => n.UserId == userId && n.DeletedAt != null,
+            n => n.DeletedAt, // Order by deletion date
+            false); // Descending order (most recently deleted first)
+    }
+
+    public async Task PurgeUserDeletedNotes(long userId)
+    {
+        // Find IDs of deleted notes for the user
+        var deletedNoteIds = await db.Queryable<Note>()
+            .Where(n => n.UserId == userId && n.DeletedAt != null)
+            .Select(n => n.Id)
+            .ToListAsync();
+
+        if (deletedNoteIds.Any())
+        {
+            // Delete associated LongNotes first (if any)
+            await db.Deleteable<LongNote>().Where(ln => deletedNoteIds.Contains(ln.Id)).ExecuteCommandAsync();
+
+            // Delete associated NoteTags (optional, depending on desired behavior - let's include it for cleanup)
+            await db.Deleteable<NoteTag>().Where(nt => deletedNoteIds.Contains(nt.NoteId)).ExecuteCommandAsync();
+
+            // Finally, delete the notes themselves
+            await db.Deleteable<Note>().Where(n => deletedNoteIds.Contains(n.Id)).ExecuteCommandAsync();
+        }
+    }
+
+    public async Task UndeleteAsync(long noteId)
+    {
+        // Use UpdateSetColumns to only update specific fields
+        await db.Updateable<Note>()
+            .SetColumns(it => new Note { DeletedAt = null }) // Set DeletedAt to null
+            .Where(it => it.Id == noteId && it.DeletedAt != null) // Only undelete if it's currently deleted
+            .ExecuteCommandAsync();
+    }
 }
