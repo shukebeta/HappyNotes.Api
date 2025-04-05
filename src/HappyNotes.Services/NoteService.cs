@@ -10,7 +10,6 @@ using HappyNotes.Models;
 using HappyNotes.Repositories.interfaces;
 using HappyNotes.Services.interfaces;
 using Microsoft.Extensions.Logging;
-using WeihanLi.Extensions;
 using EventId = HappyNotes.Common.Enums.EventId;
 
 namespace HappyNotes.Services;
