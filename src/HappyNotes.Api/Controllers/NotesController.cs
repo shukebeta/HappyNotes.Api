@@ -60,4 +60,31 @@ public class NotesController(IMapper mapper
         var notes = await noteService.MemoriesOn(localTimezone, yyyyMMdd);
         return new SuccessfulResult<List<NoteDto>>(mapper.Map<List<NoteDto>>(notes));
     }
+
+    [HttpGet("{pageSize:int}/{pageNumber:int}")]
+    public async Task<ApiResult<PageData<NoteDto>>> LatestDeleted(int pageSize, int pageNumber)
+    {
+        var notes = await noteService.GetUserDeletedNotes(currentUser.Id, pageSize, pageNumber);
+        return new SuccessfulResult<PageData<NoteDto>>(mapper.Map<PageData<NoteDto>>(notes));
+    }
+
+    [HttpDelete]
+    public async Task<ApiResult> PurgeDeleted()
+    {
+        await noteService.PurgeUserDeletedNotes(currentUser.Id);
+        return new SuccessfulResult<object>(null); // Indicate success with no specific data
+    }
+
+    /// <summary>
+    /// Undeletes a previously deleted note.
+    /// </summary>
+    /// <param name="id">The ID of the note to undelete.</param>
+    /// <returns>An ApiResult indicating success or failure.</returns>
+    [HttpPut("{id:long}")]
+    public async Task<ApiResult> Undelete(long id)
+    {
+        var success = await noteService.Undelete(id);
+        // Assuming Undelete throws exceptions for errors like not found or not yours.
+        return new SuccessfulResult<object>(null);
+    }
 }

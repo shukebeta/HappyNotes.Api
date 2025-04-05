@@ -26,4 +26,7 @@ public interface INoteService
     Task<PageData<Note>> GetLinkedNotes(long userId, long noteId);
     Task<IList<Note>> Memories(string localTimezone);
     Task<IList<Note>> MemoriesOn(string localTimezone, string yyyyMMdd);
+
+    Task<PageData<Note>> GetUserDeletedNotes(long userId, int pageSize, int pageNumber);
+    Task PurgeUserDeletedNotes(long userId);
 }

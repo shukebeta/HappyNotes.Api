@@ -10,6 +10,7 @@ using HappyNotes.Models;
 using HappyNotes.Repositories.interfaces;
 using HappyNotes.Services.interfaces;
 using Microsoft.Extensions.Logging;
+using WeihanLi.Extensions;
 using EventId = HappyNotes.Common.Enums.EventId;
 
 namespace HappyNotes.Services;
@@ -246,24 +247,31 @@ public class NoteService(
 
     public async Task<bool> Undelete(long id)
     {
-        var note = await noteRepository.GetFirstOrDefaultAsync(x => x.Id == id);
+        var note = await noteRepository.GetFirstOrDefaultAsync(n => n.Id == id); // Fetches regardless of DeletedAt
+
         if (note is null)
         {
+            // If the note doesn't exist at all.
             throw ExceptionHelper.New(id, EventId._00100_NoteNotFound, id);
-        }
-
-        if (note.DeletedAt is null)
-        {
-            throw ExceptionHelper.New(id, EventId._00103_NoteIsNotDeleted, id);
         }
 
         if (_NoteIsNotYours(note))
         {
+            // Check ownership before attempting undelete.
             throw ExceptionHelper.New(id, EventId._00102_NoteIsNotYours, id);
         }
 
-        note.DeletedAt = null;
-        return await noteRepository.UpdateAsync(note);
+        if (note.DeletedAt is null)
+        {
+            // we don't need to throw an exception in this case
+            return true;
+        }
+
+        // Now, attempt the undelete operation via the repository.
+        await noteRepository.UndeleteAsync(id);
+
+        // Assuming success if no exception was thrown.
+        return true;
     }
 
     private static bool _IsPostingOrImportingOldNote(Note note, long currentTimestamp)
@@ -353,5 +361,15 @@ public class NoteService(
         timestamps.Add(todayStartTimeOffset.AddDays(-1).ToUnixTimeSeconds());
         timestamps.Add(todayStartTimeOffset.ToUnixTimeSeconds());
         return timestamps.ToArray();
+    }
+
+    public async Task<PageData<Note>> GetUserDeletedNotes(long userId, int pageSize, int pageNumber)
+    {
+        return await noteRepository.GetUserDeletedNotes(userId, pageSize, pageNumber);
+    }
+
+    public async Task PurgeUserDeletedNotes(long userId)
+    {
+        await noteRepository.PurgeUserDeletedNotes(userId);
     }
 }
