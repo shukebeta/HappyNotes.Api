@@ -18,9 +18,9 @@ public class NoteController(IMapper mapper
 ): BaseController
 {
     [HttpGet("{noteId}")]
-    public async Task<ApiResult<NoteDto>> Get(int noteId)
+    public async Task<ApiResult<NoteDto>> Get(int noteId, bool includeDeleted = false)
     {
-        var note = await noteService.Get(noteId);
+        var note = await noteService.Get(noteId, includeDeleted);
         return new SuccessfulResult<NoteDto>(mapper.Map<NoteDto>(note));
     }
 

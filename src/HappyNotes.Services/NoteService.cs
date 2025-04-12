@@ -196,7 +196,7 @@ public class NoteService(
         return (notes);
     }
 
-    public async Task<Note> Get(long noteId)
+    public async Task<Note> Get(long noteId, bool includeDeleted = false)
     {
         var note = await noteRepository.Get(noteId);
         if (note is null)
@@ -209,7 +209,7 @@ public class NoteService(
             throw ExceptionHelper.New(noteId, EventId._00101_NoteIsPrivate, noteId);
         }
 
-        if (note.DeletedAt.HasValue)
+        if (!includeDeleted && note.DeletedAt.HasValue)
         {
             throw ExceptionHelper.New(noteId, EventId._00104_NoteIsDeleted, noteId);
         }
