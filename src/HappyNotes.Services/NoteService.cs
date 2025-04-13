@@ -69,7 +69,7 @@ public class NoteService(
         return note.Id;
     }
 
-    public async Task<bool> Update(long id, PostNoteRequest request)
+    public async Task<bool> Update(long userId, long id, PostNoteRequest request)
     {
         var existingNote = await noteRepository.GetFirstOrDefaultAsync(x => x.Id == id);
         if (existingNote == null)
@@ -77,7 +77,7 @@ public class NoteService(
             throw ExceptionHelper.New(id, EventId._00100_NoteNotFound, id);
         }
 
-        if (_NoteIsNotYours(existingNote.UserId, existingNote))
+        if (_NoteIsNotYours(userId, existingNote))
         {
             throw ExceptionHelper.New(id, EventId._00102_NoteIsNotYours, id);
         }
@@ -197,7 +197,7 @@ public class NoteService(
         return notes;
     }
 
-    public async Task<Note> Get(long noteId, bool includeDeleted = false)
+    public async Task<Note> Get(long userId, long noteId, bool includeDeleted = false)
     {
         var note = await noteRepository.Get(noteId);
         if (note is null)
@@ -205,7 +205,7 @@ public class NoteService(
             throw ExceptionHelper.New(noteId, EventId._00100_NoteNotFound, noteId);
         }
 
-        if (note.IsPrivate && _NoteIsNotYours(note.UserId, note))
+        if (note.IsPrivate && _NoteIsNotYours(userId, note))
         {
             throw ExceptionHelper.New(noteId, EventId._00101_NoteIsPrivate, noteId);
         }
@@ -218,7 +218,7 @@ public class NoteService(
         return note;
     }
 
-    public async Task<bool> Delete(long id)
+    public async Task<bool> Delete(long userId, long id)
     {
         var note = await noteRepository.GetFirstOrDefaultAsync(x => x.Id == id);
         if (note == null)
@@ -226,7 +226,7 @@ public class NoteService(
             throw new Exception($"Note with Id: {id} does not exist");
         }
 
-        if (_NoteIsNotYours(note.UserId, note))
+        if (_NoteIsNotYours(userId, note))
         {
             throw ExceptionHelper.New(id, EventId._00102_NoteIsNotYours, id);
         }
@@ -245,7 +245,7 @@ public class NoteService(
         return await noteRepository.UpdateAsync(note);
     }
 
-    public async Task<bool> Undelete(long id)
+    public async Task<bool> Undelete(long userId, long id)
     {
         var note = await noteRepository.GetFirstOrDefaultAsync(n => n.Id == id); // Fetches regardless of DeletedAt
 
@@ -255,7 +255,7 @@ public class NoteService(
             throw ExceptionHelper.New(id, EventId._00100_NoteNotFound, id);
         }
 
-        if (_NoteIsNotYours(note.UserId, note))
+        if (_NoteIsNotYours(userId, note))
         {
             // Check ownership before attempting undelete.
             throw ExceptionHelper.New(id, EventId._00102_NoteIsNotYours, id);
