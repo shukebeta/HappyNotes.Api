@@ -59,23 +59,24 @@ public class NoteServiceTests
     public async Task Post_WithValidNote_ReturnsNoteId()
     {
         // Arrange
+        var userId = 1L;
         var request = new PostNoteRequest { Content = "Test note" };
         var note = new Note
         {
             Id = 1,
             Content = "Test note",
-            UserId = 1,
+            UserId = userId,
             CreatedAt = DateTime.UtcNow.ToUnixTimeSeconds()
         };
 
         _mockMapper.Setup(m => m.Map<PostNoteRequest, Note>(request))
             .Returns(note);
-        _mockCurrentUser.Setup(u => u.Id).Returns(1);
+        _mockCurrentUser.Setup(u => u.Id).Returns(userId);
         _mockNoteRepository.Setup(r => r.InsertAsync(note))
             .ReturnsAsync(true);
 
         // Act
-        var result = await _noteService.Post(request);
+        var result = await _noteService.Post(userId, request);
 
         // Assert
         Assert.That(result, Is.EqualTo(note.Id));
@@ -86,11 +87,12 @@ public class NoteServiceTests
     public void Post_WithEmptyContent_ThrowsArgumentException()
     {
         // Arrange
+        var userId = 1L;
         var request = new PostNoteRequest { Content = "" };
 
         // Act & Assert
         var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
-            await _noteService.Post(request));
+            await _noteService.Post(userId, request));
         Assert.That(ex.Message, Is.EqualTo("Nothing was submitted"));
     }
 
@@ -98,6 +100,7 @@ public class NoteServiceTests
     public async Task Get_WithExistingPublicNote_ReturnsNote()
     {
         // Arrange
+        var userId = 1L;
         var noteId = 1L;
         var note = new Note
         {
@@ -110,10 +113,10 @@ public class NoteServiceTests
 
         _mockNoteRepository.Setup(r => r.Get(noteId))
             .ReturnsAsync(note);
-        _mockCurrentUser.Setup(u => u.Id).Returns(1);
+        _mockCurrentUser.Setup(u => u.Id).Returns(userId);
 
         // Act
-        var result = await _noteService.Get(noteId);
+        var result = await _noteService.Get(userId, noteId);
 
         // Assert
         Assert.That(result, Is.EqualTo(note));
@@ -123,13 +126,14 @@ public class NoteServiceTests
     public void Get_WithNonExistentNote_ThrowsException()
     {
         // Arrange
+        var userId = 1L;
         var noteId = 1L;
         _mockNoteRepository.Setup(r => r.Get(noteId))
             .ReturnsAsync((Note)null!);
 
         // Act & Assert
         var ex = Assert.ThrowsAsync<CustomException<object>>(async () =>
-            await _noteService.Get(noteId));
+            await _noteService.Get(userId, noteId));
         Assert.That(ex.CustomData!.ErrorCode, Is.EqualTo((int)EventId._00100_NoteNotFound));
     }
 
@@ -137,6 +141,7 @@ public class NoteServiceTests
     public void Get_WithPrivateNoteFromOtherUser_ThrowsException()
     {
         // Arrange
+        var userId = 1L;
         var noteId = 1L;
         var note = new Note
         {
@@ -148,11 +153,11 @@ public class NoteServiceTests
 
         _mockNoteRepository.Setup(r => r.Get(noteId))
             .ReturnsAsync(note);
-        _mockCurrentUser.Setup(u => u.Id).Returns(1);
+        _mockCurrentUser.Setup(u => u.Id).Returns(userId);
 
         // Act & Assert
         var ex = Assert.ThrowsAsync<CustomException<object>>(async () =>
-            await _noteService.Get(noteId));
+            await _noteService.Get(userId, noteId));
         Assert.That(ex.CustomData!.ErrorCode, Is.EqualTo((int)EventId._00101_NoteIsPrivate));
     }
 
@@ -160,30 +165,31 @@ public class NoteServiceTests
     public async Task Update_WithValidNote_ReturnsTrue()
     {
         // Arrange
+        var userId = 1L;
         var noteId = 1L;
         var request = new PostNoteRequest { Content = "Updated content" };
         var existingNote = new Note
         {
             Id = noteId,
             Content = "Original content",
-            UserId = 1
+            UserId = userId
         };
         var updatedNote = new Note
         {
             Id = noteId,
             Content = "Updated content",
-            UserId = 1
+            UserId = userId
         };
 
         _mockNoteRepository.Setup(r => r.GetFirstOrDefaultAsync(x => x.Id == noteId, null)) .ReturnsAsync(existingNote);
         _mockMapper.Setup(m => m.Map<PostNoteRequest, Note>(request))
             .Returns(updatedNote);
-        _mockCurrentUser.Setup(u => u.Id).Returns(1);
+        _mockCurrentUser.Setup(u => u.Id).Returns(userId);
         _mockNoteRepository.Setup(r => r.UpdateAsync(It.IsAny<Note>()))
             .ReturnsAsync(true);
 
         // Act
-        var result = await _noteService.Update(noteId, request);
+        var result = await _noteService.Update(userId, noteId, request);
 
         // Assert
         Assert.That(result, Is.True);
@@ -194,22 +200,23 @@ public class NoteServiceTests
     public async Task Delete_WithOwnedNote_ReturnsTrue()
     {
         // Arrange
+        var userId = 1L;
         var noteId = 1L;
         var note = new Note
         {
             Id = noteId,
             Content = "Test note",
-            UserId = 1,
+            UserId = userId,
             DeletedAt = null
         };
 
         _mockNoteRepository.Setup(r => r.GetFirstOrDefaultAsync(x => x.Id == noteId, null)) .ReturnsAsync(note);
-        _mockCurrentUser.Setup(u => u.Id).Returns(1);
+        _mockCurrentUser.Setup(u => u.Id).Returns(userId);
         _mockNoteRepository.Setup(r => r.UpdateAsync(It.IsAny<Note>()))
             .ReturnsAsync(true);
 
         // Act
-        var result = await _noteService.Delete(noteId);
+        var result = await _noteService.Delete(userId, noteId);
 
         // Assert
         Assert.That(result, Is.True);
@@ -220,26 +227,27 @@ public class NoteServiceTests
     public async Task Undelete_WithDeletedOwnedNote_ReturnsTrue()
     {
         // Arrange
+        var userId = 1L;
         var noteId = 1L;
         var note = new Note
         {
             Id = noteId,
             Content = "Test note",
-            UserId = 1,
+            UserId = userId,
             DeletedAt = DateTime.UtcNow.ToUnixTimeSeconds()
         };
 
         _mockNoteRepository.Setup(r => r.GetFirstOrDefaultAsync(x => x.Id == noteId, null)) .ReturnsAsync(note);
-        _mockCurrentUser.Setup(u => u.Id).Returns(1);
+        _mockCurrentUser.Setup(u => u.Id).Returns(userId);
         _mockNoteRepository.Setup(r => r.UpdateAsync(It.IsAny<Note>()))
             .ReturnsAsync(true);
 
         // Act
-        var result = await _noteService.Undelete(noteId);
+        var result = await _noteService.Undelete(userId, noteId);
 
         // Assert
         Assert.That(result, Is.True);
-        Assert.That(note.DeletedAt, Is.Null);
+        _mockNoteRepository.Verify(r => r.UndeleteAsync(noteId), Times.Once);
     }
 
     [Test]
