@@ -50,14 +50,14 @@ public class NotesController(IMapper mapper
     [HttpGet]
     public async Task<ApiResult<List<NoteDto>>> Memories(string localTimezone)
     {
-        var notes = await noteService.Memories(localTimezone);
+        var notes = await noteService.Memories(currentUser.Id, localTimezone);
         return new SuccessfulResult<List<NoteDto>>(mapper.Map<List<NoteDto>>(notes));
     }
 
     [HttpGet]
     public async Task<ApiResult<List<NoteDto>>> MemoriesOn(string localTimezone, string yyyyMMdd)
     {
-        var notes = await noteService.MemoriesOn(localTimezone, yyyyMMdd);
+        var notes = await noteService.MemoriesOn(currentUser.Id, localTimezone, yyyyMMdd);
         return new SuccessfulResult<List<NoteDto>>(mapper.Map<List<NoteDto>>(notes));
     }
 
