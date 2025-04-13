@@ -109,6 +109,7 @@ public class NoteService(
         newNote.TelegramMessageIds = existingNote.TelegramMessageIds;
         newNote.CreatedAt = existingNote.CreatedAt;
         newNote.UpdatedAt = DateTime.UtcNow.ToUnixTimeSeconds();
+        newNote.DeletedAt = existingNote.DeletedAt;
 
         if (newNote.IsLong)
         {
