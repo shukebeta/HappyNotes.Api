@@ -83,7 +83,7 @@ public class NotesController(IMapper mapper
     [HttpPut("{id:long}")]
     public async Task<ApiResult> Undelete(long id)
     {
-        var success = await noteService.Undelete(id);
+        await noteService.Undelete(currentUser.Id, id);
         // Assuming Undelete throws exceptions for errors like not found or not yours.
         return new SuccessfulResult<object>(null);
     }
