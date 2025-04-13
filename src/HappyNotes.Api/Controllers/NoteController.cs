@@ -18,9 +18,9 @@ public class NoteController(IMapper mapper
 ): BaseController
 {
     [HttpGet("{noteId}")]
-    public async Task<ApiResult<NoteDto>> Get(int noteId)
+    public async Task<ApiResult<NoteDto>> Get(int noteId, bool includeDeleted = false)
     {
-        var note = await noteService.Get(noteId);
+        var note = await noteService.Get(currentUser.Id, noteId, includeDeleted);
         return new SuccessfulResult<NoteDto>(mapper.Map<NoteDto>(note));
     }
 
@@ -28,14 +28,14 @@ public class NoteController(IMapper mapper
     [HttpDelete("{noteId}")]
     public async Task<ApiResult<long>> Delete(int noteId)
     {
-        var note = await noteService.Delete(noteId);
+        await noteService.Delete(currentUser.Id, noteId);
         return new SuccessfulResult<long>(noteId);
     }
 
     [HttpPost("{noteId}")]
     public async Task<ApiResult<long>> Undelete(int noteId)
     {
-        var note = await noteService.Undelete(noteId);
+        await noteService.Undelete(currentUser.Id, noteId);
         return new SuccessfulResult<long>(noteId);
     }
 
@@ -47,7 +47,7 @@ public class NoteController(IMapper mapper
             // Return a response indicating that the request was ignored due to duplication
             throw ExceptionHelper.New(0, EventId._00105_DetectedDuplicatePostRequest);
         }
-        var noteId = await noteService.Post(request);
+        var noteId = await noteService.Post(currentUser.Id, request);
         return new SuccessfulResult<long>(noteId);
     }
 
@@ -59,7 +59,7 @@ public class NoteController(IMapper mapper
             // Return a response indicating that the request was ignored due to duplication
             throw ExceptionHelper.New(currentUser.Id, EventId._00105_DetectedDuplicatePostRequest);
         }
-        await noteService.Update(noteId, request);
+        await noteService.Update(currentUser.Id, noteId, request);
         return new SuccessfulResult<long>(noteId);
     }
 

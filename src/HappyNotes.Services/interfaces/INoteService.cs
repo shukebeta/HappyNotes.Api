@@ -6,11 +6,11 @@ namespace HappyNotes.Services.interfaces;
 
 public interface INoteService
 {
-    Task<long> Post(PostNoteRequest request);
-    Task<Note> Get(long noteId);
-    Task<bool> Delete(long id);
-    Task<bool> Undelete(long id);
-    Task<bool> Update(long id, PostNoteRequest request);
+    Task<long> Post(long userId, PostNoteRequest request);
+    Task<Note> Get(long userId, long noteId, bool includeDeleted = false);
+    Task<bool> Delete(long userId, long id);
+    Task<bool> Undelete(long userId, long id);
+    Task<bool> Update(long userId, long id, PostNoteRequest request);
 
     Task<PageData<Note>> GetUserNotes(long userId, int pageSize, int pageNumber, bool includePrivate=false);
     /// <summary>
@@ -24,8 +24,8 @@ public interface INoteService
     Task<PageData<Note>> GetUserTagNotes(long userId, int pageSize, int pageNumber, string tag);
 
     Task<PageData<Note>> GetLinkedNotes(long userId, long noteId);
-    Task<IList<Note>> Memories(string localTimezone);
-    Task<IList<Note>> MemoriesOn(string localTimezone, string yyyyMMdd);
+    Task<IList<Note>> Memories(long userId, string localTimezone);
+    Task<IList<Note>> MemoriesOn(long userId, string localTimezone, string yyyyMMdd);
 
     Task<PageData<Note>> GetUserDeletedNotes(long userId, int pageSize, int pageNumber);
     Task PurgeUserDeletedNotes(long userId);
