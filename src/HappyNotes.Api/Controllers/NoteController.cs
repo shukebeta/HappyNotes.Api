@@ -47,7 +47,7 @@ public class NoteController(IMapper mapper
             // Return a response indicating that the request was ignored due to duplication
             throw ExceptionHelper.New(0, EventId._00105_DetectedDuplicatePostRequest);
         }
-        var noteId = await noteService.Post(request);
+        var noteId = await noteService.Post(currentUser.Id, request);
         return new SuccessfulResult<long>(noteId);
     }
 

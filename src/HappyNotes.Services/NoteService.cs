@@ -24,7 +24,7 @@ public class NoteService(
     ILogger<NoteService> logger
 ) : INoteService
 {
-    public async Task<long> Post(PostNoteRequest request)
+    public async Task<long> Post(long userId, PostNoteRequest request)
     {
         var fullContent = request.Content?.Trim() ?? string.Empty;
         if (string.IsNullOrEmpty(request.Content))
@@ -33,7 +33,7 @@ public class NoteService(
         }
 
         var note = mapper.Map<PostNoteRequest, Note>(request);
-        note.UserId = currentUser.Id;
+        note.UserId = userId;
         var now = DateTime.Now.ToUnixTimeSeconds();
         if (_IsPostingOrImportingOldNote(note, now)) // 5 mins
         {
@@ -77,7 +77,7 @@ public class NoteService(
             throw ExceptionHelper.New(id, EventId._00100_NoteNotFound, id);
         }
 
-        if (_NoteIsNotYours(existingNote))
+        if (_NoteIsNotYours(existingNote.UserId, existingNote))
         {
             throw ExceptionHelper.New(id, EventId._00102_NoteIsNotYours, id);
         }
@@ -164,16 +164,16 @@ public class NoteService(
     /// </summary>
     /// <param name="localTimezone"></param>
     /// <returns></returns>
-    public async Task<IList<Note>> Memories(string localTimezone)
+    public async Task<IList<Note>> Memories(long userId, string localTimezone)
     {
-        var earliest = await noteRepository.GetFirstOrDefaultAsync(w => w.UserId.Equals(currentUser.Id), "CreatedAt");
+        var earliest = await noteRepository.GetFirstOrDefaultAsync(w => w.UserId == userId, "CreatedAt");
         if (earliest == null) return [];
         var notes = new List<Note>();
         var periodList = _GetTimestamps(earliest.CreatedAt, localTimezone);
         foreach (var start in periodList)
         {
             var note = await noteRepository.GetFirstOrDefaultAsync(w =>
-                w.UserId.Equals(currentUser.Id) && w.CreatedAt >= start && w.CreatedAt < start + 86400 &&
+                w.UserId == userId && w.CreatedAt >= start && w.CreatedAt < start + 86400 &&
                 w.DeletedAt == null);
             if (note != null)
             {
@@ -184,7 +184,7 @@ public class NoteService(
         return notes;
     }
 
-    public async Task<IList<Note>> MemoriesOn(string localTimezone, string yyyyMMdd)
+    public async Task<IList<Note>> MemoriesOn(long userId, string localTimezone, string yyyyMMdd)
     {
         // Get the specified time zone
         TimeZoneInfo timeZone = TimeZoneInfo.FindSystemTimeZoneById(localTimezone);
@@ -192,9 +192,9 @@ public class NoteService(
         var dayStartTimestamp = DateTimeOffset.ParseExact(yyyyMMdd, "yyyyMMdd", CultureInfo.InvariantCulture)
             .GetDayStartTimestamp(timeZone);
         var notes = await noteRepository.GetListAsync(w =>
-            w.UserId.Equals(currentUser.Id) && w.CreatedAt >= dayStartTimestamp &&
+            w.UserId == userId && w.CreatedAt >= dayStartTimestamp &&
             w.CreatedAt < dayStartTimestamp + 86400 && w.DeletedAt == null);
-        return (notes);
+        return notes;
     }
 
     public async Task<Note> Get(long noteId, bool includeDeleted = false)
@@ -205,7 +205,7 @@ public class NoteService(
             throw ExceptionHelper.New(noteId, EventId._00100_NoteNotFound, noteId);
         }
 
-        if (note.IsPrivate && _NoteIsNotYours(note))
+        if (note.IsPrivate && _NoteIsNotYours(note.UserId, note))
         {
             throw ExceptionHelper.New(noteId, EventId._00101_NoteIsPrivate, noteId);
         }
@@ -226,7 +226,7 @@ public class NoteService(
             throw new Exception($"Note with Id: {id} does not exist");
         }
 
-        if (_NoteIsNotYours(note))
+        if (_NoteIsNotYours(note.UserId, note))
         {
             throw ExceptionHelper.New(id, EventId._00102_NoteIsNotYours, id);
         }
@@ -255,7 +255,7 @@ public class NoteService(
             throw ExceptionHelper.New(id, EventId._00100_NoteNotFound, id);
         }
 
-        if (_NoteIsNotYours(note))
+        if (_NoteIsNotYours(note.UserId, note))
         {
             // Check ownership before attempting undelete.
             throw ExceptionHelper.New(id, EventId._00102_NoteIsNotYours, id);
@@ -279,9 +279,9 @@ public class NoteService(
         return currentTimestamp - note.CreatedAt > 300;
     }
 
-    private bool _NoteIsNotYours(Note note)
+    private static bool _NoteIsNotYours(long userId, Note note)
     {
-        return currentUser.Id != note.UserId;
+        return userId != note.UserId;
     }
 
     private async Task _UpdateNoteTags(Note note, List<string> newTags)
