@@ -24,7 +24,6 @@ public class NoteController(IMapper mapper
         return new SuccessfulResult<NoteDto>(mapper.Map<NoteDto>(note));
     }
 
-    [AllowAnonymous]
     [HttpDelete("{noteId}")]
     public async Task<ApiResult<long>> Delete(int noteId)
     {
