@@ -20,7 +20,6 @@ public class NoteService(
     INoteRepository noteRepository,
     IRepositoryBase<LongNote> longNoteRepository,
     IMapper mapper,
-    ICurrentUser currentUser,
     ILogger<NoteService> logger
 ) : INoteService
 {
@@ -71,7 +70,7 @@ public class NoteService(
 
     public async Task<bool> Update(long userId, long id, PostNoteRequest request)
     {
-        var existingNote = await noteRepository.GetFirstOrDefaultAsync(x => x.Id == id);
+        var existingNote = await noteRepository.Get(id);
         if (existingNote == null)
         {
             throw ExceptionHelper.New(id, EventId._00100_NoteNotFound, id);
@@ -100,9 +99,6 @@ public class NoteService(
             newNote.Tags = string.Join(",", newNote.TagList);
         }
 
-        // update note tags first
-        await _UpdateNoteTags(existingNote, newNote.TagList);
-
         newNote.Id = existingNote.Id;
         newNote.UserId = existingNote.UserId;
         newNote.MastodonTootIds = existingNote.MastodonTootIds;
@@ -111,9 +107,17 @@ public class NoteService(
         newNote.UpdatedAt = DateTime.UtcNow.ToUnixTimeSeconds();
         newNote.DeletedAt = existingNote.DeletedAt;
 
+        if (!_HasNoteChanged(existingNote, newNote, fullContent))
+        {
+            return true;
+        }
+
+        // update note tags first
+        await _UpdateNoteTags(existingNote, newNote.TagList);
+
         if (newNote.IsLong)
         {
-            var longNote = new LongNote {Id = id, Content = fullContent};
+            var longNote = new LongNote { Id = id, Content = fullContent };
             await longNoteRepository.UpsertAsync(longNote, n => n.Id == id);
         }
 
@@ -122,6 +126,14 @@ public class NoteService(
             Task.Run(async () => await syncNoteService.SyncEditNote(newNote, fullContent));
         }
         return await noteRepository.UpdateAsync(newNote);
+    }
+
+    private bool _HasNoteChanged(Note originalNote, Note newNote, string fullContent)
+    {
+        return originalNote.Content != fullContent ||
+               originalNote.IsPrivate != newNote.IsPrivate ||
+               originalNote.IsMarkdown != newNote.IsMarkdown ||
+               originalNote.DeletedAt != newNote.DeletedAt;
     }
 
     public async Task<PageData<Note>> GetUserNotes(long userId, int pageSize, int pageNumber,
@@ -162,6 +174,7 @@ public class NoteService(
     /// - 5 years ago, [what happened today]
     /// - 4 years ago...
     /// </summary>
+    /// <param name="userId"></param>
     /// <param name="localTimezone"></param>
     /// <returns></returns>
     public async Task<IList<Note>> Memories(long userId, string localTimezone)
@@ -286,7 +299,7 @@ public class NoteService(
 
     private async Task _UpdateNoteTags(Note note, List<string> newTags)
     {
-        var oldTags = string.IsNullOrWhiteSpace(note.Tags) ? [] : note.Tags.Split(" ").ToList();
+        var oldTags = string.IsNullOrWhiteSpace(note.Tags) ? [] : note.Tags.Split(",").ToList();
         if (oldTags.Count != 0)
         {
             var toDelete = oldTags.Except(newTags).ToList();

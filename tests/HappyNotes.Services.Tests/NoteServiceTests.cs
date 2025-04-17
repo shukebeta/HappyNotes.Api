@@ -22,7 +22,6 @@ public class NoteServiceTests
     private Mock<INoteRepository> _mockNoteRepository;
     private Mock<IRepositoryBase<LongNote>> _mockLongNoteRepository;
     private Mock<IMapper> _mockMapper;
-    private Mock<ICurrentUser> _mockCurrentUser;
     private Mock<ILogger<NoteService>> _mockLogger;
     private NoteService _noteService;
 
@@ -35,7 +34,6 @@ public class NoteServiceTests
         _mockNoteRepository = new Mock<INoteRepository>();
         _mockLongNoteRepository = new Mock<IRepositoryBase<LongNote>>();
         _mockMapper = new Mock<IMapper>();
-        _mockCurrentUser = new Mock<ICurrentUser>();
         _mockLogger = new Mock<ILogger<NoteService>>();
         _mockSyncNoteService.Setup(s => s.SyncNewNote(It.IsAny<Note>(), It.IsAny<string>()))
             .Returns(Task.CompletedTask);
@@ -50,7 +48,6 @@ public class NoteServiceTests
             _mockNoteRepository.Object,
             _mockLongNoteRepository.Object,
             _mockMapper.Object,
-            _mockCurrentUser.Object,
             _mockLogger.Object
         );
     }
@@ -71,7 +68,6 @@ public class NoteServiceTests
 
         _mockMapper.Setup(m => m.Map<PostNoteRequest, Note>(request))
             .Returns(note);
-        _mockCurrentUser.Setup(u => u.Id).Returns(userId);
         _mockNoteRepository.Setup(r => r.InsertAsync(note))
             .ReturnsAsync(true);
 
@@ -113,7 +109,6 @@ public class NoteServiceTests
 
         _mockNoteRepository.Setup(r => r.Get(noteId))
             .ReturnsAsync(note);
-        _mockCurrentUser.Setup(u => u.Id).Returns(userId);
 
         // Act
         var result = await _noteService.Get(userId, noteId);
@@ -153,7 +148,6 @@ public class NoteServiceTests
 
         _mockNoteRepository.Setup(r => r.Get(noteId))
             .ReturnsAsync(note);
-        _mockCurrentUser.Setup(u => u.Id).Returns(userId);
 
         // Act & Assert
         var ex = Assert.ThrowsAsync<CustomException<object>>(async () =>
@@ -181,10 +175,9 @@ public class NoteServiceTests
             UserId = userId
         };
 
-        _mockNoteRepository.Setup(r => r.GetFirstOrDefaultAsync(x => x.Id == noteId, null)) .ReturnsAsync(existingNote);
+        _mockNoteRepository.Setup(r => r.Get(noteId)) .ReturnsAsync(existingNote);
         _mockMapper.Setup(m => m.Map<PostNoteRequest, Note>(request))
             .Returns(updatedNote);
-        _mockCurrentUser.Setup(u => u.Id).Returns(userId);
         _mockNoteRepository.Setup(r => r.UpdateAsync(It.IsAny<Note>()))
             .ReturnsAsync(true);
 
@@ -211,7 +204,6 @@ public class NoteServiceTests
         };
 
         _mockNoteRepository.Setup(r => r.GetFirstOrDefaultAsync(x => x.Id == noteId, null)) .ReturnsAsync(note);
-        _mockCurrentUser.Setup(u => u.Id).Returns(userId);
         _mockNoteRepository.Setup(r => r.UpdateAsync(It.IsAny<Note>()))
             .ReturnsAsync(true);
 
@@ -238,7 +230,6 @@ public class NoteServiceTests
         };
 
         _mockNoteRepository.Setup(r => r.GetFirstOrDefaultAsync(x => x.Id == noteId, null)) .ReturnsAsync(note);
-        _mockCurrentUser.Setup(u => u.Id).Returns(userId);
         _mockNoteRepository.Setup(r => r.UpdateAsync(It.IsAny<Note>()))
             .ReturnsAsync(true);
 
