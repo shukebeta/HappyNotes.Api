@@ -68,14 +68,14 @@ public class NoteRepository(ISqlSugarClient dbClient) : RepositoryBase<Note>(dbC
             n => n.CreatedAt, isAsc);
     }
 
-    public async Task<PageData<Note>> GetLinkedNotes(long userId, long noteId, int max = 100)
+    public async Task<PageData<Note>> GetLinkedNotes(long userId, long noteId, int max = 200)
     {
         return await _GetPageDataByTagAsync(max, 1,
             (n, t) =>
                 t.Tag.Equals($"@{noteId}") &&
                 n.DeletedAt == null &&
                 (t.UserId == userId || n.IsPrivate == false),
-            n => n.CreatedAt, false);
+            n => n.CreatedAt, true);
     }
 
     private async Task<PageData<Note>> _GetPageDataAsync(int pageSize = 20, int pageNumber = 1,
