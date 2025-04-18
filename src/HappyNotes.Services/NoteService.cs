@@ -133,7 +133,11 @@ public class NoteService(
         return originalNote.Content != fullContent ||
                originalNote.IsPrivate != newNote.IsPrivate ||
                originalNote.IsMarkdown != newNote.IsMarkdown ||
-               originalNote.DeletedAt != newNote.DeletedAt;
+               originalNote.DeletedAt != newNote.DeletedAt ||
+               originalNote.IsLong != newNote.IsLong ||
+               originalNote.Tags != newNote.Tags ||
+               originalNote.MastodonTootIds != newNote.MastodonTootIds ||
+               originalNote.TelegramMessageIds != newNote.TelegramMessageIds;
     }
 
     public async Task<PageData<Note>> GetUserNotes(long userId, int pageSize, int pageNumber,
