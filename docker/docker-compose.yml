@@ -5,7 +5,7 @@ networks:
 services:
   manticore:
     image: manticoresearch/manticore:latest
-    restart: always
+    restart: no
     ports:
       - "9306:9306"
       - "9312:9312"
@@ -13,10 +13,14 @@ services:
       - ./manticore.development.conf:/etc/manticoresearch/manticore.conf
       - manticore_data:/var/lib/manticore
       - ./logs:/var/log/manticore
+      - /usr/share/zoneinfo:/usr/share/zoneinfo:ro
     depends_on:
       - mysql
     environment:
       - TZ=${tz}
+      - mysql_user=${mysql_user}
+      - mysql_password=${mysql_password}
+      - mysql_database=${mysql_database}
     command: ["/bin/sh", "-c", "searchd --config /etc/manticoresearch/manticore.conf"]
     networks:
       - app-network
@@ -27,6 +31,7 @@ services:
     volumes:
       - ./manticore.development.conf:/etc/manticoresearch/manticore.conf
       - manticore_data:/var/lib/manticore
+      - /usr/share/zoneinfo:/usr/share/zoneinfo:ro
     depends_on:
       - manticore
       - mysql
