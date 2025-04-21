@@ -23,7 +23,6 @@ public class NoteRepository(ISqlSugarClient dbClient) : RepositoryBase<Note>(dbC
                 Content = n.IsLong ? l.Content : n.Content,
                 Tags = n.Tags,
                 TelegramMessageIds = n.TelegramMessageIds,
-                FavoriteCount = n.FavoriteCount,
                 IsLong = n.IsLong,
                 IsPrivate = n.IsPrivate,
                 IsMarkdown = n.IsMarkdown,
