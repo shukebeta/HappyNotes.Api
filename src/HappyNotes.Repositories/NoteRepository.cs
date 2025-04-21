@@ -124,10 +124,12 @@ public class NoteRepository(ISqlSugarClient dbClient) : RepositoryBase<Note>(dbC
     public async Task<PageData<Note>> GetUserDeletedNotes(long userId, int pageSize, int pageNumber)
     {
         // Use the existing helper, but filter for deleted notes and order by DeletedAt descending
+#pragma warning disable CS8603 // Possible null reference return.
         return await _GetPageDataAsync(pageSize, pageNumber,
             n => n.UserId == userId && n.DeletedAt != null,
-            n => n.DeletedAt, // Order by deletion date
+            n => n.DeletedAt, // Order by deletion date; safe due to prior null check
             false); // Descending order (most recently deleted first)
+#pragma warning restore CS8603 // Possible null reference return.
     }
 
     public async Task PurgeUserDeletedNotes(long userId)
