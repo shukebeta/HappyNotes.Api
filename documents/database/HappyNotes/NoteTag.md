@@ -10,9 +10,11 @@
 
 ## Indexes: 
 
- Key_name    | Column_name | Seq_in_index | Non_unique | Index_type | Visible
--------------|-------------|--------------|------------|------------|---------
- PRIMARY     | Id          |            1 |          0 | BTREE      | YES
- NoteId      | NoteId      |            1 |          0 | BTREE      | YES
- NoteId      | Tag         |            2 |          0 | BTREE      | YES
- idx_TagName | Tag         |            1 |          1 | BTREE      | YES
+ Key_name          | Column_name | Seq_in_index | Non_unique | Index_type | Visible
+-------------------|-------------|--------------|------------|------------|---------
+ PRIMARY           | Id          |            1 |          0 | BTREE      | YES
+ NoteId            | NoteId      |            1 |          0 | BTREE      | YES
+ NoteId            | Tag         |            2 |          0 | BTREE      | YES
+ idx_tag_user_note | Tag         |            1 |          1 | BTREE      | YES
+ idx_tag_user_note | UserId      |            2 |          1 | BTREE      | YES
+ idx_tag_user_note | NoteId      |            3 |          1 | BTREE      | YES

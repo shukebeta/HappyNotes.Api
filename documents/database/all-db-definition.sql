@@ -45,6 +45,21 @@ CREATE TABLE `Files` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `LastSynced`
+--
+
+DROP TABLE IF EXISTS `LastSynced`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `LastSynced` (
+  `Id` int NOT NULL AUTO_INCREMENT,
+  `LastNoteId` bigint NOT NULL,
+  `LastUpdated` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`Id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `LinkedNote`
 --
 
@@ -157,6 +172,7 @@ CREATE TABLE `MastodonUserAccount` (
   `TokenType` varchar(50) NOT NULL,
   `Scope` varchar(255) NOT NULL,
   `Status` int NOT NULL COMMENT 'Reference MastodonUserAccountStatus enum for details',
+  `SyncType` int NOT NULL DEFAULT '1' COMMENT 'SyncType 1 Normal 2 Inactivate',
   `CreatedAt` bigint NOT NULL,
   PRIMARY KEY (`Id`),
   UNIQUE KEY `InstanceUrl` (`InstanceUrl`,`UserId`),
@@ -178,7 +194,6 @@ CREATE TABLE `Note` (
   `Tags` varchar(512) DEFAULT NULL,
   `TelegramMessageIds` varchar(512) DEFAULT NULL COMMENT 'Common separated telegram MessageId list',
   `MastodonTootIds` varchar(512) DEFAULT NULL COMMENT 'Comma-separated ApplicationId:TootId list',
-  `FavoriteCount` int NOT NULL DEFAULT '0',
   `IsLong` tinyint NOT NULL DEFAULT '0',
   `IsPrivate` tinyint NOT NULL DEFAULT '1',
   `IsMarkdown` tinyint NOT NULL DEFAULT '0' COMMENT 'indicate content field is in markdown format or not',
@@ -186,10 +201,10 @@ CREATE TABLE `Note` (
   `UpdatedAt` bigint DEFAULT NULL COMMENT 'A unix timestamp',
   `DeletedAt` bigint DEFAULT NULL COMMENT 'A unix timestamp',
   PRIMARY KEY (`Id`),
-  KEY `idx_FavoriteCount` (`FavoriteCount`),
   KEY `idx_CreateAt` (`CreatedAt`),
+  KEY `idx_UserId_DeleteAt` (`UserId`,`DeletedAt`),
   KEY `idx_DeleteAt` (`DeletedAt`),
-  KEY `idx_UserId_DeleteAt` (`UserId`,`DeletedAt`)
+  KEY `idx_user_deleted_private` (`UserId`,`DeletedAt`,`IsPrivate`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -208,7 +223,7 @@ CREATE TABLE `NoteTag` (
   `CreatedAt` bigint NOT NULL DEFAULT '0' COMMENT 'A unix timestamp',
   PRIMARY KEY (`Id`),
   UNIQUE KEY `NoteId` (`NoteId`,`Tag`),
-  KEY `idx_TagName` (`Tag`)
+  KEY `idx_tag_user_note` (`Tag`,`UserId`,`NoteId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
