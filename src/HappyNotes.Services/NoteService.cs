@@ -303,21 +303,11 @@ public class NoteService(
 
     private async Task _UpdateNoteTags(Note note, List<string> newTags)
     {
-        var oldTags = string.IsNullOrWhiteSpace(note.Tags) ? [] : note.Tags.Split(",").ToList();
-        if (oldTags.Count != 0)
-        {
-            var toDelete = oldTags.Except(newTags).ToList();
-            if (toDelete.Any())
-            {
-                await noteTagService.Delete(note.Id, toDelete);
-            }
-        }
-
         if (newTags.Count != 0)
         {
             await noteTagService.Upsert(note, newTags);
-            await noteTagService.RemoveUnusedTags(note.Id, newTags);
         }
+        await noteTagService.RemoveUnusedTags(note.Id, newTags);
     }
 
     private static long[] _GetTimestamps(long initialUnixTimestamp, string timeZoneId)
