@@ -15,6 +15,7 @@ namespace HappyNotes.Api.Controllers;
 public class NoteController(IMapper mapper
     , ICurrentUser currentUser
     , INoteService noteService
+    , ISearchService searchService
 ): BaseController
 {
     [HttpGet("{noteId}")]
@@ -60,6 +61,13 @@ public class NoteController(IMapper mapper
         }
         await noteService.Update(currentUser.Id, noteId, request);
         return new SuccessfulResult<long>(noteId);
+    }
+
+    [HttpGet("search")]
+    public async Task<ApiResult<List<NoteDto>>> Search(string query, int page = 1, int pageSize = 10)
+    {
+        var results = await searchService.SearchNotesAsync(query, currentUser.Id, page, pageSize);
+        return new SuccessfulResult<List<NoteDto>>(results);
     }
 
 }

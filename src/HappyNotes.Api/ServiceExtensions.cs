@@ -24,5 +24,6 @@ public static class ServiceExtensions
         services.AddSingleton<IGeneralMemoryCacheService, GeneralMemoryCacheService>();
         services.AddScoped<ISyncNoteService, MastodonSyncNoteService>();
         services.AddScoped<ISyncNoteService, TelegramSyncNoteService>();
+        services.AddScoped<ISearchService, SearchService>();
     }
 }
