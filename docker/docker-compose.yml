@@ -1,10 +1,11 @@
-version: '3.8'
+networks:
+  app-network:
+    driver: bridge
 
 services:
   manticore:
     image: manticoresearch/manticore:latest
     restart: always
-    network_mode: "host"
     ports:
       - "9306:9306"
       - "9312:9312"
@@ -17,11 +18,12 @@ services:
     environment:
       - TZ=${tz}
     command: ["/bin/sh", "-c", "searchd --config /etc/manticoresearch/manticore.conf"]
-  
+    networks:
+      - app-network
+
   manticore-indexer:
     image: manticoresearch/manticore:latest
     restart: always
-    network_mode: "host"
     volumes:
       - ./manticore.development.conf:/etc/manticoresearch/manticore.conf
       - manticore_data:/var/lib/manticore
@@ -31,13 +33,14 @@ services:
     command: ["/bin/sh", "-c", "while true; do indexer --config /etc/manticoresearch/manticore.conf --all --rotate; sleep 300; done"]
     environment:
       - TZ=${tz}
+    networks:
+      - app-network
 
   mysql:
     image: mysql:8.0
     restart: always
-    network_mode: "host"
     ports:
-      - "3306:3306"
+      - "${mysql_port}:3306"
     environment:
       MYSQL_DATABASE: ${mysql_database}
       MYSQL_USER: ${mysql_user}
@@ -46,7 +49,8 @@ services:
       TZ: ${tz}
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./documents/database/all-db-definition.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - app-network
 
 volumes:
   manticore_data:
