@@ -316,6 +316,7 @@ public class NoteService(
         if (newTags.Count != 0)
         {
             await noteTagService.Upsert(note, newTags);
+            await noteTagService.RemoveUnusedTags(note.Id, newTags);
         }
     }
 

@@ -49,4 +49,9 @@ public class NoteTagService(
             Take(limit).
             ToListAsync();
     }
+
+    public async Task RemoveUnusedTags(long noteId, List<string> toKeepTags)
+    {
+        await noteTagRepository.DeleteAsync(t => t.NoteId == noteId && !toKeepTags.Contains(t.Tag));
+    }
 }
