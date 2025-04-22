@@ -76,10 +76,10 @@ public class NotesController(IMapper mapper
         return new SuccessfulResult<object>(null); // Indicate success with no specific data
     }
 
-    [HttpGet("search")]
-    public async Task<ApiResult<List<NoteDto>>> Search(string query, int page = 1, int pageSize = 10)
+    [HttpGet("{pageSize:int}/{pageNumber:int}")]
+    public async Task<ApiResult<List<NoteDto>>> Search(string query, int pageNumber = 1, int pageSize = 10)
     {
-        var results = await searchService.SearchNotesAsync(query, currentUser.Id, page, pageSize);
+        var results = await searchService.SearchNotesAsync(currentUser.Id, query, pageNumber, pageSize);
         return new SuccessfulResult<List<NoteDto>>(results);
     }
 }

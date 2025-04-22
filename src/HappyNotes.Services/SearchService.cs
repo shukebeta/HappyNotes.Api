@@ -23,27 +23,13 @@ public class SearchService : ISearchService
         });
     }
 
-    public async Task<List<NoteDto>> SearchNotesAsync(string query, long userId, int page, int pageSize)
+    public async Task<List<NoteDto>> SearchNotesAsync(long userId, string query, int pageNumber, int pageSize)
     {
-        var results = new List<NoteDto>();
-        var offset = (page - 1) * pageSize;
-
+        RefAsync<int> total = 0;
         // Manticoresearch query to search in content
-        var list = await _client.SqlQueryable<NoteDto>("SELECT Id, Content, IsPrivate FROM idx_notes WHERE MATCH(@query) LIMIT @offset, @pageSize")
-            .AddParameters(new { query, offset, pageSize })
-            .ToListAsync();
-
-        foreach (var note in list)
-        {
-            note.UserId = userId; // This will be overridden if necessary in the controller or service layer
-            // Filter out private notes that do not belong to the user
-            if (!note.IsPrivate || (note.IsPrivate && note.UserId == userId))
-            {
-                results.Add(note);
-            }
-        }
-
-        return results;
+        var sql = "SELECT * FROM idx_notes WHERE UserId = 1 AND MATCH('Happy')";
+        var list = await _client.Ado.SqlQueryAsync<NoteDto>(sql);
+        return list;
     }
 
     public async Task SyncNoteToIndexAsync(long id, long userId, bool isPrivate, string content, long createdAt, long? updatedAt)
