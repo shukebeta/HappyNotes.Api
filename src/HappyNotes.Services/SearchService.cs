@@ -45,4 +45,16 @@ public class SearchService : ISearchService
 
         return results;
     }
+
+    public async Task SyncNoteToIndexAsync(long id, long userId, bool isPrivate, string content, long createdAt, long? updatedAt)
+    {
+        await _client.Ado.ExecuteCommandAsync(
+            "REPLACE INTO idx_notes (Id, UserId, IsPrivate, Content, CreatedAt, UpdatedAt) VALUES (@id, @userId, @isPrivate, @content, @createdAt, @updatedAt)",
+            new { id, userId, isPrivate, content, createdAt, updatedAt });
+    }
+
+    public async Task DeleteNoteFromIndexAsync(long id)
+    {
+        await _client.Ado.ExecuteCommandAsync("DELETE FROM idx_notes WHERE Id = @id", new { id });
+    }
 }
