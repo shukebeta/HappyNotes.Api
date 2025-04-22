@@ -14,6 +14,7 @@ namespace HappyNotes.Api.Controllers;
 public class NotesController(IMapper mapper
     , INoteService noteService
     , ICurrentUser currentUser
+    , ISearchService searchService
 ): BaseController
 {
     [HttpGet("{pageSize:int}/{pageNumber:int}")]
@@ -75,16 +76,10 @@ public class NotesController(IMapper mapper
         return new SuccessfulResult<object>(null); // Indicate success with no specific data
     }
 
-    /// <summary>
-    /// Undeletes a previously deleted note.
-    /// </summary>
-    /// <param name="id">The ID of the note to undelete.</param>
-    /// <returns>An ApiResult indicating success or failure.</returns>
-    [HttpPut("{id:long}")]
-    public async Task<ApiResult> Undelete(long id)
+    [HttpGet("search")]
+    public async Task<ApiResult<List<NoteDto>>> Search(string query, int page = 1, int pageSize = 10)
     {
-        await noteService.Undelete(currentUser.Id, id);
-        // Assuming Undelete throws exceptions for errors like not found or not yours.
-        return new SuccessfulResult<object>(null);
+        var results = await searchService.SearchNotesAsync(query, currentUser.Id, page, pageSize);
+        return new SuccessfulResult<List<NoteDto>>(results);
     }
 }
