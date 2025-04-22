@@ -18,19 +18,9 @@ public class NoteRepository(ISqlSugarClient dbClient) : RepositoryBase<Note>(dbC
             .Where((n, l, u) => n.Id == noteId)
             .Select((n, l, u) => new Note
             {
-                Id = n.Id,
-                UserId = n.UserId,
                 Content = n.IsLong ? l.Content : n.Content,
-                Tags = n.Tags,
-                TelegramMessageIds = n.TelegramMessageIds,
-                IsLong = n.IsLong,
-                IsPrivate = n.IsPrivate,
-                IsMarkdown = n.IsMarkdown,
-                CreatedAt = n.CreatedAt,
-                UpdatedAt = n.UpdatedAt,
-                DeletedAt = n.DeletedAt,
                 User = u
-            })
+            }, true)
             .FirstAsync();
     }
 
