@@ -5,6 +5,7 @@ using HappyNotes.Dto;
 using HappyNotes.Services.interfaces;
 using Microsoft.Extensions.Configuration;
 using SqlSugar;
+using Api.Framework.Models;
 
 namespace HappyNotes.Services;
 
@@ -19,17 +20,27 @@ public class SearchService : ISearchService
         {
             ConnectionString = connectionString,
             DbType = DbType.MySql,
-            IsAutoCloseConnection = true
+            IsAutoCloseConnection = false
         });
     }
 
-    public async Task<List<NoteDto>> SearchNotesAsync(long userId, string query, int pageNumber, int pageSize)
+    public async Task<PageData<NoteDto>> SearchNotesAsync(long userId, string query, int pageNumber, int pageSize)
     {
-        RefAsync<int> total = 0;
-        // Manticoresearch query to search in content
-        var sql = "SELECT * FROM idx_notes WHERE UserId = 1 AND MATCH('Happy')";
-        var list = await _client.Ado.SqlQueryAsync<NoteDto>(sql);
-        return list;
+        var offset = (pageNumber - 1) * pageSize;
+        var sql = "SELECT * FROM idx_notes WHERE UserId = @userId AND MATCH(@query) LIMIT @offset, @pageSize";
+        var list = await _client.Ado.SqlQueryAsync<NoteDto>(sql, new { userId, query, offset, pageSize});
+
+        var countSql = "SELECT COUNT(*) FROM idx_notes WHERE UserId = @userId AND MATCH(@query)";
+        var total = await _client.Ado.GetIntAsync(countSql, new { userId, query });
+
+        var pageData = new PageData<NoteDto>
+        {
+            DataList = list,
+            TotalCount = total,
+            PageIndex = pageNumber,
+            PageSize = pageSize
+        };
+        return pageData;
     }
 
     public async Task SyncNoteToIndexAsync(long id, long userId, bool isPrivate, string content, long createdAt, long? updatedAt)

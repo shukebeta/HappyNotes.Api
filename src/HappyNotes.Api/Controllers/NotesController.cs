@@ -77,9 +77,9 @@ public class NotesController(IMapper mapper
     }
 
     [HttpGet("{pageSize:int}/{pageNumber:int}")]
-    public async Task<ApiResult<List<NoteDto>>> Search(string query, int pageNumber = 1, int pageSize = 10)
+    public async Task<ApiResult<PageData<NoteDto>>> Search(string query, int pageNumber = 1, int pageSize = 10)
     {
         var results = await searchService.SearchNotesAsync(currentUser.Id, query, pageNumber, pageSize);
-        return new SuccessfulResult<List<NoteDto>>(results);
+        return new SuccessfulResult<PageData<NoteDto>>(results);
     }
 }
