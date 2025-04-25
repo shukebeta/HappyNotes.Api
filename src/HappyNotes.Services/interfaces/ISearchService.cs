@@ -2,12 +2,13 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using HappyNotes.Dto;
 using Api.Framework.Models;
+using HappyNotes.Entities;
 
 namespace HappyNotes.Services.interfaces;
 
 public interface ISearchService
 {
     Task<PageData<NoteDto>> SearchNotesAsync(long userId, string query, int pageNumber, int pageSize);
-    Task SyncNoteToIndexAsync(long id, long userId, bool isPrivate, string content, long createdAt, long? updatedAt);
+    Task SyncNoteToIndexAsync(Note note, string fullContent);
     Task DeleteNoteFromIndexAsync(long id);
 }

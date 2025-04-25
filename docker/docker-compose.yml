@@ -5,40 +5,27 @@ networks:
 services:
   manticore:
     image: manticoresearch/manticore:latest
-    restart: always
+    restart: unless-stopped
     ports:
       - "9306:9306"
       - "9312:9312"
     volumes:
       - ./manticore.development.conf:/etc/manticoresearch/manticore.conf
       - manticore_data:/var/lib/manticore
+      - ./jieba:/usr/share/manticore/jieba
       - ./logs:/var/log/manticore
     depends_on:
       - mysql
     environment:
+      - EXTRA=1
       - TZ=${tz}
       - mysql_user=${mysql_user}
       - mysql_password=${mysql_password}
       - mysql_database=${mysql_database}
-    command: ["/bin/sh", "-c", "searchd --config /etc/manticoresearch/manticore.conf --console"]
+    command: ["/bin/sh", "-c", "searchd --config /etc/manticoresearch/manticore.conf"]
     networks:
       - app-network
 
-  manticore-indexer:
-    image: manticoresearch/manticore:latest
-    restart: always
-    volumes:
-      - ./manticore.development.conf:/etc/manticoresearch/manticore.conf
-      - manticore_data:/var/lib/manticore
-      - /usr/share/zoneinfo:/usr/share/zoneinfo:ro
-    depends_on:
-      - manticore
-      - mysql
-    command: ["/bin/sh", "-c", "while true; do indexer --config /etc/manticoresearch/manticore.conf --all --rotate; sleep 300; done"]
-    environment:
-      - TZ=${tz}
-    networks:
-      - app-network
 
   mysql:
     image: mysql:8.0

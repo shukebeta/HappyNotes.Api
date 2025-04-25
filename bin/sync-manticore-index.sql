@@ -9,15 +9,18 @@ USE HappyNotes;
 -- This query fetches all notes and prepares data for insertion into idx_notes
 SELECT 
     CONCAT(
-        'REPLACE INTO idx_notes (Id, UserId, IsPrivate, Content, CreatedAt, UpdatedAt) VALUES (',
+        'REPLACE INTO noteindex (Id, UserId, IsLong, IsPrivate, IsMarkdown, Content, CreatedAt, UpdatedAt, DeletedAt) VALUES (',
         n.Id, ', ',
         n.UserId, ', ',
-        IF(n.IsPrivate, 1, 0), ', ',
+        n.IsLong, ', ',
+        n.IsPrivate, ', ',
+        n.IsMarkdown, ', ',
         '''', 
         REPLACE(IF(n.IsLong, l.Content, n.Content), "'", "\\'"), 
         '''', ', ',
         n.CreatedAt, ', ',
-        IFNULL(n.UpdatedAt, n.CreatedAt), ');'
+        IFNULL(n.UpdatedAt, n.CreatedAt), ', ',
+        IFNULL(n.DeletedAt, 0), ');'
     ) AS query
 FROM Note n
 LEFT JOIN LongNote l ON n.Id = l.Id;

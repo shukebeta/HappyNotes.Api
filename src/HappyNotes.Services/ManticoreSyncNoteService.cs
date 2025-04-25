@@ -13,14 +13,7 @@ public class ManticoreSyncNoteService(
     {
         try
         {
-            await searchService.SyncNoteToIndexAsync(
-                note.Id,
-                note.UserId,
-                note.IsPrivate,
-                fullContent,
-                note.CreatedAt,
-                note.UpdatedAt
-            );
+            await searchService.SyncNoteToIndexAsync(note, fullContent);
         }
         catch (Exception ex)
         {
@@ -32,14 +25,7 @@ public class ManticoreSyncNoteService(
     {
         try
         {
-            await searchService.SyncNoteToIndexAsync(
-                note.Id,
-                note.UserId,
-                note.IsPrivate,
-                fullContent,
-                note.CreatedAt,
-                note.UpdatedAt
-            );
+            await searchService.SyncNoteToIndexAsync(note, fullContent);
         }
         catch (Exception ex)
         {
@@ -58,4 +44,4 @@ public class ManticoreSyncNoteService(
             logger.LogError(ex, "Failed to delete note from Manticore index: {NoteId}", note.Id);
         }
     }
-} 
+}
