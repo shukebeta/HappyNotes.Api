@@ -30,10 +30,10 @@ public class SearchService : ISearchService
     {
         var offset = (pageNumber - 1) * pageSize;
         var sql = "SELECT * FROM noteindex WHERE UserId = @userId AND MATCH(@query) LIMIT @offset, @pageSize";
-        var list = await _client.Ado.SqlQueryAsync<NoteDto>(sql, new { userId, query, offset, pageSize});
+        var list = await _client.Ado.SqlQueryAsync<NoteDto>(sql, new {userId, query, offset, pageSize});
 
         var countSql = "SELECT COUNT(*) FROM noteindex WHERE UserId = @userId AND MATCH(@query)";
-        var total = await _client.Ado.GetIntAsync(countSql, new { userId, query });
+        var total = await _client.Ado.GetIntAsync(countSql, new {userId, query});
 
         var pageData = new PageData<NoteDto>
         {
@@ -49,16 +49,26 @@ public class SearchService : ISearchService
     {
         await _client.Ado.ExecuteCommandAsync(
             "REPLACE INTO noteindex (Id, UserId, IsLong, IsPrivate, IsMarkdown, Content, CreatedAt, UpdatedAt, DeletedAt) VALUES (@id, @userId, @isLong, @isPrivate, @isMarkdown, @content, @createdAt, @updatedAt, @deletedAt)",
-            new { note.Id, note.UserId, note.IsLong, note.IsPrivate, fullContent,
-                note.CreatedAt, note.UpdatedAt, note.DeletedAt });
+            new
+            {
+                note.Id, note.UserId,
+                isLong = note.IsLong ? 1 : 0,
+                isPrivate = note.IsPrivate ? 1 : 0,
+                isMarkdown = note.IsMarkdown ? 1 : 0,
+                content = fullContent,
+                note.CreatedAt,
+                updatedAt = note.UpdatedAt ?? 0,
+                deletedAt = note.DeletedAt ?? 0,
+            });
     }
 
     public async Task DeleteNoteFromIndexAsync(long id)
     {
-        await _client.Ado.ExecuteCommandAsync("UPDATE noteindex SET deletedat = @timestamp WHERE Id = @id AND deletedat = 0", new
-        {
-            timestamp = DateTime.Now.ToUnixTimeSeconds(),
-            id
-        });
+        await _client.Ado.ExecuteCommandAsync(
+            "UPDATE noteindex SET deletedat = @timestamp WHERE Id = @id AND deletedat = 0", new
+            {
+                timestamp = DateTime.Now.ToUnixTimeSeconds(),
+                id
+            });
     }
 }

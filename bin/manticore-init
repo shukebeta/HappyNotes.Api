@@ -1,3 +1,4 @@
+set -ex
 m() {
     if [ $# -eq 0 ]; then
         # If no arguments provided, run mysql directly
@@ -13,6 +14,6 @@ m() {
     fi
 }
 
-m -N  --batch  < ../bin/sync-manticore-index.sql > /tmp/manticore.sql
+m aiven -N  < ../bin/sync-manticore-index.sql > /tmp/manticore.sql
 sed -i 's/\\\\/\\/g' /tmp/manticore.sql
 m manticore < /tmp/manticore.sql

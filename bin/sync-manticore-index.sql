@@ -7,7 +7,7 @@ USE HappyNotes;
 
 -- Generate REPLACE INTO statements for Manticore RT index
 -- This query fetches all notes and prepares data for insertion into idx_notes
-SELECT 
+SELECT
     CONCAT(
         'REPLACE INTO noteindex (Id, UserId, IsLong, IsPrivate, IsMarkdown, Content, CreatedAt, UpdatedAt, DeletedAt) VALUES (',
         n.Id, ', ',
@@ -15,8 +15,8 @@ SELECT
         n.IsLong, ', ',
         n.IsPrivate, ', ',
         n.IsMarkdown, ', ',
-        '''', 
-        REPLACE(IF(n.IsLong, l.Content, n.Content), "'", "\\'"), 
+        '''',
+        REPLACE(IF(n.IsLong, l.Content, n.Content), '''', '\\'''),
         '''', ', ',
         n.CreatedAt, ', ',
         IFNULL(n.UpdatedAt, n.CreatedAt), ', ',
