@@ -152,6 +152,12 @@ public class MastodonSyncNoteService(
         await Task.CompletedTask;
     }
 
+    public async Task PurgeDeletedNotes()
+    {
+        // As per user instruction, no action is taken for purging deleted notes on Mastodon
+        await Task.CompletedTask;
+    }
+
     private async Task<string> _SentNoteToMastodon(Note note, string fullContent, MastodonUserAccount account)
     {
         var toot = await mastodonTootService.SendTootAsync(account.InstanceUrl,

@@ -80,4 +80,8 @@ public class SearchService : ISearchService
                 id
             });
     }
+public async Task PurgeDeletedNotesFromIndexAsync()
+    {
+        await _client.Ado.ExecuteCommandAsync("DELETE FROM noteindex WHERE deletedAt > 0");
+    }
 }

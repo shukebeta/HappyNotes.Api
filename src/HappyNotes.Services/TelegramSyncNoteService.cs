@@ -191,6 +191,12 @@ public class TelegramSyncNoteService(
         await Task.CompletedTask;
     }
 
+    public async Task PurgeDeletedNotes()
+    {
+        // As per user instruction, no action is taken for purging deleted notes on Telegram
+        await Task.CompletedTask;
+    }
+
     /// <summary>
     /// Obtain three groups of channel data:
     /// 1. toBeUpdatedChannels: Channels that need note updates.
