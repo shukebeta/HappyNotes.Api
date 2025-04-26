@@ -4,6 +4,12 @@ All notable changes to the HappyNote.Api project will be documented in this file
 
 ---
 
+## [2025-04-27]
+- Implemented Manticore search functionality and indexing for notes
+    - Added /notes/search API endpoint for searching notes
+- Added /notes/purgeDeleted API endpoint for purging deleted notes
+- Enabled CI on all branches
+
 ## [2025-01-11]
 - Added `limit` parameter to `/tag/myTagCloud` API.
 - Excluded tags starting with `@` in `/tag/myTagCloud` API.
