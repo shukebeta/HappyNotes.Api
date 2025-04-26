@@ -71,4 +71,13 @@ public class SearchService : ISearchService
                 id
             });
     }
+
+    public async Task UndeleteNoteFromIndexAsync(long id)
+    {
+        await _client.Ado.ExecuteCommandAsync(
+            "UPDATE noteindex SET deletedat = 0 WHERE Id = @id", new
+            {
+                id
+            });
+    }
 }

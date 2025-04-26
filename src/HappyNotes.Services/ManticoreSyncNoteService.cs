@@ -44,4 +44,16 @@ public class ManticoreSyncNoteService(
             logger.LogError(ex, "Failed to delete note from Manticore index: {NoteId}", note.Id);
         }
     }
+
+    public async Task SyncUndeleteNote(Note note)
+    {
+        try
+        {
+            await searchService.UndeleteNoteFromIndexAsync(note.Id);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to undelete note in Manticore index: {NoteId}", note.Id);
+        }
+    }
 }
