@@ -6,7 +6,7 @@
  UserId         | bigint        | NO   |         |
  SyncType       | tinyint       | NO   |         |
  SyncValue      | varchar(32)   | NO   |         |
- EncryptedToken | varchar(128)  | NO   |         | Telegram channel ID for syncing
+ EncryptedToken | varchar(128)  | NO   |         |
  ChannelId      | varchar(64)   | NO   |         | Telegram channel ID for syncing
  ChannelName    | varchar(64)   | NO   |         |
  TokenRemark    | varchar(64)   | YES  |         |

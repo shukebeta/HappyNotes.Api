@@ -5,8 +5,8 @@
  Id                 | bigint        | NO   |         |
  UserId             | bigint        | NO   | 0       |
  Content            | varchar(1024) | NO   |         |
- Tags               | varchar(512)  | YES  |         |
- TelegramMessageIds | varchar(512)  | YES  |         | Common separated telegram MessageId list
+ Tags               | varchar(512)  | YES  |         | space separated tag list
+ TelegramMessageIds | varchar(512)  | YES  |         | Comma-separated telegram MessageId list
  MastodonTootIds    | varchar(512)  | YES  |         | Comma-separated ApplicationId:TootId list
  IsLong             | tinyint       | NO   | 0       |
  IsPrivate          | tinyint       | NO   | 1       |
@@ -21,9 +21,9 @@
 --------------------------|-------------|--------------|------------|------------|---------
  PRIMARY                  | Id          |            1 |          0 | BTREE      | YES
  idx_CreateAt             | CreatedAt   |            1 |          1 | BTREE      | YES
+ idx_DeleteAt             | DeletedAt   |            1 |          1 | BTREE      | YES
  idx_UserId_DeleteAt      | UserId      |            1 |          1 | BTREE      | YES
  idx_UserId_DeleteAt      | DeletedAt   |            2 |          1 | BTREE      | YES
- idx_DeleteAt             | DeletedAt   |            1 |          1 | BTREE      | YES
  idx_user_deleted_private | UserId      |            1 |          1 | BTREE      | YES
  idx_user_deleted_private | DeletedAt   |            2 |          1 | BTREE      | YES
  idx_user_deleted_private | IsPrivate   |            3 |          1 | BTREE      | YES

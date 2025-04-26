@@ -2,7 +2,7 @@
 --
 -- Host: 127.0.0.1    Database: HappyNotes
 -- ------------------------------------------------------
--- Server version	8.0.32
+-- Server version	8.0.42
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -41,39 +41,6 @@ CREATE TABLE `Files` (
   `FileName` char(128) DEFAULT NULL,
   PRIMARY KEY (`Id`),
   UNIQUE KEY `Md5` (`Md5`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `LastSynced`
---
-
-DROP TABLE IF EXISTS `LastSynced`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `LastSynced` (
-  `Id` int NOT NULL AUTO_INCREMENT,
-  `LastNoteId` bigint NOT NULL,
-  `LastUpdated` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`Id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `LinkedNote`
---
-
-DROP TABLE IF EXISTS `LinkedNote`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `LinkedNote` (
-  `Id` bigint NOT NULL AUTO_INCREMENT,
-  `NoteId` bigint NOT NULL,
-  `LinkedNoteId` bigint NOT NULL,
-  `CreateAt` bigint NOT NULL,
-  PRIMARY KEY (`Id`),
-  UNIQUE KEY `uniq` (`NoteId`,`LinkedNoteId`),
-  KEY `linkedNoteId` (`LinkedNoteId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -191,8 +158,8 @@ CREATE TABLE `Note` (
   `Id` bigint NOT NULL AUTO_INCREMENT,
   `UserId` bigint NOT NULL DEFAULT '0',
   `Content` varchar(1024) NOT NULL,
-  `Tags` varchar(512) DEFAULT NULL,
-  `TelegramMessageIds` varchar(512) DEFAULT NULL COMMENT 'Common separated telegram MessageId list',
+  `Tags` varchar(512) DEFAULT NULL COMMENT 'space separated tag list',
+  `TelegramMessageIds` varchar(512) DEFAULT NULL COMMENT 'Comma-separated telegram MessageId list',
   `MastodonTootIds` varchar(512) DEFAULT NULL COMMENT 'Comma-separated ApplicationId:TootId list',
   `IsLong` tinyint NOT NULL DEFAULT '0',
   `IsPrivate` tinyint NOT NULL DEFAULT '1',
@@ -202,8 +169,8 @@ CREATE TABLE `Note` (
   `DeletedAt` bigint DEFAULT NULL COMMENT 'A unix timestamp',
   PRIMARY KEY (`Id`),
   KEY `idx_CreateAt` (`CreatedAt`),
-  KEY `idx_UserId_DeleteAt` (`UserId`,`DeletedAt`),
   KEY `idx_DeleteAt` (`DeletedAt`),
+  KEY `idx_UserId_DeleteAt` (`UserId`,`DeletedAt`),
   KEY `idx_user_deleted_private` (`UserId`,`DeletedAt`,`IsPrivate`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -219,11 +186,11 @@ CREATE TABLE `NoteTag` (
   `Id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `UserId` bigint NOT NULL COMMENT '=Note.UserId',
   `NoteId` bigint unsigned NOT NULL,
-  `Tag` varchar(32) NOT NULL COMMENT 'Note tag, put #tag1 tag2 tag3 in note content',
+  `Tag` varchar(32) NOT NULL COMMENT 'Note tag in lowercase',
   `CreatedAt` bigint NOT NULL DEFAULT '0' COMMENT 'A unix timestamp',
   PRIMARY KEY (`Id`),
   UNIQUE KEY `NoteId` (`NoteId`,`Tag`),
-  KEY `idx_tag_user_note` (`Tag`,`UserId`,`NoteId`)
+  KEY `idx_TagName` (`Tag`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -235,7 +202,7 @@ DROP TABLE IF EXISTS `SequelizeMeta`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `SequelizeMeta` (
-  `name` varchar(255) COLLATE utf8mb3_unicode_ci NOT NULL,
+  `name` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL,
   PRIMARY KEY (`name`),
   UNIQUE KEY `name` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
@@ -253,7 +220,7 @@ CREATE TABLE `TelegramSettings` (
   `UserId` bigint NOT NULL,
   `SyncType` tinyint NOT NULL,
   `SyncValue` varchar(32) NOT NULL DEFAULT '',
-  `EncryptedToken` varchar(128) NOT NULL DEFAULT '' COMMENT 'Telegram channel ID for syncing',
+  `EncryptedToken` varchar(128) NOT NULL DEFAULT '',
   `ChannelId` varchar(64) NOT NULL DEFAULT '' COMMENT 'Telegram channel ID for syncing',
   `ChannelName` varchar(64) NOT NULL DEFAULT '',
   `TokenRemark` varchar(64) DEFAULT NULL,
