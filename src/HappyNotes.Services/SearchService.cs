@@ -14,31 +14,25 @@ namespace HappyNotes.Services;
 
 public class SearchService : ISearchService
 {
-    private readonly SqlSugarClient _client;
+    private readonly IDatabaseClient _client;
 
-    public SearchService(IConfiguration configuration)
+    public SearchService(IDatabaseClient client)
     {
-        var connectionString = configuration.GetSection("ManticoreConnectionOptions:ConnectionString").Value;
-        _client = new SqlSugarClient(new ConnectionConfig
-        {
-            ConnectionString = connectionString,
-            DbType = DbType.MySql,
-            IsAutoCloseConnection = false
-        });
+        _client = client;
     }
 
     public async Task<PageData<NoteDto>> SearchNotesAsync(long userId, string query, int pageNumber, int pageSize, NoteFilterType filter = NoteFilterType.Normal)
     {
+        var countSql = filter == NoteFilterType.Normal
+            ? "SELECT COUNT(*) FROM noteindex WHERE UserId = @userId AND MATCH(@query) AND DeletedAt = 0"
+            : "SELECT COUNT(*) FROM noteindex WHERE UserId = @userId AND MATCH(@query) AND DeletedAt > 0";
+        var total = await _client.GetIntAsync(countSql, new { userId, query });
+
         var offset = (pageNumber - 1) * pageSize;
         var sql = filter == NoteFilterType.Normal
             ? "SELECT * FROM noteindex WHERE UserId = @userId AND MATCH(@query) AND DeletedAt = 0 LIMIT @offset, @pageSize"
             : "SELECT * FROM noteindex WHERE UserId = @userId AND MATCH(@query) AND DeletedAt > 0 LIMIT @offset, @pageSize";
-        var list = await _client.Ado.SqlQueryAsync<NoteDto>(sql, new { userId, query, offset, pageSize });
-
-        var countSql = filter == NoteFilterType.Normal
-            ? "SELECT COUNT(*) FROM noteindex WHERE UserId = @userId AND MATCH(@query) AND DeletedAt = 0"
-            : "SELECT COUNT(*) FROM noteindex WHERE UserId = @userId AND MATCH(@query) AND DeletedAt > 0";
-        var total = await _client.Ado.GetIntAsync(countSql, new { userId, query });
+        var list = await _client.SqlQueryAsync<NoteDto>(sql, new { userId, query, offset, pageSize });
 
         var pageData = new PageData<NoteDto>
         {
@@ -52,7 +46,7 @@ public class SearchService : ISearchService
 
     public async Task SyncNoteToIndexAsync(Note note, string fullContent)
     {
-        await _client.Ado.ExecuteCommandAsync(
+        await _client.ExecuteCommandAsync(
             "REPLACE INTO noteindex (Id, UserId, IsLong, IsPrivate, IsMarkdown, Content, CreatedAt, UpdatedAt, DeletedAt) VALUES (@id, @userId, @isLong, @isPrivate, @isMarkdown, @content, @createdAt, @updatedAt, @deletedAt)",
             new
             {
@@ -69,7 +63,7 @@ public class SearchService : ISearchService
 
     public async Task DeleteNoteFromIndexAsync(long id)
     {
-        await _client.Ado.ExecuteCommandAsync(
+        await _client.ExecuteCommandAsync(
             "UPDATE noteindex SET deletedat = @timestamp WHERE Id = @id AND deletedat = 0", new
             {
                 timestamp = DateTime.Now.ToUnixTimeSeconds(),
@@ -79,7 +73,7 @@ public class SearchService : ISearchService
 
     public async Task UndeleteNoteFromIndexAsync(long id)
     {
-        await _client.Ado.ExecuteCommandAsync(
+        await _client.ExecuteCommandAsync(
             "UPDATE noteindex SET deletedat = 0 WHERE Id = @id", new
             {
                 id
@@ -87,6 +81,6 @@ public class SearchService : ISearchService
     }
 public async Task PurgeDeletedNotesFromIndexAsync()
     {
-        await _client.Ado.ExecuteCommandAsync("DELETE FROM noteindex WHERE deletedAt > 0");
+        await _client.ExecuteCommandAsync("DELETE FROM noteindex WHERE deletedAt > 0", new { });
     }
 }

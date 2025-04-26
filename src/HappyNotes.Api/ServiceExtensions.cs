@@ -26,5 +26,6 @@ public static class ServiceExtensions
         services.AddScoped<ISyncNoteService, TelegramSyncNoteService>();
         services.AddScoped<ISyncNoteService, ManticoreSyncNoteService>();
         services.AddScoped<ISearchService, SearchService>();
+        services.AddScoped<IDatabaseClient, DatabaseClient>();
     }
 }
