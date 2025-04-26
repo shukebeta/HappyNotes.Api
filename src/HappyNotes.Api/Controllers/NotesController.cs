@@ -1,5 +1,6 @@
 using Api.Framework.Models;
 using Api.Framework.Result;
+using HappyNotes.Common.Enums;
 using AutoMapper;
 using HappyNotes.Common;
 using HappyNotes.Dto;
@@ -77,9 +78,10 @@ public class NotesController(IMapper mapper
     }
 
     [HttpGet("{pageSize:int}/{pageNumber:int}")]
-    public async Task<ApiResult<PageData<NoteDto>>> Search(string query, int pageNumber = 1, int pageSize = 10)
+    public async Task<ApiResult<PageData<NoteDto>>> Search(string query, int pageNumber = 1, int pageSize = 10, string filter = "normal")
     {
-        var results = await searchService.SearchNotesAsync(currentUser.Id, query, pageNumber, pageSize);
+        var filterType = filter.ToLower() == "deleted" ? NoteFilterType.Deleted : NoteFilterType.Normal;
+        var results = await searchService.SearchNotesAsync(currentUser.Id, query, pageNumber, pageSize, filterType);
         return new SuccessfulResult<PageData<NoteDto>>(results);
     }
 }

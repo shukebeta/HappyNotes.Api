@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Api.Framework.Extensions;
+using HappyNotes.Common.Enums;
 using HappyNotes.Dto;
 using HappyNotes.Services.interfaces;
 using Microsoft.Extensions.Configuration;
@@ -26,14 +27,18 @@ public class SearchService : ISearchService
         });
     }
 
-    public async Task<PageData<NoteDto>> SearchNotesAsync(long userId, string query, int pageNumber, int pageSize)
+    public async Task<PageData<NoteDto>> SearchNotesAsync(long userId, string query, int pageNumber, int pageSize, NoteFilterType filter = NoteFilterType.Normal)
     {
         var offset = (pageNumber - 1) * pageSize;
-        var sql = "SELECT * FROM noteindex WHERE UserId = @userId AND MATCH(@query) LIMIT @offset, @pageSize";
-        var list = await _client.Ado.SqlQueryAsync<NoteDto>(sql, new {userId, query, offset, pageSize});
+        var sql = filter == NoteFilterType.Normal
+            ? "SELECT * FROM noteindex WHERE UserId = @userId AND MATCH(@query) AND DeletedAt = 0 LIMIT @offset, @pageSize"
+            : "SELECT * FROM noteindex WHERE UserId = @userId AND MATCH(@query) AND DeletedAt > 0 LIMIT @offset, @pageSize";
+        var list = await _client.Ado.SqlQueryAsync<NoteDto>(sql, new { userId, query, offset, pageSize });
 
-        var countSql = "SELECT COUNT(*) FROM noteindex WHERE UserId = @userId AND MATCH(@query)";
-        var total = await _client.Ado.GetIntAsync(countSql, new {userId, query});
+        var countSql = filter == NoteFilterType.Normal
+            ? "SELECT COUNT(*) FROM noteindex WHERE UserId = @userId AND MATCH(@query) AND DeletedAt = 0"
+            : "SELECT COUNT(*) FROM noteindex WHERE UserId = @userId AND MATCH(@query) AND DeletedAt > 0";
+        var total = await _client.Ado.GetIntAsync(countSql, new { userId, query });
 
         var pageData = new PageData<NoteDto>
         {
