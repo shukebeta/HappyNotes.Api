@@ -96,7 +96,7 @@ public class NoteService(
                 newNote.IsMarkdown = true;
             }
             newNote.TagList = fullContent.GetTags();
-            newNote.Tags = string.Join(",", newNote.TagList);
+            newNote.Tags = string.Join(" ", newNote.TagList);
         }
 
         newNote.Id = existingNote.Id;

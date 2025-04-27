@@ -9,6 +9,7 @@
  TokenType   | varchar(50)  | NO   |         |
  Scope       | varchar(255) | NO   |         |
  Status      | int          | NO   |         | Reference MastodonUserAccountStatus enum for details
+ SyncType    | int          | NO   | 1       | SyncType 1 Normal 2 Inactivate
  CreatedAt   | bigint       | NO   |         |
 
 ## Indexes: 

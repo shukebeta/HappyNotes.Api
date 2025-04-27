@@ -1,11 +1,11 @@
 # Database: HappyNotes Table: NoteTag
 
  Field     | Type            | Null | Default | Comment
------------|-----------------|------|---------|-----------------------------------------------
+-----------|-----------------|------|---------|-----------------------
  Id        | bigint unsigned | NO   |         |
  UserId    | bigint          | NO   |         | =Note.UserId
  NoteId    | bigint unsigned | NO   |         |
- Tag       | varchar(32)     | NO   |         | Note tag, put #tag1 tag2 tag3 in note content
+ Tag       | varchar(32)     | NO   |         | Note tag in lowercase
  CreatedAt | bigint          | NO   | 0       | A unix timestamp
 
 ## Indexes: 

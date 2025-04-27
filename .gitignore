@@ -8,3 +8,6 @@ riderModule.iml
 HappyNotes.Api.sln.DotSettings.user
 appsettings.Local.json
 .vscode
+docker/logs
+jieba
+.env

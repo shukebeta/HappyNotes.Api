@@ -1,0 +1,1 @@
+(script_dir="$(dirname "$(readlink -f "$0")")" && cd "$script_dir/../src/HappyNotes.Api" && ASPNETCORE_ENVIRONMENT=Local ASPNETCORE_URLS="http://*:5012" dotnet run --project "$script_dir/../src/HappyNotes.Api/HappyNotes.Api.csproj")

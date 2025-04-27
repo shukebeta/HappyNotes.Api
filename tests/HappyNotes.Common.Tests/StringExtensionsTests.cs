@@ -78,10 +78,10 @@ public class StringExtensionsTests
 #345人
 #456民#567还没站起来";
         // Act
-        var tag = string.Join(" ", input.GetTags());
+        var result = string.Join(" ", input.GetTags());
 
         // Assert
-        Assert.That(tag, Is.EqualTo("123中 234国 345人 456民 567还没站起来"));
+        Assert.That(result, Is.EqualTo("123中 234国 345人 456民 567还没站起来"));
     }
 
     [TestCase("@12345", "12345")]  // Valid case

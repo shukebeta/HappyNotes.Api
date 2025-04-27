@@ -7,4 +7,6 @@ public interface ISyncNoteService
     Task SyncNewNote(Note note, string fullContent);
     Task SyncEditNote(Note note, string fullContent);
     Task SyncDeleteNote(Note note);
+    Task SyncUndeleteNote(Note note);
+    Task PurgeDeletedNotes();
 }

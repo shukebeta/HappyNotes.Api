@@ -17,22 +17,27 @@ public class NoteController(IMapper mapper
     , INoteService noteService
 ): BaseController
 {
-    [HttpGet("{noteId}")]
-    public async Task<ApiResult<NoteDto>> Get(int noteId, bool includeDeleted = false)
+    [HttpGet("{noteId:long}")]
+    public async Task<ApiResult<NoteDto>> Get(long noteId, bool includeDeleted = false)
     {
         var note = await noteService.Get(currentUser.Id, noteId, includeDeleted);
         return new SuccessfulResult<NoteDto>(mapper.Map<NoteDto>(note));
     }
 
-    [HttpDelete("{noteId}")]
-    public async Task<ApiResult<long>> Delete(int noteId)
+    [HttpDelete("{noteId:long}")]
+    public async Task<ApiResult<long>> Delete(long noteId)
     {
         await noteService.Delete(currentUser.Id, noteId);
         return new SuccessfulResult<long>(noteId);
     }
 
-    [HttpPost("{noteId}")]
-    public async Task<ApiResult<long>> Undelete(int noteId)
+    /// <summary>
+    /// Undeletes a previously deleted note.
+    /// </summary>
+    /// <param name="noteId">The ID of the note to undelete.</param>
+    /// <returns>An ApiResult indicating success or failure.</returns>
+    [HttpPost("{noteId:long}")]
+    public async Task<ApiResult<long>> Undelete(long noteId)
     {
         await noteService.Undelete(currentUser.Id, noteId);
         return new SuccessfulResult<long>(noteId);
@@ -61,5 +66,4 @@ public class NoteController(IMapper mapper
         await noteService.Update(currentUser.Id, noteId, request);
         return new SuccessfulResult<long>(noteId);
     }
-
 }

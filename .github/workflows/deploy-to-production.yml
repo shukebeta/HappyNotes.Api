@@ -38,7 +38,7 @@ jobs:
       - name: Publish
         run: dotnet publish -c Release --property:PublishDir=/var/www/HappyNotes.Api
 
-      - name: Replace credentials
+      - name: Replace placeholders with actual information
         run: |
           pwd
           sed -i "s/password-placeholder/${{ secrets.PRODUCTION_MYSQL_PASSWORD }}/g" /var/www/HappyNotes.Api/appsettings.json
@@ -48,6 +48,7 @@ jobs:
           BUILD_DATE=${{ steps.get_commit.outputs.build_date }}
           VERSION_INFO="$COMMIT_HASH ($BUILD_DATE)"
           sed -i "s/VERSION_PLACEHOLDER/$VERSION_INFO/"  /var/www/HappyNotes.Api/appsettings.json
+          sed -i "s/default_manticore_server/arm.shukebeta.eu.org/" /var/www/HappyNotes.Api/appsettings.json
 
       - name: Restart the app
         run: |
