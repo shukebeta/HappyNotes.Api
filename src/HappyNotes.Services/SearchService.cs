@@ -8,6 +8,7 @@ using HappyNotes.Services.interfaces;
 using Microsoft.Extensions.Configuration;
 using SqlSugar;
 using Api.Framework.Models;
+using HappyNotes.Common;
 using HappyNotes.Entities;
 
 namespace HappyNotes.Services;
@@ -33,6 +34,14 @@ public class SearchService : ISearchService
             ? "SELECT * FROM noteindex WHERE UserId = @userId AND MATCH(@query) AND DeletedAt = 0 LIMIT @offset, @pageSize"
             : "SELECT * FROM noteindex WHERE UserId = @userId AND MATCH(@query) AND DeletedAt > 0 LIMIT @offset, @pageSize";
         var list = await _client.SqlQueryAsync<NoteDto>(sql, new { userId, query, offset, pageSize });
+        // Truncate content in C# if IsLong is true and content is longer than 1024 chars
+        foreach (var note in list)
+        {
+            if (note.IsLong) // Corrected line
+            {
+                note.Content = note.Content.GetShort();
+            }
+        }
 
         var pageData = new PageData<NoteDto>
         {
