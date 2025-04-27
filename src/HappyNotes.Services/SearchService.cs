@@ -56,7 +56,7 @@ public class SearchService : ISearchService
     public async Task SyncNoteToIndexAsync(Note note, string fullContent)
     {
         await _client.ExecuteCommandAsync(
-            "REPLACE INTO noteindex (Id, UserId, IsLong, IsPrivate, IsMarkdown, Content, CreatedAt, UpdatedAt, DeletedAt) VALUES (@id, @userId, @isLong, @isPrivate, @isMarkdown, @content, @createdAt, @updatedAt, @deletedAt)",
+            "REPLACE INTO noteindex (Id, UserId, IsLong, IsPrivate, IsMarkdown, Content, Tags, CreatedAt, UpdatedAt, DeletedAt) VALUES (@id, @userId, @isLong, @isPrivate, @isMarkdown, @content, @tags, @createdAt, @updatedAt, @deletedAt)",
             new
             {
                 note.Id, note.UserId,
@@ -64,6 +64,7 @@ public class SearchService : ISearchService
                 isPrivate = note.IsPrivate ? 1 : 0,
                 isMarkdown = note.IsMarkdown ? 1 : 0,
                 content = fullContent,
+                tags = string.Join(" ", fullContent.GetTags()),
                 note.CreatedAt,
                 updatedAt = note.UpdatedAt ?? 0,
                 deletedAt = note.DeletedAt ?? 0,

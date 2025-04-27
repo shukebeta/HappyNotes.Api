@@ -8,5 +8,6 @@ CREATE TABLE IF NOT EXISTS
         CreatedAt BIGINT,
         UpdatedAt BIGINT,
         DeletedAt BIGINT,
-        Content TEXT
+        Content TEXT,
+        Tags STRING
     ) morphology='stem_en,icu_chinese' charset_table='non_cjk,chinese';
