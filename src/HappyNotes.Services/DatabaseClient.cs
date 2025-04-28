@@ -17,7 +17,7 @@ public class DatabaseClient : IDatabaseClient
         {
             ConnectionString = connectionString,
             DbType = DbType.MySql,
-            IsAutoCloseConnection = true
+            IsAutoCloseConnection = false
         });
     }
 
