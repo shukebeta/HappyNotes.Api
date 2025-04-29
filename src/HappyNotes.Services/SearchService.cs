@@ -24,16 +24,16 @@ public class SearchService : ISearchService
 
     public async Task<PageData<NoteDto>> SearchNotesAsync(long userId, string query, int pageNumber, int pageSize, NoteFilterType filter = NoteFilterType.Normal)
     {
+        var countSql = filter == NoteFilterType.Normal
+            ? "SELECT COUNT(*) FROM noteindex WHERE UserId = @userId AND MATCH(@query) AND DeletedAt = 0"
+            : "SELECT COUNT(*) FROM noteindex WHERE UserId = @userId AND MATCH(@query) AND DeletedAt > 0";
+        var total = await _client.GetIntAsync(countSql, new { userId, query });
+
         var offset = (pageNumber - 1) * pageSize;
         var sql = filter == NoteFilterType.Normal
             ? "SELECT * FROM noteindex WHERE UserId = @userId AND MATCH(@query) AND DeletedAt = 0 ORDER BY CreatedAt DESC LIMIT @offset, @pageSize"
-            : "SELECT * FROM noteindex WHERE UserId = @userId AND MATCH(@query) AND DeletedAt > 0 ORDER BY CreatedAt DESC LIMIT @offset, @pageSize";
+            : "SELECT * FROM noteindex WHERE UserId = @userId AND MATCH(@query) AND DeletedAt > 0 ORDER BY CreatedAT DESC LIMIT @offset, @pageSize";
         var list = await _client.SqlQueryAsync<NoteDto>(sql, new { userId, query, offset, pageSize });
-
-        // Fetch total count from Manticore's metadata
-        var metaSql = "SHOW META LIKE 'total_found'";
-        var total = await _client.GetIntAsync(metaSql, new { });
-
         // Truncate content in C# if IsLong is true and content is longer than 1024 chars
         foreach (var note in list)
         {
