@@ -30,7 +30,9 @@ public class ManticoreSyncIntegrationTests
         mockConfig.Setup(x => x.GetSection("ManticoreConnectionOptions:ConnectionString")).Returns(mockConfigSection.Object);
 
         var databaseClient = new DatabaseClient(mockConfig.Object);
-        _searchService = new SearchService(databaseClient);
+        var httpClient = new HttpClient();
+        var options = new ManticoreConnectionOptions { HttpEndpoint = "http://127.0.0.1:9308" };
+        _searchService = new SearchService(databaseClient, httpClient, options);
         _mockLogger = new Mock<ILogger<ManticoreSyncNoteService>>();
         _syncService = new ManticoreSyncNoteService(_searchService, _mockLogger.Object);
     }

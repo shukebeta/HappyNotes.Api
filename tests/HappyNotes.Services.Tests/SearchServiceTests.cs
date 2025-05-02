@@ -1,5 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Net;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Api.Framework.Models;
 using HappyNotes.Common.Enums;
@@ -8,6 +12,7 @@ using HappyNotes.Entities;
 using HappyNotes.Services;
 using HappyNotes.Services.interfaces;
 using Moq;
+using Moq.Protected;
 using NUnit.Framework;
 
 namespace HappyNotes.Services.Tests;
@@ -17,11 +22,22 @@ public class SearchServiceTests
 {
     private readonly Mock<IDatabaseClient> _mockDatabaseClient;
     private readonly SearchService _searchService;
+    private readonly Mock<HttpMessageHandler> _mockHandler;
 
     public SearchServiceTests()
     {
         _mockDatabaseClient = new Mock<IDatabaseClient>();
-        _searchService = new SearchService(_mockDatabaseClient.Object);
+        _mockHandler = new Mock<HttpMessageHandler>();
+        _mockHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent("{\"took\":0,\"timed_out\":false,\"hits\":{\"total\":0,\"hits\":[]}}")
+            });
+        var httpClient = new HttpClient(_mockHandler.Object);
+        var options = new ManticoreConnectionOptions { HttpEndpoint = "http://127.0.0.1:9308" };
+        _searchService = new SearchService(_mockDatabaseClient.Object, httpClient, options);
     }
 
     [SetUp]
@@ -29,6 +45,13 @@ public class SearchServiceTests
     {
         // Reset mock invocations before each test to avoid cross-test interference.
         _mockDatabaseClient.Reset();
+        _mockHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent("{\"took\":0,\"timed_out\":false,\"hits\":{\"total\":0,\"hits\":[]}}")
+            });
     }
 
     [Test]
@@ -42,20 +65,18 @@ public class SearchServiceTests
         NoteFilterType filter = NoteFilterType.Normal;
         var expectedNotes = new List<NoteDto>
         {
-            new NoteDto { Id = 1, UserId = 1, Content = "Test note 1" },
-            new NoteDto { Id = 2, UserId = 1, Content = "Test note 2" }
+            new NoteDto { Id = 1, UserId = 1, Content = "Test note 1", UpdatedAt = 0, DeletedAt = 0, },
+            new NoteDto { Id = 2, UserId = 1, Content = "Test note 2", UpdatedAt = 0, DeletedAt = 0, }
         };
         int expectedTotal = 2;
 
-        _mockDatabaseClient.Setup(client => client.SqlQueryAsync<NoteDto>(
-            It.Is<string>(sql => sql.Contains("DeletedAt = 0")),
-            It.Is<object>(param => param.ToString().Contains(userId.ToString()) && param.ToString().Contains(query))))
-            .ReturnsAsync(expectedNotes);
-
-        _mockDatabaseClient.Setup(client => client.GetIntAsync(
-            It.Is<string>(sql => sql.Contains("COUNT(*)") && sql.Contains("DeletedAt = 0")),
-            It.Is<object>(param => param.ToString().Contains(userId.ToString()) && param.ToString().Contains(query))))
-            .ReturnsAsync(expectedTotal);
+        _mockHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent("{\"took\":0,\"timed_out\":false,\"hits\":{\"total\":2,\"hits\":[{\"_id\":1,\"_source\":{\"id\":1,\"userid\":1,\"content\":\"Test note 1\"}},{\"_id\":2,\"_source\":{\"id\":2,\"userid\":1,\"content\":\"Test note 2\"}}]}}")
+            });
 
         // Act
         var result = await _searchService.SearchNotesAsync(userId, query, pageNumber, pageSize, filter);
@@ -63,10 +84,12 @@ public class SearchServiceTests
         // Assert
         Assert.IsNotNull(result);
         Assert.IsInstanceOf<PageData<NoteDto>>(result);
-        Assert.AreEqual(expectedNotes, result.DataList);
-        Assert.AreEqual(expectedTotal, result.TotalCount);
-        Assert.AreEqual(pageNumber, result.PageIndex);
-        Assert.AreEqual(pageSize, result.PageSize);
+        var expectedJson = JsonSerializer.Serialize(expectedNotes);
+        var actualJson = JsonSerializer.Serialize(result.DataList);
+        Assert.That(actualJson, Is.EqualTo(expectedJson));
+        Assert.That(result.TotalCount, Is.EqualTo(expectedTotal));
+        Assert.That(result.PageIndex, Is.EqualTo(pageNumber));
+        Assert.That(result.PageSize, Is.EqualTo(pageSize));
     }
 
     [Test]
@@ -80,19 +103,17 @@ public class SearchServiceTests
         NoteFilterType filter = NoteFilterType.Deleted;
         var expectedNotes = new List<NoteDto>
         {
-            new NoteDto { Id = 3, UserId = 1, Content = "Deleted note 1" }
+            new NoteDto { Id = 3, UserId = 1, Content = "Deleted note 1", DeletedAt = 0, UpdatedAt = 0, }
         };
         int expectedTotal = 1;
 
-        _mockDatabaseClient.Setup(client => client.SqlQueryAsync<NoteDto>(
-            It.Is<string>(sql => sql.Contains("DeletedAt > 0")),
-            It.Is<object>(param => param.ToString().Contains(userId.ToString()) && param.ToString().Contains(query))))
-            .ReturnsAsync(expectedNotes);
-
-        _mockDatabaseClient.Setup(client => client.GetIntAsync(
-            It.Is<string>(sql => sql.Contains("COUNT(*)") && sql.Contains("DeletedAt > 0")),
-            It.Is<object>(param => param.ToString().Contains(userId.ToString()) && param.ToString().Contains(query))))
-            .ReturnsAsync(expectedTotal);
+        _mockHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent("{\"took\":0,\"timed_out\":false,\"hits\":{\"total\":1,\"hits\":[{\"_id\":3,\"_source\":{\"id\":3,\"userid\":1,\"content\":\"Deleted note 1\"}}]}}")
+            });
 
         // Act
         var result = await _searchService.SearchNotesAsync(userId, query, pageNumber, pageSize, filter);
@@ -100,8 +121,10 @@ public class SearchServiceTests
         // Assert
         Assert.IsNotNull(result);
         Assert.IsInstanceOf<PageData<NoteDto>>(result);
-        Assert.AreEqual(expectedNotes, result.DataList);
-        Assert.AreEqual(expectedTotal, result.TotalCount);
+        var expectedJson = JsonSerializer.Serialize(expectedNotes);
+        var actualJson = JsonSerializer.Serialize(result.DataList);
+        Assert.That(actualJson, Is.EqualTo(expectedJson));
+        Assert.That(result.TotalCount, Is.EqualTo(expectedTotal));
     }
 
     [Test]
@@ -116,15 +139,13 @@ public class SearchServiceTests
         var expectedNotes = new List<NoteDto>();
         int expectedTotal = 0;
 
-        _mockDatabaseClient.Setup(client => client.SqlQueryAsync<NoteDto>(
-            It.IsAny<string>(),
-            It.IsAny<object>()))
-            .ReturnsAsync(expectedNotes);
-
-        _mockDatabaseClient.Setup(client => client.GetIntAsync(
-            It.IsAny<string>(),
-            It.IsAny<object>()))
-            .ReturnsAsync(expectedTotal);
+        _mockHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent("{\"took\":0,\"timed_out\":false,\"hits\":{\"total\":0,\"hits\":[]}}")
+            });
 
         // Act
         var result = await _searchService.SearchNotesAsync(userId, query, pageNumber, pageSize, filter);
