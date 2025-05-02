@@ -150,7 +150,7 @@ public class SearchService : ISearchService
             },
             { "limit", pageSize },
             { "offset", (pageNumber - 1) * pageSize },
-            { "sort", new List<object> { new Dictionary<string, string> { { "CreatedAt", "desc" } } } }
+            { "sort", new List<object> { "_score", new Dictionary<string, string> { { "CreatedAt", "desc" } } } }
         };
     }
 }
