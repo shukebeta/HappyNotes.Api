@@ -13,6 +13,7 @@ namespace HappyNotes.Services.Tests;
 // These integration tests are marked as manual to prevent CI failures on GitHub.
 // They require a running Manticore Search instance at 127.0.0.1:9306 and should be run locally.
 [TestFixture]
+[Explicit("Manual test - requires local Manticore instance at 127.0.0.1:9306")]
 public class ManticoreSyncIntegrationTests
 {
     private readonly ManticoreSyncNoteService _syncService;
@@ -31,14 +32,13 @@ public class ManticoreSyncIntegrationTests
 
         var databaseClient = new DatabaseClient(mockConfig.Object);
         var httpClient = new HttpClient();
-        var options = new ManticoreConnectionOptions { HttpEndpoint = "http://127.0.0.1:9308" };
+        var options = new ManticoreConnectionOptions { HttpEndpoint = "http://127.0.0.1:9312" };
         _searchService = new SearchService(databaseClient, httpClient, options);
         _mockLogger = new Mock<ILogger<ManticoreSyncNoteService>>();
         _syncService = new ManticoreSyncNoteService(_searchService, _mockLogger.Object);
     }
 
     [Test]
-    [Ignore("Manual test - requires local Manticore instance at 127.0.0.1:9306")]
     public async Task SyncNewNote_ValidNote_SyncsToIndex()
     {
         // Arrange
@@ -72,7 +72,6 @@ public class ManticoreSyncIntegrationTests
     }
 
     [Test]
-    [Ignore("Manual test - requires local Manticore instance at 127.0.0.1:9306")]
     public async Task SyncEditNote_ExistingNote_UpdatesIndex()
     {
         // Arrange
@@ -104,7 +103,6 @@ public class ManticoreSyncIntegrationTests
     }
 
     [Test]
-    [Ignore("Manual test - requires local Manticore instance at 127.0.0.1:9306")]
     public async Task SyncDeleteNote_ExistingNote_MarksAsDeleted()
     {
         // Arrange
@@ -135,7 +133,6 @@ public class ManticoreSyncIntegrationTests
     }
 
     [Test]
-    [Ignore("Manual test - requires local Manticore instance at 127.0.0.1:9306")]
     public async Task SyncUndeleteNote_DeletedNote_RestoresInIndex()
     {
         // Arrange
@@ -166,7 +163,6 @@ public class ManticoreSyncIntegrationTests
     }
 
     [Test]
-    [Ignore("Manual test - requires local Manticore instance at 127.0.0.1:9306")]
     public async Task PurgeDeletedNotes_MultipleDeletedNotes_RemovesFromIndex()
     {
         // Act
@@ -183,7 +179,6 @@ public class ManticoreSyncIntegrationTests
     }
 
     [Test]
-    [Ignore("Manual test - requires local Manticore instance at 127.0.0.1:9306")]
     public async Task SyncNewNote_ManticoreUnavailable_LogsError()
     {
         // Arrange
