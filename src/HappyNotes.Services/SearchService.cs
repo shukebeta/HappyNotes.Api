@@ -10,30 +10,61 @@ using SqlSugar;
 using Api.Framework.Models;
 using HappyNotes.Common;
 using HappyNotes.Entities;
+using HappyNotes.Models.Search;
 
 namespace HappyNotes.Services;
 
 public class SearchService : ISearchService
 {
     private readonly IDatabaseClient _client;
+    private readonly HttpClient _httpClient;
 
-    public SearchService(IDatabaseClient client)
+    public SearchService(IDatabaseClient client, HttpClient httpClient, ManticoreConnectionOptions options)
     {
         _client = client;
+        _httpClient = httpClient;
+        _httpClient.BaseAddress = new Uri(options.HttpEndpoint);
+        _httpClient.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
     }
 
     public async Task<PageData<NoteDto>> SearchNotesAsync(long userId, string query, int pageNumber, int pageSize, NoteFilterType filter = NoteFilterType.Normal)
     {
-        var countSql = filter == NoteFilterType.Normal
-            ? "SELECT COUNT(*) FROM noteindex WHERE UserId = @userId AND MATCH(@query) AND DeletedAt = 0"
-            : "SELECT COUNT(*) FROM noteindex WHERE UserId = @userId AND MATCH(@query) AND DeletedAt > 0";
-        var total = await _client.GetIntAsync(countSql, new { userId, query });
+        var queryObject = _BuildNoteSearchQuery(userId, query, filter, pageSize, pageNumber);
 
-        var offset = (pageNumber - 1) * pageSize;
-        var sql = filter == NoteFilterType.Normal
-            ? "SELECT * FROM noteindex WHERE UserId = @userId AND MATCH(@query) AND DeletedAt = 0 ORDER BY CreatedAt DESC LIMIT @offset, @pageSize"
-            : "SELECT * FROM noteindex WHERE UserId = @userId AND MATCH(@query) AND DeletedAt > 0 ORDER BY CreatedAT DESC LIMIT @offset, @pageSize";
-        var list = await _client.SqlQueryAsync<NoteDto>(sql, new { userId, query, offset, pageSize });
+        var content = new StringContent(System.Text.Json.JsonSerializer.Serialize(queryObject), System.Text.Encoding.UTF8, "application/json");
+        var response = await _httpClient.PostAsync("json/search", content);
+        response.EnsureSuccessStatusCode();
+
+        var responseContent = await response.Content.ReadAsStringAsync();
+        // Log the raw response for debugging
+        Console.WriteLine("ManticoreSearch Response: " + responseContent);
+
+        var searchResult = System.Text.Json.JsonSerializer.Deserialize<ManticoreSearchResult>(responseContent);
+
+        var total = searchResult?.hits?.total ?? 0;
+        var list = new List<NoteDto>();
+        if (searchResult?.hits?.hits != null)
+        {
+            foreach (var hit in searchResult.hits.hits)
+            {
+                if (hit?._source != null)
+                {
+                    list.Add(new NoteDto
+                    {
+                        Id = hit._id,
+                        UserId = hit._source.userid,
+                        Content = hit._source.content ?? string.Empty,
+                        IsLong = hit._source.islong == 1,
+                        IsPrivate = hit._source.isprivate == 1,
+                        IsMarkdown = hit._source.ismarkdown == 1,
+                        CreatedAt = hit._source.createdat,
+                        UpdatedAt = hit._source.updatedat,
+                        DeletedAt = hit._source.deletedat
+                    });
+                }
+            }
+        }
+
         // Truncate content in C# if IsLong is true and content is longer than 1024 chars
         foreach (var note in list)
         {
@@ -46,7 +77,7 @@ public class SearchService : ISearchService
         var pageData = new PageData<NoteDto>
         {
             DataList = list,
-            TotalCount = total,
+            TotalCount = (int)total,
             PageIndex = pageNumber,
             PageSize = pageSize
         };
@@ -89,8 +120,37 @@ public class SearchService : ISearchService
                 id
             });
     }
-public async Task PurgeDeletedNotesFromIndexAsync()
+
+    public async Task PurgeDeletedNotesFromIndexAsync()
     {
         await _client.ExecuteCommandAsync("DELETE FROM noteindex WHERE deletedAt > 0", new { });
+    }
+
+    private static Dictionary<string, object> _BuildNoteSearchQuery(long userId, string query, NoteFilterType filter, int pageSize, int pageNumber)
+    {
+        return new Dictionary<string, object>
+        {
+            { "table", "noteindex" },
+            { "query", new Dictionary<string, object>
+                {
+                    { "bool", new Dictionary<string, object>
+                        {
+                            { "must", new List<object>
+                                {
+                                    new Dictionary<string, object> { { "match", new Dictionary<string, string> { { "Content", query } } } },
+                                    new Dictionary<string, object> { { "equals", new Dictionary<string, long> { { "UserId", userId } } } },
+                                    filter == NoteFilterType.Normal
+                                        ? (object)new Dictionary<string, object> { { "equals", new Dictionary<string, long> { { "DeletedAt", 0 } } } }
+                                        : new Dictionary<string, object> { { "range", new Dictionary<string, object> { { "DeletedAt", new Dictionary<string, long> { { "gt", 0 } } } } } }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            { "limit", pageSize },
+            { "offset", (pageNumber - 1) * pageSize },
+            { "sort", new List<object> { new Dictionary<string, string> { { "CreatedAt", "desc" } } } }
+        };
     }
 }

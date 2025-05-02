@@ -45,6 +45,8 @@ builder.Services.AddSingleton(typeof(ILogger<>), typeof(Logger<>));
 builder.Services.AddSqlSugarSetup(builder.Configuration.GetSection("DatabaseConnectionOptions")
     .Get<DatabaseConnectionOptions>()!, logger);
 
+builder.Services.AddSingleton<HappyNotes.Services.ManticoreConnectionOptions>(builder.Configuration.GetSection("ManticoreConnectionOptions").Get<HappyNotes.Services.ManticoreConnectionOptions>()!);
+
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.AddCors(SetupCors(builder));
