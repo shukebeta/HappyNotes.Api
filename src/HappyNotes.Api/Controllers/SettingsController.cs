@@ -2,11 +2,10 @@ using Api.Framework;
 using Api.Framework.Extensions;
 using Api.Framework.Result;
 using AutoMapper;
+using HappyNotes.Common;
 using HappyNotes.Common.Enums;
 using HappyNotes.Dto;
 using HappyNotes.Entities;
-using HappyNotes.Extensions;
-using HappyNotes.Services;
 using HappyNotes.Services.interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -31,7 +30,7 @@ public class SettingsController(
                 userSettingDict[setting.SettingName] = setting.SettingValue;
             }
 
-            settings = userSettingDict.Select(kvp => new UserSettings()
+            settings = userSettingDict.Select(kvp => new UserSettings
             {
                 UserId = userId,
                 SettingName = kvp.Key,
@@ -81,7 +80,7 @@ public class SettingsController(
     private async Task<bool> _UpdateSetting(long userId, string settingName, string settingValue, long timestamp)
     {
         var result = await userSettingsRepository.UpdateAsync(
-            it => new UserSettings()
+            it => new UserSettings
             {
                 SettingValue = settingValue,
                 UpdatedAt = timestamp,
@@ -92,7 +91,7 @@ public class SettingsController(
 
     private async Task<bool> _InsertSetting(long userId, string settingName, string settingValue, long timestamp)
     {
-        var settings = new UserSettings()
+        var settings = new UserSettings
         {
             UserId = userId,
             SettingName = settingName,

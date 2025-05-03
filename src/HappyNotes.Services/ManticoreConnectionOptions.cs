@@ -1,5 +1,3 @@
-using System;
-
 namespace HappyNotes.Services
 {
     public class ManticoreConnectionOptions

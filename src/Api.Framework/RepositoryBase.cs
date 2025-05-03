@@ -188,7 +188,7 @@ public class RepositoryBase<TEntity>(ISqlSugarClient dbClient) : IRepositoryBase
         return await db.Queryable<TEntity>().In(ids).ToListAsync();
     }
 
-    public virtual async Task<TEntity?> GetFirstOrDefaultAsync(Expression<Func<TEntity, bool>>? @where, string? orderBy = null)
+    public virtual async Task<TEntity?> GetFirstOrDefaultAsync(Expression<Func<TEntity, bool>>? where, string? orderBy = null)
     {
         var queryAble = db.Queryable<TEntity>().WhereIF(null != where, where);
         if (null != orderBy)

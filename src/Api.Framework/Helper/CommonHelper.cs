@@ -45,7 +45,7 @@ public static class CommonHelper
     public static (string salt, string password) GetSaltedPassword(string plainPassword)
     {
         var salt = SaltGenerator.GenerateSaltString(64);
-        var password = CommonHelper.CalculateSha256Hash(plainPassword + salt);
+        var password = CalculateSha256Hash(plainPassword + salt);
         return (salt, password);
     }
 }

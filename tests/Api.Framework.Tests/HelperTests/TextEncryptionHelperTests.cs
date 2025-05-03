@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Api.Framework.Helper;
 
 namespace Api.Framework.Tests.HelperTests;
@@ -27,7 +28,7 @@ public class TextEncryptionHelperTests
     public void Decrypt_WithWrongKey_ShouldThrowException()
     {
         var encryptedText = TextEncryptionHelper.Encrypt(TestPlainText, TestKey);
-        Assert.Throws<System.Security.Cryptography.CryptographicException>(
+        Assert.Throws<CryptographicException>(
             () => TextEncryptionHelper.Decrypt(encryptedText, "wrong_key"),
             "Decrypting with the wrong key should throw an exception.");
     }
@@ -36,7 +37,7 @@ public class TextEncryptionHelperTests
     public void EncryptDecrypt_WithDifferentKeys_ShouldNotReturnOriginalString()
     {
         var encryptedText = TextEncryptionHelper.Encrypt(TestPlainText, TestKey);
-        Assert.Throws<System.Security.Cryptography.CryptographicException>(() =>
+        Assert.Throws<CryptographicException>(() =>
             TextEncryptionHelper.Decrypt(encryptedText, "different_key"));
     }
 }

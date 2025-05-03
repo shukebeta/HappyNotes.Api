@@ -16,7 +16,7 @@ public class NoteTagService(
         {
             if (await noteTagRepository.GetFirstOrDefaultAsync(t =>
                     t.NoteId == note.Id && t.Tag.Equals(tag.ToLower())) == null)
-                await noteTagRepository.InsertAsync(new NoteTag()
+                await noteTagRepository.InsertAsync(new NoteTag
                 {
                     NoteId = note.Id,
                     UserId = note.UserId,
@@ -39,7 +39,7 @@ public class NoteTagService(
         return await noteTagRepository.db.Queryable<NoteTag>().InnerJoin<Note>((nt, n) => nt.NoteId == n.Id)
             .Where((nt, n) => nt.UserId == userId && n.DeletedAt == null)
             .GroupBy(nt => nt.Tag)
-            .Select(nt => new TagCount()
+            .Select(nt => new TagCount
             {
                 Tag = nt.Tag,
                 Count = SqlFunc.AggregateCount(nt.Tag)

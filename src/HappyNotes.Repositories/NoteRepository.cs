@@ -64,7 +64,7 @@ public class NoteRepository(ISqlSugarClient dbClient) : RepositoryBase<Note>(dbC
                 t.Tag.Equals($"@{noteId}") &&
                 n.DeletedAt == null &&
                 (t.UserId == userId || n.IsPrivate == false),
-            n => n.CreatedAt, true);
+            n => n.CreatedAt);
     }
 
     private async Task<PageData<Note>> _GetPageDataAsync(int pageSize = 20, int pageNumber = 1,

@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
-using HappyNotes.Models;
+using System.Text.Json;
 using Api.Framework.Helper;
+using HappyNotes.Models;
 
 namespace HappyNotes.Services;
 
@@ -31,14 +32,14 @@ public static class DuplicateRequestChecker
 
         if (RecentRequests.TryGetValue(userId, out var lastRequest))
         {
-            var contentHash = CommonHelper.CalculateMd5Hash(System.Text.Json.JsonSerializer.Serialize(request));
+            var contentHash = CommonHelper.CalculateMd5Hash(JsonSerializer.Serialize(request));
             if ((now - lastRequest.Timestamp).TotalMilliseconds < TimeThresholdInMilliseconds && lastRequest.Hash == contentHash)
             {
                 return true;
             }
         }
 
-        var newContentHash = CommonHelper.CalculateMd5Hash(System.Text.Json.JsonSerializer.Serialize(request));
+        var newContentHash = CommonHelper.CalculateMd5Hash(JsonSerializer.Serialize(request));
         RecentRequests[userId] = (now, newContentHash);
         return false;
     }

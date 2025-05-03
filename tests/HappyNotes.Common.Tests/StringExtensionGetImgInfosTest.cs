@@ -2,9 +2,6 @@ using HappyNotes.Common;
 
 namespace HappyNotes.Extensions.Tests;
 
-using NUnit.Framework;
-using System.Collections.Generic;
-
 [TestFixture]
 public class StringExtensionGetImgInfosTest
 {

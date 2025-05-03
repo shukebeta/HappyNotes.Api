@@ -1,8 +1,6 @@
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using HappyNotes.Dto;
 using Api.Framework.Models;
 using HappyNotes.Common.Enums;
+using HappyNotes.Dto;
 using HappyNotes.Entities;
 
 namespace HappyNotes.Services.interfaces;

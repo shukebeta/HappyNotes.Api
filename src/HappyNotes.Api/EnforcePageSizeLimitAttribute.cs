@@ -1,6 +1,6 @@
-namespace HappyNotes.Api;
-
 using Microsoft.AspNetCore.Mvc.Filters;
+
+namespace HappyNotes.Api;
 
 public class EnforcePageSizeLimitAttribute(int maxPageSize) : ActionFilterAttribute
 {

@@ -1,8 +1,8 @@
 using Api.Framework.Result;
 using AutoMapper;
+using HappyNotes.Common;
 using HappyNotes.Common.Enums;
 using HappyNotes.Dto;
-using HappyNotes.Extensions;
 using HappyNotes.Models;
 using HappyNotes.Services;
 using HappyNotes.Services.interfaces;

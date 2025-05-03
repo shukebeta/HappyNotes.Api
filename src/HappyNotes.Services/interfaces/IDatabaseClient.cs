@@ -1,6 +1,3 @@
-using System.Collections.Generic;
-using System.Threading.Tasks;
-
 namespace HappyNotes.Services.interfaces;
 
 public interface IDatabaseClient

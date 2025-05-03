@@ -1,10 +1,9 @@
 using Api.Framework;
-using Api.Framework.Exceptions;
 using Api.Framework.Extensions;
 using Api.Framework.Helper;
+using HappyNotes.Common;
 using HappyNotes.Common.Enums;
 using HappyNotes.Entities;
-using HappyNotes.Extensions;
 using HappyNotes.Services.interfaces;
 
 namespace HappyNotes.Services;

@@ -4,7 +4,6 @@ using Api.Framework.Models;
 using Api.Framework.Result;
 using HappyNotes.Common.Enums;
 using HappyNotes.Entities;
-using HappyNotes.Services;
 using HappyNotes.Services.interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -96,7 +95,7 @@ public class MastodonAuthController(
             var tokenResponse = JsonConvert.DeserializeObject<TokenResponse>(jsonResponse);
             if (tokenResponse != null)
             {
-                var mastodonUserAccount = new MastodonUserAccount()
+                var mastodonUserAccount = new MastodonUserAccount
                 {
                     UserId = userId,
                     InstanceUrl = instanceUrl,

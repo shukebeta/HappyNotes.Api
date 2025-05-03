@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Api.Framework;
 using Api.Framework.Database;
+using Api.Framework.Exceptions;
 using Api.Framework.Extensions;
 using Api.Framework.Models;
 using HappyNotes.Api;
@@ -45,7 +46,7 @@ builder.Services.AddSingleton(typeof(ILogger<>), typeof(Logger<>));
 builder.Services.AddSqlSugarSetup(builder.Configuration.GetSection("DatabaseConnectionOptions")
     .Get<DatabaseConnectionOptions>()!, logger);
 
-builder.Services.AddSingleton<HappyNotes.Services.ManticoreConnectionOptions>(builder.Configuration.GetSection("ManticoreConnectionOptions").Get<HappyNotes.Services.ManticoreConnectionOptions>()!);
+builder.Services.AddSingleton(builder.Configuration.GetSection("ManticoreConnectionOptions").Get<ManticoreConnectionOptions>()!);
 
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
@@ -113,7 +114,7 @@ Action<SwaggerGenOptions> SetupSwaggerGen()
             Title = "Happy Notes API",
             Version = "v1"
         });
-        c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme()
+        c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
         {
             Name = "Authorization",
             Type = SecuritySchemeType.ApiKey,

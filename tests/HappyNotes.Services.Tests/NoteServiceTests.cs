@@ -2,14 +2,14 @@ using Api.Framework;
 using Api.Framework.Exceptions;
 using Api.Framework.Extensions;
 using Api.Framework.Models;
+using AutoMapper;
+using HappyNotes.Common;
 using HappyNotes.Entities;
 using HappyNotes.Models;
+using HappyNotes.Repositories.interfaces;
 using HappyNotes.Services.interfaces;
 using Microsoft.Extensions.Logging;
 using Moq;
-using AutoMapper;
-using HappyNotes.Repositories.interfaces;
-using HappyNotes.Common;
 using EventId = HappyNotes.Common.Enums.EventId;
 
 namespace HappyNotes.Services.Tests;

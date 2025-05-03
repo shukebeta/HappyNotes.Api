@@ -1,19 +1,12 @@
-using System;
-using System.Collections.Generic;
 using System.Net;
-using System.Net.Http;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using Api.Framework.Models;
 using HappyNotes.Common.Enums;
 using HappyNotes.Dto;
 using HappyNotes.Entities;
-using HappyNotes.Services;
 using HappyNotes.Services.interfaces;
 using Moq;
 using Moq.Protected;
-using NUnit.Framework;
 
 namespace HappyNotes.Services.Tests;
 

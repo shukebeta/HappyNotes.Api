@@ -8,6 +8,7 @@ using HappyNotes.Repositories.interfaces;
 using HappyNotes.Services.interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Telegram.Bot.Exceptions;
 
 namespace HappyNotes.Services;
 
@@ -39,7 +40,7 @@ public class TelegramSyncNoteService(
                     foreach (var channelId in toSyncChannelIds)
                     {
                         var messageId = await _SentNoteToChannel(note, fullContent, token, channelId);
-                        syncedChannels.Add(new SyncedTelegramChannel()
+                        syncedChannels.Add(new SyncedTelegramChannel
                         {
                             ChannelId = channelId,
                             MessageId = messageId,
@@ -93,7 +94,7 @@ public class TelegramSyncNoteService(
                             await telegramService.EditMessageAsync(token, channelId, channel.MessageId, fullContent,
                                 note.IsMarkdown);
                         }
-                        catch (Telegram.Bot.Exceptions.ApiRequestException ex)
+                        catch (ApiRequestException ex)
                         {
                             logger.LogError(ex.ToString());
                             if (note.IsMarkdown)
@@ -105,7 +106,7 @@ public class TelegramSyncNoteService(
                         }
                         finally
                         {
-                            syncedChannels.Add(new SyncedTelegramChannel()
+                            syncedChannels.Add(new SyncedTelegramChannel
                             {
                                 ChannelId = channelId,
                                 MessageId = channel.MessageId,
@@ -141,7 +142,7 @@ public class TelegramSyncNoteService(
             var token = TextEncryptionHelper.Decrypt(setting.EncryptedToken,
                 TokenKey);
             var messageId = await _SentNoteToChannel(note, fullContent, token, channelId);
-            syncedChannels.Add(new SyncedTelegramChannel()
+            syncedChannels.Add(new SyncedTelegramChannel
             {
                 ChannelId = channelId,
                 MessageId = messageId,
@@ -149,7 +150,7 @@ public class TelegramSyncNoteService(
         }
 
         note.UpdateTelegramMessageIds(syncedChannels);
-        await noteRepository.UpdateAsync(_ => new Note()
+        await noteRepository.UpdateAsync(_ => new Note
         {
             TelegramMessageIds = note.TelegramMessageIds,
         }, where => where.Id == note.Id);
@@ -312,7 +313,7 @@ public class TelegramSyncNoteService(
         {
             await telegramService.DeleteMessageAsync(token, telegramChannel.ChannelId, telegramChannel.MessageId);
         }
-        catch (Telegram.Bot.Exceptions.ApiRequestException ex)
+        catch (ApiRequestException ex)
         {
             logger.LogError(ex.ToString());
         }
@@ -324,7 +325,7 @@ public class TelegramSyncNoteService(
         return note.TelegramMessageIds.Split(",").Select(s =>
         {
             var sync = s.Split(":");
-            return new SyncedTelegramChannel()
+            return new SyncedTelegramChannel
             {
                 ChannelId = sync[0],
                 MessageId = int.TryParse(sync[1], out var messageId) ? messageId : 0,

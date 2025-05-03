@@ -1,16 +1,14 @@
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
 using Api.Framework.Extensions;
-using HappyNotes.Common.Enums;
-using HappyNotes.Dto;
-using HappyNotes.Services.interfaces;
-using Microsoft.Extensions.Configuration;
-using SqlSugar;
 using Api.Framework.Models;
 using HappyNotes.Common;
+using HappyNotes.Common.Enums;
+using HappyNotes.Dto;
 using HappyNotes.Entities;
 using HappyNotes.Models.Search;
+using HappyNotes.Services.interfaces;
 
 namespace HappyNotes.Services;
 
@@ -24,14 +22,14 @@ public class SearchService : ISearchService
         _client = client;
         _httpClient = httpClient;
         _httpClient.BaseAddress = new Uri(options.HttpEndpoint);
-        _httpClient.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+        _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
     }
 
     public async Task<PageData<NoteDto>> SearchNotesAsync(long userId, string query, int pageNumber, int pageSize, NoteFilterType filter = NoteFilterType.Normal)
     {
         var queryObject = _BuildNoteSearchQuery(userId, query, filter, pageSize, pageNumber);
 
-        var content = new StringContent(System.Text.Json.JsonSerializer.Serialize(queryObject), System.Text.Encoding.UTF8, "application/json");
+        var content = new StringContent(JsonSerializer.Serialize(queryObject), Encoding.UTF8, "application/json");
         var response = await _httpClient.PostAsync("json/search", content);
         response.EnsureSuccessStatusCode();
 
@@ -39,7 +37,7 @@ public class SearchService : ISearchService
         // Log the raw response for debugging
         Console.WriteLine("ManticoreSearch Response: " + responseContent);
 
-        var searchResult = System.Text.Json.JsonSerializer.Deserialize<ManticoreSearchResult>(responseContent);
+        var searchResult = JsonSerializer.Deserialize<ManticoreSearchResult>(responseContent);
 
         var total = searchResult?.hits?.total ?? 0;
         var list = new List<NoteDto>();

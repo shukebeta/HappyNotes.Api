@@ -5,7 +5,6 @@ using Api.Framework.Models;
 using AutoMapper;
 using HappyNotes.Common;
 using HappyNotes.Entities;
-using HappyNotes.Extensions;
 using HappyNotes.Models;
 using HappyNotes.Repositories.interfaces;
 using HappyNotes.Services.interfaces;

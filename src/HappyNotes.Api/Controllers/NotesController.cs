@@ -1,10 +1,9 @@
 using Api.Framework.Models;
 using Api.Framework.Result;
-using HappyNotes.Common.Enums;
 using AutoMapper;
 using HappyNotes.Common;
+using HappyNotes.Common.Enums;
 using HappyNotes.Dto;
-using HappyNotes.Services;
 using HappyNotes.Services.interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

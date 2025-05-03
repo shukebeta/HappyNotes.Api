@@ -2,8 +2,6 @@ using Api.Framework.Result;
 
 namespace Api.Framework.Exceptions;
 
-using System;
-
 public class CustomException<T>(Exception? innerException = default)
     : Exception("A custom exception happened", innerException)
 {

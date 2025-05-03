@@ -1,9 +1,9 @@
 using Api.Framework.Exceptions;
+using Api.Framework.Extensions;
 using Api.Framework.Helper;
-using HappyNotes.Common;
 using HappyNotes.Common.Enums;
 
-namespace HappyNotes.Extensions;
+namespace HappyNotes.Common;
 
 public static class ExceptionHelper
 {

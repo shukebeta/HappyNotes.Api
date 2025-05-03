@@ -1,12 +1,7 @@
-using System;
-using System.Threading.Tasks;
 using HappyNotes.Entities;
-using HappyNotes.Services;
-using HappyNotes.Services.interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
-using NUnit.Framework;
 
 namespace HappyNotes.Services.Tests;
 

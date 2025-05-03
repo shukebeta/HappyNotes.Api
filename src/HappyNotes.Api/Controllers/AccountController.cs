@@ -1,5 +1,4 @@
-﻿using System.Security.Claims;
-using Api.Framework;
+﻿using Api.Framework;
 using Api.Framework.Extensions;
 using Api.Framework.Helper;
 using Api.Framework.Models;
@@ -34,7 +33,7 @@ namespace HappyNotes.Api.Controllers
         [HttpPost]
         public SuccessfulResult<JwtToken> RefreshToken()
         {
-            var claims = _GetClaims(currentUser.Id, currentUser.Username, currentUser.Email);
+            var claims = TokenHelper.ClaimsGenerator(currentUser.Id, currentUser.Username, currentUser.Email);
 
             var token = TokenHelper.JwtTokenGenerator(claims, _jwtConfig.Issuer, _jwtConfig.SymmetricSecurityKey, TokenExpiresInDays);
             return new SuccessfulResult<JwtToken>(new JwtToken {Token = token,});
@@ -72,7 +71,7 @@ namespace HappyNotes.Api.Controllers
             }
 
             var (salt, password) = CommonHelper.GetSaltedPassword(request.Password);
-            var newUser = new User()
+            var newUser = new User
             {
                 Username = request.Username,
                 Email = request.Email,
@@ -84,7 +83,7 @@ namespace HappyNotes.Api.Controllers
 
             var id = await userRepository.InsertReturnIdentityAsync(newUser);
 
-            var claims = _GetClaims(id, request.Username, request.Email);
+            var claims = TokenHelper.ClaimsGenerator(id, request.Username, request.Email);
             var jwtToken = TokenHelper.JwtTokenGenerator(claims, _jwtConfig.Issuer, _jwtConfig.SymmetricSecurityKey, TokenExpiresInDays);
 
             return new SuccessfulResult<JwtToken>(new JwtToken {Token = jwtToken,});
@@ -118,7 +117,7 @@ namespace HappyNotes.Api.Controllers
                 throw new Exception("Sorry, your account has been deleted");
             }
 
-            var claims = _GetClaims(user.Id, user.Username, user.Email);
+            var claims = TokenHelper.ClaimsGenerator(user.Id, user.Username, user.Email);
             var jwtToken = TokenHelper.JwtTokenGenerator(claims, _jwtConfig.Issuer, _jwtConfig.SymmetricSecurityKey, TokenExpiresInDays);
 
             return new SuccessfulResult<JwtToken>(new JwtToken {Token = jwtToken,});
@@ -154,17 +153,6 @@ namespace HappyNotes.Api.Controllers
             return success
                 ? Success("Password changed successfully")
                 : Fail( "Failed to change password. Current password may be incorrect.");
-        }
-
-        private static Claim[] _GetClaims(long id, string username, string email)
-        {
-            var claims = new Claim[]
-            {
-                new(ClaimTypes.Name, username),
-                new(ClaimTypes.Email, email),
-                new(ClaimTypes.NameIdentifier, id.ToString()),
-            };
-            return claims;
         }
     }
 }

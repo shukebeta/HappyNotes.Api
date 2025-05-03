@@ -8,7 +8,6 @@ using HappyNotes.Common;
 using HappyNotes.Common.Enums;
 using HappyNotes.Dto;
 using HappyNotes.Entities;
-using HappyNotes.Services;
 using HappyNotes.Services.interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -49,7 +48,7 @@ public class TelegramSettingsController(
 
         // todo: more verification before inserting the settings
         var now = DateTime.UtcNow.ToUnixTimeSeconds();
-        var settings = new TelegramSettings()
+        var settings = new TelegramSettings
         {
             UserId = userId,
             SyncType = settingsDto.SyncType,
@@ -164,11 +163,11 @@ public class TelegramSettingsController(
 
         if (existingSetting == null)
         {
-            throw new Exception( $"Could find this setting.");
+            throw new Exception( "Could find this setting.");
         }
         if (string.IsNullOrWhiteSpace(existingSetting.EncryptedToken) || string.IsNullOrWhiteSpace(existingSetting.ChannelId))
         {
-            throw new Exception( $"token or channelId is empty, cannot test.");
+            throw new Exception( "token or channelId is empty, cannot test.");
         }
         var token = TextEncryptionHelper.Decrypt(existingSetting.EncryptedToken, _jwtConfig.SymmetricSecurityKey);
         var message = await telegramService.SendMessageAsync(token, existingSetting.ChannelId, "Hello *world!*", true);

@@ -1,4 +1,5 @@
 using Api.Framework.Helper;
+
 namespace Api.Framework.Tests;
 
 [TestFixture]
@@ -43,7 +44,7 @@ public class UnixTimestampHelperTests
 
         // Act
         (long startUnixTimestamp, long endUnixTimestamp) =
-            UnixTimestampHelper.GetDayUnixTimestamps(localTimezone, null);
+            UnixTimestampHelper.GetDayUnixTimestamps(localTimezone);
 
         // Assert
         DateTimeOffset endOfDay = startOfDay.AddDays(1).AddTicks(-1);

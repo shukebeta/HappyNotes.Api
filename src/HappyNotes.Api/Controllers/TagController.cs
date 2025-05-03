@@ -1,6 +1,5 @@
 using Api.Framework.Result;
 using HappyNotes.Models;
-using HappyNotes.Services;
 using HappyNotes.Services.interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

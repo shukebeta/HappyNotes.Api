@@ -6,6 +6,7 @@ using HappyNotes.Repositories.interfaces;
 using HappyNotes.Services.interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Telegram.Bot.Exceptions;
 
 namespace HappyNotes.Services;
 
@@ -32,7 +33,7 @@ public class MastodonSyncNoteService(
                 foreach (var account in accounts)
                 {
                     var tootId = await _SentNoteToMastodon(note, fullContent, account);
-                    syncedInstances.Add(new MastodonSyncedInstance()
+                    syncedInstances.Add(new MastodonSyncedInstance
                     {
                         UserAccountId = account.Id,
                         TootId = tootId,
@@ -82,7 +83,7 @@ public class MastodonSyncNoteService(
                             account.DecryptedAccessToken(TokenKey), instance.TootId,
                             fullContent,
                             note.IsPrivate, note.IsMarkdown);
-                        instances.Add(new MastodonSyncedInstance()
+                        instances.Add(new MastodonSyncedInstance
                         {
                             UserAccountId = userAccountId,
                             TootId = instance.TootId,
@@ -104,7 +105,7 @@ public class MastodonSyncNoteService(
         foreach (var account in toBeSent)
         {
             var tootId = await _SentNoteToMastodon(note, fullContent, account);
-            instances.Add(new MastodonSyncedInstance()
+            instances.Add(new MastodonSyncedInstance
             {
                 UserAccountId = account.Id,
                 TootId = tootId,
@@ -252,7 +253,7 @@ public class MastodonSyncNoteService(
             await mastodonTootService.DeleteTootAsync(account.InstanceUrl,
                 account.DecryptedAccessToken(TokenKey), instance.TootId);
         }
-        catch (Telegram.Bot.Exceptions.ApiRequestException ex)
+        catch (ApiRequestException ex)
         {
             logger.LogError(ex.ToString());
         }
@@ -264,7 +265,7 @@ public class MastodonSyncNoteService(
         return note.MastodonTootIds.Split(",").Select(s =>
         {
             var sync = s.Split(":");
-            return new MastodonSyncedInstance()
+            return new MastodonSyncedInstance
             {
                 UserAccountId = long.Parse(sync[0]),
                 TootId = sync[1],

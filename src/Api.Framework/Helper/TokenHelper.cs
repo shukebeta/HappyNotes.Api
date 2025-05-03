@@ -21,4 +21,14 @@ public static class TokenHelper
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
+    
+    public static Claim[] ClaimsGenerator(long id, string username, string email)
+    {
+        return
+        [
+            new(ClaimTypes.Name, username),
+            new(ClaimTypes.Email, email),
+            new(ClaimTypes.NameIdentifier, id.ToString()),
+        ];
+    }
 }

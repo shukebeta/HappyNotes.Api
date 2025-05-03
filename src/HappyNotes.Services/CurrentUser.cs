@@ -1,9 +1,8 @@
+using System.Security.Claims;
 using HappyNotes.Services.interfaces;
+using Microsoft.AspNetCore.Http;
 
 namespace HappyNotes.Services;
-
-using System.Security.Claims;
-using Microsoft.AspNetCore.Http;
 
 public class CurrentUser(IHttpContextAccessor httpContextAccessor) : ICurrentUser
 {

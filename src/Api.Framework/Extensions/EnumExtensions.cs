@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace HappyNotes.Common;
+namespace Api.Framework.Extensions;
 
 public static class EnumExtensions
 {

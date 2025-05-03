@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+
 namespace Api.Framework.Helper;
 
 public static class TextEncryptionHelper
