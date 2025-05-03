@@ -22,7 +22,7 @@ public class MastodonApplicationController(
     private readonly JwtConfig _jwtConfig = jwtConfig.Value;
 
     [HttpPost]
-    public async Task<ApiResult<bool>> Save(PostMastodonApplicationRequest postMastodonApplicationRequest)
+    public async Task<ApiResult> Save(PostMastodonApplicationRequest postMastodonApplicationRequest)
     {
         var mastodonApplication = mapper.Map<MastodonApplication>(postMastodonApplicationRequest);
         var existingApplication = await mastodonApplicationsRepository.GetFirstOrDefaultAsync(

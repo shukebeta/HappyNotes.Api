@@ -8,22 +8,13 @@ namespace HappyNotes.Api.Controllers;
 [Produces("application/json")]
 public class BaseController : ControllerBase
 {
-    protected ApiResult<T> Fail<T>(string message, T? data = default)
+    protected static ApiResult Fail(string message)
     {
-        return new FailedResult<T>(data, message);
+        return new FailedResult<object?>(null, message);
     }
 
-    protected ApiResult<bool> Fail(string message)
+    protected static ApiResult Success(string? message = null)
     {
-        return new FailedResult<bool>(false, message);
-    }
-
-    protected ApiResult<bool> Success(string? message = null)
-    {
-        return new SuccessfulResult<bool>(true, message);
-    }
-    protected ApiResult<T> Success<T>(T data)
-    {
-        return new SuccessfulResult<T>(data);
+        return new SuccessfulResult<object?>(null, message);
     }
 }

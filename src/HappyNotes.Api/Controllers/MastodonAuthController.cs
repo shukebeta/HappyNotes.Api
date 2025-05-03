@@ -26,7 +26,7 @@ public class MastodonAuthController(
     private readonly JwtConfig _jwtConfig = jwtConfig.Value;
 
     [HttpPost]
-    public ApiResult<bool> SetState([FromHeader(Name = "X-State")] string state)
+    public ApiResult SetState([FromHeader(Name = "X-State")] string state)
     {
         if (string.IsNullOrEmpty(state))
         {
@@ -46,7 +46,7 @@ public class MastodonAuthController(
 
     [HttpGet]
     [AllowAnonymous]
-    public async Task<ApiResult<bool>> Callback(string instanceUrl, string code, string state)
+    public async Task<ApiResult> Callback(string instanceUrl, string code, string state)
     {
         if (string.IsNullOrEmpty(state)) throw new Exception("Unexpected Empty state received");
         // Validate state if needed (to prevent CSRF attacks)

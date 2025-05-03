@@ -151,10 +151,6 @@ namespace HappyNotes.Api.Controllers
 
             var userId = currentUser.Id;
             var success = await accountService.ChangePasswordAsync(userId, request.CurrentPassword, request.NewPassword);
-            if (success)
-            {
-                return new SuccessfulResult<string>("Password changed successfully");
-            }
             return success
                 ? Success("Password changed successfully")
                 : Fail( "Failed to change password. Current password may be incorrect.");

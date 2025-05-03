@@ -26,7 +26,7 @@ public class MastodonUserAccountController(
     }
 
     [HttpPost]
-    public async Task<ApiResult<bool>> Disable(MastodonUserAccount mastodonUserAccount)
+    public async Task<ApiResult> Disable(MastodonUserAccount mastodonUserAccount)
     {
         var userId = currentUser.Id;
         var existingSetting = await mastodonUserAccountsRepository.GetFirstOrDefaultAsync(
