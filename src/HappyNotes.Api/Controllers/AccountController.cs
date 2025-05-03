@@ -8,7 +8,6 @@ using AutoMapper;
 using HappyNotes.Dto;
 using HappyNotes.Entities;
 using HappyNotes.Models;
-using HappyNotes.Services;
 using HappyNotes.Services.interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -72,8 +71,7 @@ namespace HappyNotes.Api.Controllers
                 gravatar = GravatarHelper.GetGravatarUrl(request.Email);
             }
 
-            var salt = SaltGenerator.GenerateSaltString(64);
-            var password = CommonHelper.CalculateSha256Hash(request.Password + salt);
+            var (salt, password) = CommonHelper.GetSaltedPassword(request.Password);
             var newUser = new User()
             {
                 Username = request.Username,
@@ -91,6 +89,7 @@ namespace HappyNotes.Api.Controllers
 
             return new SuccessfulResult<JwtToken>(new JwtToken {Token = jwtToken,});
         }
+
 
         [AllowAnonymous]
         [HttpPost]
@@ -131,6 +130,34 @@ namespace HappyNotes.Api.Controllers
             var user = await userRepository.GetFirstOrDefaultAsync(where => where.Id == currentUser.Id);
             var userDto = mapper.Map<UserDto>(user);
             return new SuccessfulResult<UserDto>(userDto);
+        }
+
+        /// <summary>
+        /// Change user password
+        /// </summary>
+        /// <param name="request">Object containing current and new passwords</param>
+        /// <returns>Success or failure result</returns>
+        [HttpPost]
+        public async Task<ApiResult> ChangePassword(ChangePasswordRequest request)
+        {
+            if (request.CurrentPassword.Equals(request.NewPassword))
+            {
+                throw new ArgumentException("Current password and new password cannot be the same");
+            }
+            if (string.IsNullOrWhiteSpace(request.CurrentPassword) || string.IsNullOrWhiteSpace(request.NewPassword))
+            {
+                throw new ArgumentException("Current password and new password cannot be empty");
+            }
+
+            var userId = currentUser.Id;
+            var success = await accountService.ChangePasswordAsync(userId, request.CurrentPassword, request.NewPassword);
+            if (success)
+            {
+                return new SuccessfulResult<string>("Password changed successfully");
+            }
+            return success
+                ? Success("Password changed successfully")
+                : Fail( "Failed to change password. Current password may be incorrect.");
         }
 
         private static Claim[] _GetClaims(long id, string username, string email)

@@ -31,4 +31,10 @@ public enum EventId
 
     [Description("Unknown setting name: {0}")]
     _00106_UnknownSettingName = 106,
+
+    [Description("User not found: {0}")]
+    _00107_UserNotFound = 107,
+
+    [Description("The provided old password is incorrect")]
+    _00108_OldPasswordIncorrect = 108,
 }
