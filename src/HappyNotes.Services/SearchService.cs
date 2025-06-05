@@ -16,6 +16,7 @@ public class SearchService : ISearchService
 {
     private readonly IDatabaseClient _client;
     private readonly HttpClient _httpClient;
+    private readonly float _minimumScoreThreshold;
 
     public SearchService(IDatabaseClient client, HttpClient httpClient, ManticoreConnectionOptions options)
     {
@@ -23,15 +24,23 @@ public class SearchService : ISearchService
         _httpClient = httpClient;
         _httpClient.BaseAddress = new Uri(options.HttpEndpoint);
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        _minimumScoreThreshold = options.MinimumScoreThreshold;
     }
 
     public async Task<PageData<NoteDto>> SearchNotesAsync(long userId, string query, int pageNumber, int pageSize, NoteFilterType filter = NoteFilterType.Normal)
     {
-        var queryObject = _BuildNoteSearchQuery(userId, query, filter, pageSize, pageNumber);
+        var queryObject = _BuildNoteSearchQuery(userId, query, filter, pageSize, pageNumber, _minimumScoreThreshold);
 
         var content = new StringContent(JsonSerializer.Serialize(queryObject), Encoding.UTF8, "application/json");
         var response = await _httpClient.PostAsync("json/search", content);
-        response.EnsureSuccessStatusCode();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            // Log the error response for debugging
+            Console.WriteLine("ManticoreSearch Error: " + errorContent);
+            throw new Exception($"ManticoreSearch returned error: {response.StatusCode} - {errorContent}");
+        }
 
         var responseContent = await response.Content.ReadAsStringAsync();
         // Log the raw response for debugging
@@ -124,31 +133,40 @@ public class SearchService : ISearchService
         await _client.ExecuteCommandAsync("DELETE FROM noteindex WHERE deletedAt > 0", new { });
     }
 
-    private static Dictionary<string, object> _BuildNoteSearchQuery(long userId, string query, NoteFilterType filter, int pageSize, int pageNumber)
+    private static Dictionary<string, object> _BuildNoteSearchQuery(long userId, string query, NoteFilterType filter, int pageSize, int pageNumber, float minimumScoreThreshold)
     {
+        var mustClauses = new List<object>
+        {
+            new Dictionary<string, object> { { "match", new Dictionary<string, string> { { "Content", query } } } },
+            new Dictionary<string, object> { { "equals", new Dictionary<string, long> { { "UserId", userId } } } }
+        };
+
+        if (filter == NoteFilterType.Normal)
+        {
+            mustClauses.Add(new Dictionary<string, object> { { "equals", new Dictionary<string, long> { { "DeletedAt", 0 } } } });
+        }
+        else
+        {
+            mustClauses.Add(new Dictionary<string, object> { { "range", new Dictionary<string, object> { { "DeletedAt", new Dictionary<string, long> { { "gt", 0 } } } } } });
+        }
+
         return new Dictionary<string, object>
         {
             { "table", "noteindex" },
+            { "track_scores", true },
             { "query", new Dictionary<string, object>
                 {
                     { "bool", new Dictionary<string, object>
                         {
-                            { "must", new List<object>
-                                {
-                                    new Dictionary<string, object> { { "match", new Dictionary<string, string> { { "Content", query } } } },
-                                    new Dictionary<string, object> { { "equals", new Dictionary<string, long> { { "UserId", userId } } } },
-                                    filter == NoteFilterType.Normal
-                                        ? (object)new Dictionary<string, object> { { "equals", new Dictionary<string, long> { { "DeletedAt", 0 } } } }
-                                        : new Dictionary<string, object> { { "range", new Dictionary<string, object> { { "DeletedAt", new Dictionary<string, long> { { "gt", 0 } } } } } }
-                                }
-                            }
+                            { "must", mustClauses }
                         }
                     }
                 }
             },
             { "limit", pageSize },
             { "offset", (pageNumber - 1) * pageSize },
-            { "sort", new List<object> { "_score", new Dictionary<string, string> { { "CreatedAt", "desc" } } } }
+            { "sort", new List<object> { new Dictionary<string, string> { { "CreatedAt", "desc" } } } },
+            { "min_score", minimumScoreThreshold }
         };
     }
 }
