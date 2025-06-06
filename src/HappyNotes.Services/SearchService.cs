@@ -137,7 +137,37 @@ public class SearchService : ISearchService
     {
         var mustClauses = new List<object>
         {
-            new Dictionary<string, object> { { "match", new Dictionary<string, string> { { "Content", query } } } },
+            new Dictionary<string, object> // Query for content: prioritize exact phrase match
+            {
+                {
+                    "bool", new Dictionary<string, object>
+                    {
+                        {
+                            "should", new List<object>
+                            {
+                                new Dictionary<string, object> // Boosted exact phrase match
+                                {
+                                    { "match_phrase", new Dictionary<string, object>
+                                        {
+                                            { "Content", new Dictionary<string, object>
+                                                {
+                                                    { "query", query },
+                                                    { "boost", 2.0f } // Adjust boost factor as needed
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                new Dictionary<string, object> // Regular match as fallback
+                                {
+                                    { "match", new Dictionary<string, string> { { "Content", query } } }
+                                }
+                            }
+                        },
+                        { "minimum_should_match", 1 } // At least one of the "should" clauses must match
+                    }
+                }
+            },
             new Dictionary<string, object> { { "equals", new Dictionary<string, long> { { "UserId", userId } } } }
         };
 
@@ -165,8 +195,12 @@ public class SearchService : ISearchService
             },
             { "limit", pageSize },
             { "offset", (pageNumber - 1) * pageSize },
-            { "sort", new List<object> { new Dictionary<string, string> { { "CreatedAt", "desc" } } } },
-            { "min_score", minimumScoreThreshold }
+            { "sort", new List<object> // Sort by score (relevance) first, then by creation date
+                {
+                    new Dictionary<string, string> { { "_score", "desc" } },
+                    new Dictionary<string, string> { { "CreatedAt", "desc" } }
+                }
+            }
         };
     }
 }
