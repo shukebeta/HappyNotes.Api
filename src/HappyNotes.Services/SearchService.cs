@@ -16,7 +16,6 @@ public class SearchService : ISearchService
 {
     private readonly IDatabaseClient _client;
     private readonly HttpClient _httpClient;
-    private readonly float _minimumScoreThreshold;
 
     public SearchService(IDatabaseClient client, HttpClient httpClient, ManticoreConnectionOptions options)
     {
@@ -24,12 +23,11 @@ public class SearchService : ISearchService
         _httpClient = httpClient;
         _httpClient.BaseAddress = new Uri(options.HttpEndpoint);
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        _minimumScoreThreshold = options.MinimumScoreThreshold;
     }
 
     public async Task<PageData<NoteDto>> SearchNotesAsync(long userId, string query, int pageNumber, int pageSize, NoteFilterType filter = NoteFilterType.Normal)
     {
-        var queryObject = _BuildNoteSearchQuery(userId, query, filter, pageSize, pageNumber, _minimumScoreThreshold);
+        var queryObject = _BuildNoteSearchQuery(userId, query, filter, pageSize, pageNumber);
 
         var content = new StringContent(JsonSerializer.Serialize(queryObject), Encoding.UTF8, "application/json");
         var response = await _httpClient.PostAsync("json/search", content);
@@ -133,7 +131,7 @@ public class SearchService : ISearchService
         await _client.ExecuteCommandAsync("DELETE FROM noteindex WHERE deletedAt > 0", new { });
     }
 
-    private static Dictionary<string, object> _BuildNoteSearchQuery(long userId, string query, NoteFilterType filter, int pageSize, int pageNumber, float minimumScoreThreshold)
+    private static Dictionary<string, object> _BuildNoteSearchQuery(long userId, string query, NoteFilterType filter, int pageSize, int pageNumber)
     {
         var mustClauses = new List<object>
         {

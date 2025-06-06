@@ -11,3 +11,9 @@ appsettings.Local.json
 docker/logs
 jieba
 .env
+logs
+alembic*
+memory-bank
+generate_mcp_yaml.py
+install_rooflow_conport.sh
+system_prompt.md
