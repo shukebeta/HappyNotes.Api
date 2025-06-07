@@ -7,6 +7,7 @@ using HappyNotes.Entities;
 using HappyNotes.Services.interfaces;
 using Moq;
 using Moq.Protected;
+using System.Diagnostics.CodeAnalysis;
 
 namespace HappyNotes.Services.Tests;
 
@@ -56,12 +57,7 @@ public class SearchServiceTests
         int pageNumber = 1;
         int pageSize = 10;
         NoteFilterType filter = NoteFilterType.Normal;
-        var expectedNotes = new List<NoteDto>
-        {
-            new NoteDto { Id = 1, UserId = 1, Content = "Test note 1", UpdatedAt = 0, DeletedAt = 0, },
-            new NoteDto { Id = 2, UserId = 1, Content = "Test note 2", UpdatedAt = 0, DeletedAt = 0, }
-        };
-        int expectedTotal = 2;
+        var expectedNoteIds = new List<long> { 1, 2 };
 
         _mockHandler.Protected()
             .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
@@ -72,17 +68,12 @@ public class SearchServiceTests
             });
 
         // Act
-        var result = await _searchService.SearchNotesAsync(userId, query, pageNumber, pageSize, filter);
+        var result = await _searchService.GetNoteIdsByKeywordAsync(userId, query, pageNumber, pageSize, filter);
 
         // Assert
         Assert.IsNotNull(result);
-        Assert.IsInstanceOf<PageData<NoteDto>>(result);
-        var expectedJson = JsonSerializer.Serialize(expectedNotes);
-        var actualJson = JsonSerializer.Serialize(result.DataList);
-        Assert.That(actualJson, Is.EqualTo(expectedJson));
-        Assert.That(result.TotalCount, Is.EqualTo(expectedTotal));
-        Assert.That(result.PageIndex, Is.EqualTo(pageNumber));
-        Assert.That(result.PageSize, Is.EqualTo(pageSize));
+        Assert.That(result.Item2, Is.EqualTo(2));
+        CollectionAssert.AreEqual(new List<long> { 1, 2 }, result.Item1);
     }
 
     [Test]
@@ -94,11 +85,7 @@ public class SearchServiceTests
         int pageNumber = 1;
         int pageSize = 10;
         NoteFilterType filter = NoteFilterType.Deleted;
-        var expectedNotes = new List<NoteDto>
-        {
-            new NoteDto { Id = 3, UserId = 1, Content = "Deleted note 1", DeletedAt = 0, UpdatedAt = 0, }
-        };
-        int expectedTotal = 1;
+        var expectedNoteIds = new List<long> { 3 };
 
         _mockHandler.Protected()
             .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
@@ -109,15 +96,12 @@ public class SearchServiceTests
             });
 
         // Act
-        var result = await _searchService.SearchNotesAsync(userId, query, pageNumber, pageSize, filter);
+        var result = await _searchService.GetNoteIdsByKeywordAsync(userId, query, pageNumber, pageSize, filter);
 
         // Assert
         Assert.IsNotNull(result);
-        Assert.IsInstanceOf<PageData<NoteDto>>(result);
-        var expectedJson = JsonSerializer.Serialize(expectedNotes);
-        var actualJson = JsonSerializer.Serialize(result.DataList);
-        Assert.That(actualJson, Is.EqualTo(expectedJson));
-        Assert.That(result.TotalCount, Is.EqualTo(expectedTotal));
+        Assert.That(result.Item2, Is.EqualTo(1));
+        CollectionAssert.AreEqual(new List<long> { 3 }, result.Item1);
     }
 
     [Test]
@@ -129,8 +113,7 @@ public class SearchServiceTests
         int pageNumber = 1;
         int pageSize = 10;
         NoteFilterType filter = NoteFilterType.Normal;
-        var expectedNotes = new List<NoteDto>();
-        int expectedTotal = 0;
+        var expectedNoteIds = new List<long>();
 
         _mockHandler.Protected()
             .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
@@ -141,12 +124,12 @@ public class SearchServiceTests
             });
 
         // Act
-        var result = await _searchService.SearchNotesAsync(userId, query, pageNumber, pageSize, filter);
+        var result = await _searchService.GetNoteIdsByKeywordAsync(userId, query, pageNumber, pageSize, filter);
 
         // Assert
         Assert.IsNotNull(result);
-        Assert.IsEmpty(result.DataList);
-        Assert.AreEqual(0, result.TotalCount);
+        CollectionAssert.IsEmpty(result.Item1);
+        Assert.That(result.Item2, Is.EqualTo(0));
     }
 
     [Test]
@@ -169,7 +152,7 @@ public class SearchServiceTests
 
         _mockDatabaseClient.Setup(client => client.ExecuteCommandAsync(
             It.Is<string>(sql => sql.Contains("REPLACE INTO noteindex")),
-            It.Is<object>(param => param.ToString().Contains(note.Id.ToString()) && param.ToString().Contains(fullContent))))
+            It.Is<object>(param => param.ToString()!.Contains(note.Id.ToString()) && param.ToString()!.Contains(fullContent))))
             .ReturnsAsync(1); // Simulate successful execution
 
         // Act
@@ -180,7 +163,7 @@ public class SearchServiceTests
         // Due to potential multiple test runs or shared mock state, we use AtLeastOnce instead of Once.
         _mockDatabaseClient.Verify(client => client.ExecuteCommandAsync(
             It.Is<string>(sql => sql.Contains("REPLACE INTO noteindex")),
-            It.Is<object>(param => param.ToString().Contains(note.Id.ToString()) && param.ToString().Contains(fullContent))), Times.AtLeastOnce);
+            It.Is<object>(param => param.ToString()!.Contains(note.Id.ToString()) && param.ToString()!.Contains(fullContent))), Times.AtLeastOnce);
     }
 
     [Test]
@@ -203,7 +186,7 @@ public class SearchServiceTests
 
         _mockDatabaseClient.Setup(client => client.ExecuteCommandAsync(
             It.Is<string>(sql => sql.Contains("REPLACE INTO noteindex")),
-            It.Is<object>(param => param.ToString().Contains(note.Id.ToString()) && param.ToString().Contains(fullContent))))
+            It.Is<object>(param => param.ToString()!.Contains(note.Id.ToString()) && param.ToString()!.Contains(fullContent))))
             .ReturnsAsync(1);
 
         // Act
@@ -213,7 +196,7 @@ public class SearchServiceTests
         // Verify at least once due to potential multiple invocations across tests.
         _mockDatabaseClient.Verify(client => client.ExecuteCommandAsync(
             It.Is<string>(sql => sql.Contains("REPLACE INTO noteindex")),
-            It.Is<object>(param => param.ToString().Contains(note.Id.ToString()) && param.ToString().Contains(fullContent))), Times.AtLeastOnce);
+            It.Is<object>(param => param.ToString()!.Contains(note.Id.ToString()) && param.ToString()!.Contains(fullContent))), Times.AtLeastOnce);
     }
 
     [Test]
@@ -224,7 +207,7 @@ public class SearchServiceTests
 
         _mockDatabaseClient.Setup(client => client.ExecuteCommandAsync(
             It.Is<string>(sql => sql.Contains("UPDATE noteindex SET deletedat")),
-            It.Is<object>(param => param.ToString().Contains(noteId.ToString()))))
+            It.Is<object>(param => param.ToString()!.Contains(noteId.ToString()))))
             .ReturnsAsync(1);
 
         // Act
@@ -233,7 +216,7 @@ public class SearchServiceTests
         // Assert
         _mockDatabaseClient.Verify(client => client.ExecuteCommandAsync(
             It.Is<string>(sql => sql.Contains("UPDATE noteindex SET deletedat")),
-            It.Is<object>(param => param.ToString().Contains(noteId.ToString()))), Times.Once);
+            It.Is<object>(param => param.ToString()!.Contains(noteId.ToString()))), Times.Once);
     }
 
     [Test]
@@ -244,7 +227,7 @@ public class SearchServiceTests
 
         _mockDatabaseClient.Setup(client => client.ExecuteCommandAsync(
             It.Is<string>(sql => sql.Contains("UPDATE noteindex SET deletedat = 0")),
-            It.Is<object>(param => param.ToString().Contains(noteId.ToString()))))
+            It.Is<object>(param => param.ToString()!.Contains(noteId.ToString()))))
             .ReturnsAsync(1);
 
         // Act
@@ -253,7 +236,7 @@ public class SearchServiceTests
         // Assert
         _mockDatabaseClient.Verify(client => client.ExecuteCommandAsync(
             It.Is<string>(sql => sql.Contains("UPDATE noteindex SET deletedat = 0")),
-            It.Is<object>(param => param.ToString().Contains(noteId.ToString()))), Times.Once);
+            It.Is<object>(param => param.ToString()!.Contains(noteId.ToString()))), Times.Once);
     }
 
     [Test]

@@ -80,7 +80,7 @@ public class NotesController(IMapper mapper
     public async Task<ApiResult<PageData<NoteDto>>> Search(string query, int pageNumber = 1, int pageSize = 10, string filter = "normal")
     {
         var filterType = filter.ToLower() == "deleted" ? NoteFilterType.Deleted : NoteFilterType.Normal;
-        var results = await searchService.SearchNotesAsync(currentUser.Id, query, pageNumber, pageSize, filterType);
-        return new SuccessfulResult<PageData<NoteDto>>(results);
+        var results = await noteService.GetUserKeywordNotes(currentUser.Id, pageSize, pageNumber, query, filterType);
+        return new SuccessfulResult<PageData<NoteDto>>(mapper.Map<PageData<NoteDto>>(results));
     }
 }

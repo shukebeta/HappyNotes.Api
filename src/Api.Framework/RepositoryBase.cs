@@ -173,21 +173,6 @@ public class RepositoryBase<TEntity>(ISqlSugarClient dbClient) : IRepositoryBase
             .WhereIF(where != null, where).Take(top).ToListAsync();
     }
 
-    public virtual async Task<IList<TEntity>> GetListByIdsAsync(string[] ids)
-    {
-        return await db.Queryable<TEntity>().In(ids).ToListAsync();
-    }
-
-    public virtual async Task<IList<TEntity>> GetListByIdsAsync(long[] ids)
-    {
-        return await db.Queryable<TEntity>().In(ids).ToListAsync();
-    }
-
-    public virtual async Task<IList<TEntity>> GetListByIdsAsync(int[] ids)
-    {
-        return await db.Queryable<TEntity>().In(ids).ToListAsync();
-    }
-
     public virtual async Task<TEntity?> GetFirstOrDefaultAsync(Expression<Func<TEntity, bool>>? where, string? orderBy = null)
     {
         var queryAble = db.Queryable<TEntity>().WhereIF(null != where, where);
@@ -203,7 +188,12 @@ public class RepositoryBase<TEntity>(ISqlSugarClient dbClient) : IRepositoryBase
 
     public virtual async Task<IList<TEntity>> GetListByIdsAsync<T>(T[] ids)
     {
-        return await db.Queryable<TEntity>().In(ids).ToListAsync();
+        var idString = string.Join(",", ids);
+        // the way to preserve the original order only fits MySQL, if you use a different one, you might need to change the OrderBy part
+        return await db.Queryable<TEntity>()
+            .In(ids.ToArray())
+            .OrderBy($"FIELD(Id, {idString})")
+            .ToListAsync();
     }
 
     public virtual async Task<IList<TEntity>> GetTopListAsync(int top, Expression<Func<TEntity, bool>>? where = null,

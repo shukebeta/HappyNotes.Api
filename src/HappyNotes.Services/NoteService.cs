@@ -4,6 +4,7 @@ using Api.Framework.Extensions;
 using Api.Framework.Models;
 using AutoMapper;
 using HappyNotes.Common;
+using HappyNotes.Common.Enums;
 using HappyNotes.Entities;
 using HappyNotes.Models;
 using HappyNotes.Repositories.interfaces;
@@ -14,6 +15,7 @@ using EventId = HappyNotes.Common.Enums.EventId;
 namespace HappyNotes.Services;
 
 public class NoteService(
+    ISearchService searchService,
     IEnumerable<ISyncNoteService> syncNoteServices,
     INoteTagService noteTagService,
     INoteRepository noteRepository,
@@ -165,6 +167,19 @@ public class NoteService(
     public async Task<PageData<Note>> GetUserTagNotes(long userId, int pageSize, int pageNumber, string tag)
     {
         return await noteRepository.GetUserTagNotes(userId, tag, pageSize, pageNumber);
+    }
+
+    public async Task<PageData<Note>> GetUserKeywordNotes(long userId, int pageSize, int pageNumber, string keyword, NoteFilterType filter=NoteFilterType.Normal)
+    {
+        var (noteIds, total) = await searchService.GetNoteIdsByKeywordAsync(userId, keyword, pageNumber, pageSize, filter);
+        var notes = await _GetNotesByIds(noteIds);
+        return new PageData<Note>()
+        {
+            DataList = notes,
+            PageIndex = pageNumber,
+            PageSize = pageSize,
+            TotalCount = total,
+        };
     }
 
     public async Task<PageData<Note>> GetLinkedNotes(long userId, long noteId)
@@ -379,4 +394,26 @@ public class NoteService(
     {
         await noteRepository.PurgeUserDeletedNotes(userId);
     }
+
+    /// <summary>
+    /// Retrieves notes by their IDs.
+    /// </summary>
+    /// <param name="noteIds">A list of note IDs.</param>
+    /// <returns>A list of notes corresponding to the provided IDs.</returns>
+    private async Task<IList<Note>> _GetNotesByIds(IList<long> noteIds)
+    {
+        if (!noteIds.Any())
+        {
+            return [];
+        }
+
+        return await noteRepository.GetListByIdsAsync(noteIds.ToArray());
+        var notes = await noteRepository.GetListByIdsAsync(noteIds.ToArray());
+
+        var orderMap = noteIds
+            .Select((id, index) => new { id, index })
+            .ToDictionary(x => x.id, x => x.index);
+
+        return notes.OrderBy(note => orderMap.GetValueOrDefault(note.Id, int.MaxValue))
+            .ToList();    }
 }

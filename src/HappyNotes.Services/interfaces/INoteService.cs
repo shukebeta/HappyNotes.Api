@@ -1,4 +1,5 @@
 using Api.Framework.Models;
+using HappyNotes.Common.Enums;
 using HappyNotes.Entities;
 using HappyNotes.Models;
 
@@ -22,6 +23,7 @@ public interface INoteService
     Task<PageData<Note>> GetPublicNotes(int pageSize, int pageNumber);
 
     Task<PageData<Note>> GetUserTagNotes(long userId, int pageSize, int pageNumber, string tag);
+    Task<PageData<Note>> GetUserKeywordNotes(long userId, int pageSize, int pageNumber, string keyword, NoteFilterType filter=NoteFilterType.Normal);
 
     Task<PageData<Note>> GetLinkedNotes(long userId, long noteId);
     Task<IList<Note>> Memories(long userId, string localTimezone);

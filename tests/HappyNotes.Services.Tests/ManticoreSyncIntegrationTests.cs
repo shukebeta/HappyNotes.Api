@@ -63,7 +63,7 @@ public class ManticoreSyncIntegrationTests
             It.IsAny<EventId>(),
             It.IsAny<It.IsAnyType>(),
             It.IsAny<Exception>(),
-            It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Never);
+            It.IsAny<Func<It.IsAnyType, Exception, string>>()!), Times.Never);
     }
 
     [Test]
@@ -94,7 +94,7 @@ public class ManticoreSyncIntegrationTests
             It.IsAny<EventId>(),
             It.IsAny<It.IsAnyType>(),
             It.IsAny<Exception>(),
-            It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Never);
+            It.IsAny<Func<It.IsAnyType, Exception, string>>()!), Times.Never);
     }
 
     [Test]
@@ -124,7 +124,7 @@ public class ManticoreSyncIntegrationTests
             It.IsAny<EventId>(),
             It.IsAny<It.IsAnyType>(),
             It.IsAny<Exception>(),
-            It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Never);
+            It.IsAny<Func<It.IsAnyType, Exception, string>>()!), Times.Never);
     }
 
     [Test]
@@ -154,7 +154,7 @@ public class ManticoreSyncIntegrationTests
             It.IsAny<EventId>(),
             It.IsAny<It.IsAnyType>(),
             It.IsAny<Exception>(),
-            It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Never);
+            It.IsAny<Func<It.IsAnyType, Exception, string>>()!), Times.Never);
     }
 
     [Test]
@@ -170,7 +170,7 @@ public class ManticoreSyncIntegrationTests
             It.IsAny<EventId>(),
             It.IsAny<It.IsAnyType>(),
             It.IsAny<Exception>(),
-            It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Never);
+            It.IsAny<Func<It.IsAnyType, Exception, string>>()!), Times.Never);
     }
 
     [Test]
@@ -205,6 +205,6 @@ public class ManticoreSyncIntegrationTests
             It.IsAny<EventId>(),
             It.IsAny<It.IsAnyType>(),
             It.IsAny<Exception>(),
-            It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.AtMostOnce);
+            It.IsAny<Func<It.IsAnyType, Exception, string>>()!), Times.AtMostOnce);
     }
 }

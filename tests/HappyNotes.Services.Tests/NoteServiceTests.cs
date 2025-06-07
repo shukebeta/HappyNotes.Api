@@ -17,6 +17,7 @@ namespace HappyNotes.Services.Tests;
 [TestFixture]
 public class NoteServiceTests
 {
+    private Mock<ISearchService> _searchService;
     private Mock<ISyncNoteService> _mockSyncNoteService;
     private Mock<INoteTagService> _mockNoteTagService;
     private Mock<INoteRepository> _mockNoteRepository;
@@ -28,6 +29,7 @@ public class NoteServiceTests
     [SetUp]
     public void Setup()
     {
+        _searchService = new Mock<ISearchService>();
         _mockSyncNoteService = new Mock<ISyncNoteService>();
         var syncServices = new[] { _mockSyncNoteService.Object };
         _mockNoteTagService = new Mock<INoteTagService>();
@@ -43,6 +45,7 @@ public class NoteServiceTests
             .Returns(Task.CompletedTask);
 
         _noteService = new NoteService(
+            _searchService.Object,
             syncServices,
             _mockNoteTagService.Object,
             _mockNoteRepository.Object,

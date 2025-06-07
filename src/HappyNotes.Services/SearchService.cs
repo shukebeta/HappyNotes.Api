@@ -25,7 +25,7 @@ public class SearchService : ISearchService
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
     }
 
-    public async Task<PageData<NoteDto>> SearchNotesAsync(long userId, string query, int pageNumber, int pageSize, NoteFilterType filter = NoteFilterType.Normal)
+    public async Task<(List<long>, int)> GetNoteIdsByKeywordAsync(long userId, string query, int pageNumber, int pageSize, NoteFilterType filter = NoteFilterType.Normal)
     {
         var queryObject = _BuildNoteSearchQuery(userId, query, filter, pageSize, pageNumber);
 
@@ -47,46 +47,19 @@ public class SearchService : ISearchService
         var searchResult = JsonSerializer.Deserialize<ManticoreSearchResult>(responseContent);
 
         var total = searchResult?.hits?.total ?? 0;
-        var list = new List<NoteDto>();
+        var noteIdList = new List<long>();
         if (searchResult?.hits?.hits != null)
         {
             foreach (var hit in searchResult.hits.hits)
             {
                 if (hit?._source != null)
                 {
-                    list.Add(new NoteDto
-                    {
-                        Id = hit._id,
-                        UserId = hit._source.userid,
-                        Content = hit._source.content ?? string.Empty,
-                        IsLong = hit._source.islong == 1,
-                        IsPrivate = hit._source.isprivate == 1,
-                        IsMarkdown = hit._source.ismarkdown == 1,
-                        CreatedAt = hit._source.createdat,
-                        UpdatedAt = hit._source.updatedat,
-                        DeletedAt = hit._source.deletedat
-                    });
+                    noteIdList.Add(hit._id);
                 }
             }
         }
 
-        // Truncate content in C# if IsLong is true and content is longer than 1024 chars
-        foreach (var note in list)
-        {
-            if (note.IsLong)
-            {
-                note.Content = note.Content.GetShort();
-            }
-        }
-
-        var pageData = new PageData<NoteDto>
-        {
-            DataList = list,
-            TotalCount = (int)total,
-            PageIndex = pageNumber,
-            PageSize = pageSize
-        };
-        return pageData;
+        return (noteIdList, (int)total);
     }
 
     public async Task SyncNoteToIndexAsync(Note note, string fullContent)
@@ -177,6 +150,7 @@ public class SearchService : ISearchService
         {
             mustClauses.Add(new Dictionary<string, object> { { "range", new Dictionary<string, object> { { "DeletedAt", new Dictionary<string, long> { { "gt", 0 } } } } } });
         }
+        var source = new[] { "id" };
 
         return new Dictionary<string, object>
         {
@@ -198,7 +172,8 @@ public class SearchService : ISearchService
                     new Dictionary<string, string> { { "_score", "desc" } },
                     new Dictionary<string, string> { { "CreatedAt", "desc" } }
                 }
-            }
+            },
+            {"_source", source}
         };
     }
 }
