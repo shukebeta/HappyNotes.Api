@@ -367,21 +367,21 @@ public class NoteService(
 
         if (startDateTimeOffset.AddMonths(6).EarlierThan(nowInTargetTimeZone))
         {
-            timestamps.Add(todayStartTimeOffset.AddMonths(-6).ToUnixTimeSeconds());
+            timestamps.Add(todayStartTimeOffset.AddMonths(-6).GetDayStartTimestamp(targetTimeZone));
         }
 
         if (startDateTimeOffset.AddMonths(3).EarlierThan(nowInTargetTimeZone))
         {
-            timestamps.Add(todayStartTimeOffset.AddMonths(-3).ToUnixTimeSeconds());
+            timestamps.Add(todayStartTimeOffset.AddMonths(-3).GetDayStartTimestamp(targetTimeZone));
         }
 
         if (startDateTimeOffset.AddMonths(1).EarlierThan(nowInTargetTimeZone))
         {
-            timestamps.Add(todayStartTimeOffset.AddMonths(-1).ToUnixTimeSeconds());
+            timestamps.Add(todayStartTimeOffset.AddMonths(-1).GetDayStartTimestamp(targetTimeZone));
         }
 
-        timestamps.Add(todayStartTimeOffset.AddDays(-1).ToUnixTimeSeconds());
-        timestamps.Add(todayStartTimeOffset.ToUnixTimeSeconds());
+        timestamps.Add(todayStartTimeOffset.AddDays(-1).GetDayStartTimestamp(targetTimeZone));
+        timestamps.Add(todayStartTimeOffset.GetDayStartTimestamp(targetTimeZone));
         return timestamps.ToArray();
     }
 
