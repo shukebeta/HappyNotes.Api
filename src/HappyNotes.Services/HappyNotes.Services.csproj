@@ -7,6 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>HappyNotes.Services.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Api.Framework\Api.Framework.csproj" />
     <ProjectReference Include="..\HappyNotes.Common\HappyNotes.Common.csproj" />
     <ProjectReference Include="..\HappyNotes.Dto\HappyNotes.Dto.csproj" />

@@ -301,4 +301,127 @@ public class NoteServiceTests
             await _noteService.GetPublicNotes(pageSize, pageNumber));
         Assert.That(ex.Message, Does.Contain($"We only provide at most {Constants.PublicNotesMaxPage} page"));
     }
+
+    [TestFixture]
+    public class GetTimestampsTests
+    {
+        [Test]
+        public void GetTimestamps_WithRecentStartDate_ReturnsExpectedCount()
+        {
+            // Arrange - Start date 2 months ago
+            var timeZone = "UTC";
+            var startDate = DateTimeOffset.UtcNow.AddMonths(-2);
+            var startTimestamp = startDate.ToUnixTimeSeconds();
+
+            // Act
+            var result = NoteService._GetTimestamps(startTimestamp, timeZone);
+
+            // Assert
+            Assert.That(result.Length, Is.GreaterThanOrEqualTo(2), "Should include at least yesterday and today");
+            Assert.That(result.Length, Is.LessThanOrEqualTo(10), "Should not return excessive timestamps");
+            
+            // Verify results are sorted (older dates first)
+            for (int i = 1; i < result.Length; i++)
+            {
+                Assert.That(result[i], Is.GreaterThanOrEqualTo(result[i-1]), 
+                    "Timestamps should be in ascending order");
+            }
+        }
+
+        [Test]
+        public void GetTimestamps_WithOldStartDate_IncludesYearlyMilestones()
+        {
+            // Arrange - Start date 3 years ago, same month/day as today
+            var timeZone = "UTC";
+            var today = DateTimeOffset.UtcNow;
+            var startDate = new DateTimeOffset(today.Year - 3, today.Month, today.Day, 
+                12, 0, 0, TimeSpan.Zero);
+            var startTimestamp = startDate.ToUnixTimeSeconds();
+
+            // Act
+            var result = NoteService._GetTimestamps(startTimestamp, timeZone);
+
+            // Assert
+            Assert.That(result.Length, Is.GreaterThanOrEqualTo(5), 
+                "Should include yearly anniversaries plus recent periods");
+            
+            // Should contain timestamps that could be yearly anniversaries
+            var yearlyCount = result.Count(ts => 
+            {
+                var date = DateTimeOffset.FromUnixTimeSeconds(ts);
+                return date.Month == today.Month && date.Day == today.Day && date.Year < today.Year;
+            });
+            Assert.That(yearlyCount, Is.GreaterThanOrEqualTo(1), 
+                "Should contain at least one yearly anniversary");
+        }
+
+        [Test]
+        public void GetTimestamps_WithValidTimeZone_DoesNotThrow()
+        {
+            // Arrange
+            var timeZones = new[] { "UTC", "America/New_York", "Europe/London", "Asia/Shanghai" };
+            var startTimestamp = DateTimeOffset.UtcNow.AddMonths(-6).ToUnixTimeSeconds();
+
+            foreach (var timeZone in timeZones)
+            {
+                // Act & Assert
+                Assert.DoesNotThrow(() =>
+                {
+                    var result = NoteService._GetTimestamps(startTimestamp, timeZone);
+                    Assert.That(result, Is.Not.Null);
+                    Assert.That(result.Length, Is.GreaterThan(0));
+                }, $"Should handle timezone {timeZone} without throwing");
+            }
+        }
+
+        [Test]
+        public void GetTimestamps_WithSameDayStartDate_ReturnsMinimumTimestamps()
+        {
+            // Arrange - Start date is today
+            var timeZone = "UTC";
+            var startTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+            // Act
+            var result = NoteService._GetTimestamps(startTimestamp, timeZone);
+
+            // Assert
+            Assert.That(result.Length, Is.GreaterThanOrEqualTo(2), 
+                "Should always include yesterday and today");
+        }
+
+        [Test]
+        public void GetTimestamps_WithFarFutureStartDate_HandlesGracefully()
+        {
+            // Arrange - Start date in future (edge case)
+            var timeZone = "UTC";
+            var futureStartTimestamp = DateTimeOffset.UtcNow.AddYears(1).ToUnixTimeSeconds();
+
+            // Act
+            var result = NoteService._GetTimestamps(futureStartTimestamp, timeZone);
+
+            // Assert
+            Assert.That(result.Length, Is.GreaterThanOrEqualTo(2), 
+                "Should handle future start dates gracefully");
+        }
+
+        [Test]
+        public void GetTimestamps_ConsistentResults_ForSameInput()
+        {
+            // Arrange
+            var timeZone = "UTC";
+            var startTimestamp = DateTimeOffset.UtcNow.AddMonths(-1).ToUnixTimeSeconds();
+
+            // Act - Call multiple times
+            var result1 = NoteService._GetTimestamps(startTimestamp, timeZone);
+            var result2 = NoteService._GetTimestamps(startTimestamp, timeZone);
+
+            // Assert - Results should be identical (within same second)
+            Assert.That(result1.Length, Is.EqualTo(result2.Length));
+            for (int i = 0; i < result1.Length; i++)
+            {
+                Assert.That(Math.Abs(result1[i] - result2[i]), Is.LessThanOrEqualTo(1), 
+                    "Results should be consistent within 1 second");
+            }
+        }
+    }
 }

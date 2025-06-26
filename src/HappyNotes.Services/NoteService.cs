@@ -324,65 +324,70 @@ public class NoteService(
         await noteTagService.RemoveUnusedTags(note.Id, newTags);
     }
 
-    private static long[] _GetTimestamps(long initialUnixTimestamp, string timeZoneId)
+    internal static long[] _GetTimestamps(long initialUnixTimestamp, string timeZoneId)
     {
         var targetTimeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
-        var startDateTimeOffset = initialUnixTimestamp.ToDateTimeOffset(targetTimeZone);
-
-        var startYear = startDateTimeOffset.Year;
-        var startMonth = startDateTimeOffset.Month;
-        var startDay = startDateTimeOffset.Day;
-
-        var nowInTargetTimeZone = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, targetTimeZone);
-        var todayStartTimeOffset = new DateTimeOffset(nowInTargetTimeZone.Year, nowInTargetTimeZone.Month,
-            nowInTargetTimeZone.Day, 0, 0, 0, nowInTargetTimeZone.Offset);
-
-        var currentYear = nowInTargetTimeZone.Year;
-        var currentMonth = nowInTargetTimeZone.Month;
-        var currentDay = nowInTargetTimeZone.Day;
-
+        var startDate = initialUnixTimestamp.ToDateTimeOffset(targetTimeZone);
+        var today = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, targetTimeZone);
+        
         var timestamps = new List<long>();
 
-        if (startYear < currentYear)
+        // Add yearly anniversaries (same month/day in previous years)
+        timestamps.AddRange(_GetYearlyAnniversaryTimestamps(startDate, today, targetTimeZone));
+
+        // Add periodic milestones (6 months, 3 months, 1 month ago)
+        var periodicOffsets = new[] { -6, -3, -1 };
+        foreach (var monthsOffset in periodicOffsets)
         {
-            for (var year = startMonth <= currentMonth && startDay <= currentDay
-                     ? startYear
-                     : startYear + 1;
-                 year < currentYear;
-                 year++)
+            var targetDate = today.AddMonths(monthsOffset);
+            if (targetDate >= startDate)
             {
-                try
-                {
-                    var targetDate = new DateTimeOffset(year, currentMonth, currentDay, 0, 0, 0,
-                        nowInTargetTimeZone.Offset);
-                    timestamps.Add(targetDate.ToUnixTimeSeconds());
-                }
-                catch (ArgumentOutOfRangeException)
-                {
-                    // skip invalid dates，such as 02-30, 02-31
-                    // do nothing
-                }
+                timestamps.Add(targetDate.GetDayStartTimestamp(targetTimeZone));
             }
         }
 
-        if (startDateTimeOffset.AddMonths(6).EarlierThan(nowInTargetTimeZone))
-        {
-            timestamps.Add(todayStartTimeOffset.AddMonths(-6).GetDayStartTimestamp(targetTimeZone));
-        }
-
-        if (startDateTimeOffset.AddMonths(3).EarlierThan(nowInTargetTimeZone))
-        {
-            timestamps.Add(todayStartTimeOffset.AddMonths(-3).GetDayStartTimestamp(targetTimeZone));
-        }
-
-        if (startDateTimeOffset.AddMonths(1).EarlierThan(nowInTargetTimeZone))
-        {
-            timestamps.Add(todayStartTimeOffset.AddMonths(-1).GetDayStartTimestamp(targetTimeZone));
-        }
-
-        timestamps.Add(todayStartTimeOffset.AddDays(-1).GetDayStartTimestamp(targetTimeZone));
-        timestamps.Add(todayStartTimeOffset.GetDayStartTimestamp(targetTimeZone));
+        // Always add yesterday and today
+        timestamps.Add(today.AddDays(-1).GetDayStartTimestamp(targetTimeZone));
+        timestamps.Add(today.GetDayStartTimestamp(targetTimeZone));
+        
         return timestamps.ToArray();
+    }
+
+    private static IEnumerable<long> _GetYearlyAnniversaryTimestamps(DateTimeOffset startDate, DateTimeOffset today, TimeZoneInfo timeZone)
+    {
+        if (startDate.Year >= today.Year) yield break;
+
+        var anniversaryMonth = today.Month;
+        var anniversaryDay = today.Day;
+        
+        // Determine the first anniversary year
+        var firstAnniversaryYear = startDate.Month <= anniversaryMonth && startDate.Day <= anniversaryDay
+            ? startDate.Year
+            : startDate.Year + 1;
+
+        for (var year = firstAnniversaryYear; year < today.Year; year++)
+        {
+            if (_TryCreateDate(year, anniversaryMonth, anniversaryDay, timeZone, out var timestamp))
+            {
+                yield return timestamp;
+            }
+        }
+    }
+
+    private static bool _TryCreateDate(int year, int month, int day, TimeZoneInfo timeZone, out long timestamp)
+    {
+        timestamp = 0;
+        try
+        {
+            var date = new DateTimeOffset(year, month, day, 0, 0, 0, timeZone.GetUtcOffset(DateTime.Today));
+            timestamp = date.ToUnixTimeSeconds();
+            return true;
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            // Invalid date (e.g., Feb 30)
+            return false;
+        }
     }
 
     public async Task<PageData<Note>> GetUserDeletedNotes(long userId, int pageSize, int pageNumber)
