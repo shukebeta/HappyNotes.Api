@@ -205,7 +205,7 @@ public class NoteService(
         {
             var note = await noteRepository.GetFirstOrDefaultAsync(w =>
                 w.UserId == userId && w.CreatedAt >= start && w.CreatedAt < start + 86400 &&
-                w.DeletedAt == null);
+                w.DeletedAt == null, "CreatedAt ASC");
             if (note != null)
             {
                 notes.Add(note);
@@ -224,7 +224,7 @@ public class NoteService(
             .GetDayStartTimestamp(timeZone);
         var notes = await noteRepository.GetListAsync(w =>
             w.UserId == userId && w.CreatedAt >= dayStartTimestamp &&
-            w.CreatedAt < dayStartTimestamp + 86400 && w.DeletedAt == null);
+            w.CreatedAt < dayStartTimestamp + 86400 && w.DeletedAt == null, w => w.CreatedAt);
         return notes;
     }
 
@@ -413,12 +413,5 @@ public class NoteService(
         }
 
         return await noteRepository.GetListByIdsAsync(noteIds.ToArray());
-        var notes = await noteRepository.GetListByIdsAsync(noteIds.ToArray());
-
-        var orderMap = noteIds
-            .Select((id, index) => new { id, index })
-            .ToDictionary(x => x.id, x => x.index);
-
-        return notes.OrderBy(note => orderMap.GetValueOrDefault(note.Id, int.MaxValue))
-            .ToList();    }
+    }
 }
