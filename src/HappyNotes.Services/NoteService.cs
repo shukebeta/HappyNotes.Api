@@ -169,7 +169,7 @@ public class NoteService(
         return await noteRepository.GetUserTagNotes(userId, tag, pageSize, pageNumber);
     }
 
-    public async Task<PageData<Note>> GetUserKeywordNotes(long userId, int pageSize, int pageNumber, string keyword, NoteFilterType filter=NoteFilterType.Normal)
+    public async Task<PageData<Note>> GetUserKeywordNotes(long userId, int pageSize, int pageNumber, string keyword, NoteFilterType filter = NoteFilterType.Normal)
     {
         var (noteIds, total) = await searchService.GetNoteIdsByKeywordAsync(userId, keyword, pageNumber, pageSize, filter);
         var notes = await _GetNotesByIds(noteIds);
@@ -329,18 +329,19 @@ public class NoteService(
         var targetTimeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
         var startDate = initialUnixTimestamp.ToDateTimeOffset(targetTimeZone);
         var today = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, targetTimeZone);
-        
+
         var timestamps = new List<long>();
 
         // Add yearly anniversaries (same month/day in previous years)
         timestamps.AddRange(_GetYearlyAnniversaryTimestamps(startDate, today, targetTimeZone));
 
         // Add periodic milestones (6 months, 3 months, 1 month ago)
+        // Only include if the target month actually has the same day
         var periodicOffsets = new[] { -6, -3, -1 };
         foreach (var monthsOffset in periodicOffsets)
         {
-            var targetDate = today.AddMonths(monthsOffset);
-            if (targetDate >= startDate)
+            if (_TryGetExactMonthOffset(today, monthsOffset, out var targetDate) &&
+                _IsWithinUserHistoryPeriod(targetDate, startDate))
             {
                 timestamps.Add(targetDate.GetDayStartTimestamp(targetTimeZone));
             }
@@ -349,7 +350,7 @@ public class NoteService(
         // Always add yesterday and today
         timestamps.Add(today.AddDays(-1).GetDayStartTimestamp(targetTimeZone));
         timestamps.Add(today.GetDayStartTimestamp(targetTimeZone));
-        
+
         return timestamps.ToArray();
     }
 
@@ -359,7 +360,7 @@ public class NoteService(
 
         var anniversaryMonth = today.Month;
         var anniversaryDay = today.Day;
-        
+
         // Determine the first anniversary year
         var firstAnniversaryYear = startDate.Month <= anniversaryMonth && startDate.Day <= anniversaryDay
             ? startDate.Year
@@ -389,6 +390,35 @@ public class NoteService(
             // Invalid date (e.g., Feb 30)
             return false;
         }
+    }
+
+    /// <summary>
+    /// Attempts to calculate a date that is exactly the specified number of months offset from the given date.
+    /// Returns false if the target month doesn't have the same day (e.g., Feb 31 doesn't exist).
+    /// </summary>
+    internal static bool _TryGetExactMonthOffset(DateTimeOffset date, int monthsOffset, out DateTimeOffset targetDate)
+    {
+        targetDate = default;
+
+        // Use AddMonths to handle year rollover automatically
+        var tempDate = date.AddMonths(monthsOffset);
+
+        // Check if the day stayed the same (meaning the target month has this day)
+        if (tempDate.Day != date.Day)
+        {
+            return false; // Target month doesn't have this day
+        }
+
+        targetDate = tempDate;
+        return true;
+    }
+
+    /// <summary>
+    /// Checks if a target date falls within the user's history period (not before they started using the app).
+    /// </summary>
+    private static bool _IsWithinUserHistoryPeriod(DateTimeOffset targetDate, DateTimeOffset userStartDate)
+    {
+        return targetDate >= userStartDate;
     }
 
     public async Task<PageData<Note>> GetUserDeletedNotes(long userId, int pageSize, int pageNumber)

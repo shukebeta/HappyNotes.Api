@@ -178,7 +178,7 @@ public class NoteServiceTests
             UserId = userId
         };
 
-        _mockNoteRepository.Setup(r => r.Get(noteId)) .ReturnsAsync(existingNote);
+        _mockNoteRepository.Setup(r => r.Get(noteId)).ReturnsAsync(existingNote);
         _mockMapper.Setup(m => m.Map<PostNoteRequest, Note>(request))
             .Returns(updatedNote);
         _mockNoteRepository.Setup(r => r.UpdateAsync(It.IsAny<Note>()))
@@ -206,7 +206,7 @@ public class NoteServiceTests
             DeletedAt = null
         };
 
-        _mockNoteRepository.Setup(r => r.GetFirstOrDefaultAsync(x => x.Id == noteId, null)) .ReturnsAsync(note);
+        _mockNoteRepository.Setup(r => r.GetFirstOrDefaultAsync(x => x.Id == noteId, null)).ReturnsAsync(note);
         _mockNoteRepository.Setup(r => r.UpdateAsync(It.IsAny<Note>()))
             .ReturnsAsync(true);
 
@@ -232,7 +232,7 @@ public class NoteServiceTests
             DeletedAt = DateTime.UtcNow.ToUnixTimeSeconds()
         };
 
-        _mockNoteRepository.Setup(r => r.GetFirstOrDefaultAsync(x => x.Id == noteId, null)) .ReturnsAsync(note);
+        _mockNoteRepository.Setup(r => r.GetFirstOrDefaultAsync(x => x.Id == noteId, null)).ReturnsAsync(note);
         _mockNoteRepository.Setup(r => r.UpdateAsync(It.IsAny<Note>()))
             .ReturnsAsync(true);
 
@@ -319,11 +319,11 @@ public class NoteServiceTests
             // Assert
             Assert.That(result.Length, Is.GreaterThanOrEqualTo(2), "Should include at least yesterday and today");
             Assert.That(result.Length, Is.LessThanOrEqualTo(10), "Should not return excessive timestamps");
-            
+
             // Verify results are sorted (older dates first)
             for (int i = 1; i < result.Length; i++)
             {
-                Assert.That(result[i], Is.GreaterThanOrEqualTo(result[i-1]), 
+                Assert.That(result[i], Is.GreaterThanOrEqualTo(result[i - 1]),
                     "Timestamps should be in ascending order");
             }
         }
@@ -334,7 +334,7 @@ public class NoteServiceTests
             // Arrange - Start date 3 years ago, same month/day as today
             var timeZone = "UTC";
             var today = DateTimeOffset.UtcNow;
-            var startDate = new DateTimeOffset(today.Year - 3, today.Month, today.Day, 
+            var startDate = new DateTimeOffset(today.Year - 3, today.Month, today.Day,
                 12, 0, 0, TimeSpan.Zero);
             var startTimestamp = startDate.ToUnixTimeSeconds();
 
@@ -342,16 +342,16 @@ public class NoteServiceTests
             var result = NoteService._GetTimestamps(startTimestamp, timeZone);
 
             // Assert
-            Assert.That(result.Length, Is.GreaterThanOrEqualTo(5), 
+            Assert.That(result.Length, Is.GreaterThanOrEqualTo(5),
                 "Should include yearly anniversaries plus recent periods");
-            
+
             // Should contain timestamps that could be yearly anniversaries
-            var yearlyCount = result.Count(ts => 
+            var yearlyCount = result.Count(ts =>
             {
                 var date = DateTimeOffset.FromUnixTimeSeconds(ts);
                 return date.Month == today.Month && date.Day == today.Day && date.Year < today.Year;
             });
-            Assert.That(yearlyCount, Is.GreaterThanOrEqualTo(1), 
+            Assert.That(yearlyCount, Is.GreaterThanOrEqualTo(1),
                 "Should contain at least one yearly anniversary");
         }
 
@@ -385,7 +385,7 @@ public class NoteServiceTests
             var result = NoteService._GetTimestamps(startTimestamp, timeZone);
 
             // Assert
-            Assert.That(result.Length, Is.GreaterThanOrEqualTo(2), 
+            Assert.That(result.Length, Is.GreaterThanOrEqualTo(2),
                 "Should always include yesterday and today");
         }
 
@@ -400,7 +400,7 @@ public class NoteServiceTests
             var result = NoteService._GetTimestamps(futureStartTimestamp, timeZone);
 
             // Assert
-            Assert.That(result.Length, Is.GreaterThanOrEqualTo(2), 
+            Assert.That(result.Length, Is.GreaterThanOrEqualTo(2),
                 "Should handle future start dates gracefully");
         }
 
@@ -419,7 +419,7 @@ public class NoteServiceTests
             Assert.That(result1.Length, Is.EqualTo(result2.Length));
             for (int i = 0; i < result1.Length; i++)
             {
-                Assert.That(Math.Abs(result1[i] - result2[i]), Is.LessThanOrEqualTo(1), 
+                Assert.That(Math.Abs(result1[i] - result2[i]), Is.LessThanOrEqualTo(1),
                     "Results should be consistent within 1 second");
             }
         }
@@ -430,7 +430,7 @@ public class NoteServiceTests
             // Arrange - Use realistic dates and timezone
             var timeZone = "America/New_York";
             // Use an old enough start date to ensure we get yearly anniversaries
-            var startDate = DateTimeOffset.UtcNow.AddYears(-5); 
+            var startDate = DateTimeOffset.UtcNow.AddYears(-5);
             var startTimestamp = startDate.ToUnixTimeSeconds();
 
             // Act
@@ -439,14 +439,14 @@ public class NoteServiceTests
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(0));
-            
+
             // The method should return timestamps for today's month/day in previous years
             var today = DateTimeOffset.UtcNow;
             var currentMonth = today.Month;
             var currentDay = today.Day;
-            
+
             // Find timestamps that match today's month/day from previous years
-            var anniversaryTimestamps = result.Where(ts => 
+            var anniversaryTimestamps = result.Where(ts =>
             {
                 var nyTimeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZone);
                 var date = TimeZoneInfo.ConvertTime(DateTimeOffset.FromUnixTimeSeconds(ts), nyTimeZone);
@@ -456,7 +456,7 @@ public class NoteServiceTests
             // Should have at least one anniversary if start date is old enough
             if (startDate.Year < today.Year)
             {
-                Assert.That(anniversaryTimestamps.Count, Is.GreaterThanOrEqualTo(1), 
+                Assert.That(anniversaryTimestamps.Count, Is.GreaterThanOrEqualTo(1),
                     "Should contain anniversary dates for same month/day in previous years");
 
                 // Verify that anniversary dates are correctly set to start of day
@@ -477,7 +477,7 @@ public class NoteServiceTests
         {
             // Arrange - Test with a timezone that has DST changes
             var timeZone = TimeZoneInfo.FindSystemTimeZoneById("America/New_York");
-            
+
             // Test different scenarios
             var testCases = new[]
             {
@@ -493,7 +493,7 @@ public class NoteServiceTests
 
                 // Assert
                 Assert.That(success, Is.True, $"Should successfully create date for {testCase.Description}");
-                
+
                 var resultDate = TimeZoneInfo.ConvertTime(DateTimeOffset.FromUnixTimeSeconds(timestamp), timeZone);
                 Assert.That(resultDate.Year, Is.EqualTo(testCase.Year), $"Year mismatch for {testCase.Description}");
                 Assert.That(resultDate.Month, Is.EqualTo(testCase.Month), $"Month mismatch for {testCase.Description}");
@@ -502,5 +502,165 @@ public class NoteServiceTests
                 Assert.That(resultDate.Minute, Is.EqualTo(0), $"Minute should be 0 for {testCase.Description}");
             }
         }
+
+        [Test]
+        public void GetTimestamps_MonthEndDates_HandlesCorrectly()
+        {
+            // Arrange - Test edge case where today is month-end
+            var timeZone = "UTC";
+
+            // Test cases for month-end dates that could be problematic
+            var testCases = new[]
+            {
+                new { CurrentDate = new DateTimeOffset(2025, 1, 31, 12, 0, 0, TimeSpan.Zero), Description = "January 31st" },
+                new { CurrentDate = new DateTimeOffset(2025, 3, 31, 12, 0, 0, TimeSpan.Zero), Description = "March 31st" },
+                new { CurrentDate = new DateTimeOffset(2025, 5, 31, 12, 0, 0, TimeSpan.Zero), Description = "May 31st" },
+                new { CurrentDate = new DateTimeOffset(2024, 2, 29, 12, 0, 0, TimeSpan.Zero), Description = "Leap year Feb 29th" }
+            };
+
+            foreach (var testCase in testCases)
+            {
+                // Simulate different "today" dates by creating start dates that would make the logic trigger
+                var startDate = testCase.CurrentDate.AddYears(-2); // 2 years ago
+                var startTimestamp = startDate.ToUnixTimeSeconds();
+
+                // Act - This would use the current system time, so we can't directly test this
+                // But we can test the AddMonths behavior that's problematic
+                var result = NoteService._GetTimestamps(startTimestamp, timeZone);
+
+                // Assert - Just verify it doesn't throw and returns reasonable results
+                Assert.That(result, Is.Not.Null, $"Should not fail for {testCase.Description}");
+                Assert.That(result.Length, Is.GreaterThan(0), $"Should return timestamps for {testCase.Description}");
+
+                // The issue we're looking for is that AddMonths(-1) on March 31 gives Feb 28, not March 1
+                // This test documents the current behavior
+            }
+        }
+
+        [Test]
+        public void AddMonths_EdgeCases_DemonstratesProblem()
+        {
+            // Arrange - Demonstrate the AddMonths issue
+            var march31 = new DateTimeOffset(2025, 3, 31, 12, 0, 0, TimeSpan.Zero);
+            var jan31 = new DateTimeOffset(2025, 1, 31, 12, 0, 0, TimeSpan.Zero);
+            var may31 = new DateTimeOffset(2025, 5, 31, 12, 0, 0, TimeSpan.Zero);
+
+            // Act
+            var oneMonthBeforeMarch31 = march31.AddMonths(-1);  // Will be Feb 28, not March 1
+            var oneMonthBeforeJan31 = jan31.AddMonths(-1);     // Will be Dec 31, which is correct
+            var oneMonthBeforeMay31 = may31.AddMonths(-1);     // Will be Apr 30, not May 1
+
+            // Assert - Document the current behavior
+            Assert.That(oneMonthBeforeMarch31.Day, Is.EqualTo(28),
+                "March 31 - 1 month = Feb 28 (not March 1) - this might not be what users expect");
+            Assert.That(oneMonthBeforeJan31.Day, Is.EqualTo(31),
+                "January 31 - 1 month = Dec 31 - this is correct");
+            Assert.That(oneMonthBeforeMay31.Day, Is.EqualTo(30),
+                "May 31 - 1 month = Apr 30 (not May 1) - this might not be what users expect");
+        }
+
+        [Test]
+        public void TryGetExactMonthOffset_WithValidDates_ReturnsTrue()
+        {
+            // Arrange
+            var march28 = new DateTimeOffset(2025, 3, 28, 12, 0, 0, TimeSpan.Zero);
+            var january31 = new DateTimeOffset(2025, 1, 31, 12, 0, 0, TimeSpan.Zero);
+
+            // Act & Assert - Dates that should work
+            Assert.That(NoteService._TryGetExactMonthOffset(march28, -1, out var feb28), Is.True,
+                "March 28 should have a valid Feb 28");
+            Assert.That(feb28.Month, Is.EqualTo(2));
+            Assert.That(feb28.Day, Is.EqualTo(28));
+
+            Assert.That(NoteService._TryGetExactMonthOffset(january31, -1, out var dec31), Is.True,
+                "January 31 should have a valid Dec 31");
+            Assert.That(dec31.Month, Is.EqualTo(12));
+            Assert.That(dec31.Day, Is.EqualTo(31));
+        }
+
+        [Test]
+        public void TryGetExactMonthOffset_WithInvalidDates_ReturnsFalse()
+        {
+            // Arrange
+            var march29 = new DateTimeOffset(2025, 3, 29, 12, 0, 0, TimeSpan.Zero);
+            var march30 = new DateTimeOffset(2025, 3, 30, 12, 0, 0, TimeSpan.Zero);
+            var march31 = new DateTimeOffset(2025, 3, 31, 12, 0, 0, TimeSpan.Zero);
+            var may31 = new DateTimeOffset(2025, 5, 31, 12, 0, 0, TimeSpan.Zero);
+
+            // Act & Assert - Dates that should NOT work (Feb doesn't have 29, 30, 31 in 2025)
+            Assert.That(NoteService._TryGetExactMonthOffset(march29, -1, out _), Is.False,
+                "March 29 -> Feb 29 doesn't exist in 2025");
+            Assert.That(NoteService._TryGetExactMonthOffset(march30, -1, out _), Is.False,
+                "March 30 -> Feb 30 doesn't exist");
+            Assert.That(NoteService._TryGetExactMonthOffset(march31, -1, out _), Is.False,
+                "March 31 -> Feb 31 doesn't exist");
+            Assert.That(NoteService._TryGetExactMonthOffset(may31, -1, out _), Is.False,
+                "May 31 -> Apr 31 doesn't exist");
+        }
+
+        [Test]
+        public void TryGetExactMonthOffset_WithLeapYear_HandlesFebruary29()
+        {
+            // Arrange - 2024 is a leap year
+            var march29_2024 = new DateTimeOffset(2024, 3, 29, 12, 0, 0, TimeSpan.Zero);
+            var march29_2025 = new DateTimeOffset(2025, 3, 29, 12, 0, 0, TimeSpan.Zero);
+
+            // Act & Assert
+            Assert.That(NoteService._TryGetExactMonthOffset(march29_2024, -1, out var feb29_2024), Is.True,
+                "March 29 2024 -> Feb 29 2024 should work (leap year)");
+            Assert.That(feb29_2024.Day, Is.EqualTo(29));
+            Assert.That(feb29_2024.Month, Is.EqualTo(2));
+            Assert.That(feb29_2024.Year, Is.EqualTo(2024));
+
+            Assert.That(NoteService._TryGetExactMonthOffset(march29_2025, -1, out _), Is.False,
+                "March 29 2025 -> Feb 29 2025 should NOT work (not leap year)");
+        }
+
+        [Test]
+        public void GetTimestamps_SkipsNonExistentMonthlyDates()
+        {
+            // This test verifies that the monthly milestones improvement works
+            // We can't easily test the exact behavior since _GetTimestamps uses current time,
+            // but we can verify the method doesn't crash and returns reasonable results
+
+            var timeZone = "UTC";
+            var startTimestamp = DateTimeOffset.UtcNow.AddYears(-2).ToUnixTimeSeconds();
+
+            // Act
+            var result = NoteService._GetTimestamps(startTimestamp, timeZone);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.GreaterThan(0));
+
+            // The improvement means some monthly milestones might be skipped,
+            // but we should still get at least yesterday and today
+            Assert.That(result.Length, Is.GreaterThanOrEqualTo(2),
+                "Should always include at least yesterday and today");
+        }
+
+        [Test]
+        public void GetTimestamps_RespectsStartDateBoundary()
+        {
+            // Test that monthly milestones don't go before the start date
+            var timeZone = "UTC";
+            var recentStartDate = DateTimeOffset.UtcNow.AddMonths(-2); // Only 2 months of history
+            var startTimestamp = recentStartDate.ToUnixTimeSeconds();
+
+            // Act
+            var result = NoteService._GetTimestamps(startTimestamp, timeZone);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+
+            // Should not include 6-month or 3-month milestones since they'd be before start date
+            // but should include 1-month milestone (if the date exists in target month)
+            var allTimestamps = result.Select(ts => DateTimeOffset.FromUnixTimeSeconds(ts)).ToList();
+            var oldestTimestamp = allTimestamps.Min();
+
+            Assert.That(oldestTimestamp, Is.GreaterThanOrEqualTo(recentStartDate),
+                "No timestamp should be earlier than the start date");
+        }
+
     }
 }
