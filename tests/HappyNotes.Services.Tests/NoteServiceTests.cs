@@ -423,5 +423,84 @@ public class NoteServiceTests
                     "Results should be consistent within 1 second");
             }
         }
+
+        [Test]
+        public void GetTimestamps_AnniversaryDates_RespectHistoricalTimezoneOffsets()
+        {
+            // Arrange - Use realistic dates and timezone
+            var timeZone = "America/New_York";
+            // Use an old enough start date to ensure we get yearly anniversaries
+            var startDate = DateTimeOffset.UtcNow.AddYears(-5); 
+            var startTimestamp = startDate.ToUnixTimeSeconds();
+
+            // Act
+            var result = NoteService._GetTimestamps(startTimestamp, timeZone);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.GreaterThan(0));
+            
+            // The method should return timestamps for today's month/day in previous years
+            var today = DateTimeOffset.UtcNow;
+            var currentMonth = today.Month;
+            var currentDay = today.Day;
+            
+            // Find timestamps that match today's month/day from previous years
+            var anniversaryTimestamps = result.Where(ts => 
+            {
+                var nyTimeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZone);
+                var date = TimeZoneInfo.ConvertTime(DateTimeOffset.FromUnixTimeSeconds(ts), nyTimeZone);
+                return date.Month == currentMonth && date.Day == currentDay && date.Year < today.Year;
+            }).ToList();
+
+            // Should have at least one anniversary if start date is old enough
+            if (startDate.Year < today.Year)
+            {
+                Assert.That(anniversaryTimestamps.Count, Is.GreaterThanOrEqualTo(1), 
+                    "Should contain anniversary dates for same month/day in previous years");
+
+                // Verify that anniversary dates are correctly set to start of day
+                foreach (var ts in anniversaryTimestamps)
+                {
+                    var nyTimeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZone);
+                    var date = TimeZoneInfo.ConvertTime(DateTimeOffset.FromUnixTimeSeconds(ts), nyTimeZone);
+                    Assert.That(date.Month, Is.EqualTo(currentMonth), $"Anniversary should be in month {currentMonth}, got {date:yyyy-MM-dd}");
+                    Assert.That(date.Day, Is.EqualTo(currentDay), $"Anniversary should be on day {currentDay}, got {date:yyyy-MM-dd}");
+                    Assert.That(date.Hour, Is.EqualTo(0), "Anniversary should be at start of day");
+                    Assert.That(date.Minute, Is.EqualTo(0), "Anniversary should be at start of day");
+                }
+            }
+        }
+
+        [Test]
+        public void TryCreateDate_WithDifferentYears_UsesCorrectTimezoneOffset()
+        {
+            // Arrange - Test with a timezone that has DST changes
+            var timeZone = TimeZoneInfo.FindSystemTimeZoneById("America/New_York");
+            
+            // Test different scenarios
+            var testCases = new[]
+            {
+                new { Year = 2023, Month = 6, Day = 29, Description = "Summer 2023 (EDT)" },
+                new { Year = 2023, Month = 12, Day = 29, Description = "Winter 2023 (EST)" },
+                new { Year = 2020, Month = 6, Day = 29, Description = "Summer 2020 (EDT)" }
+            };
+
+            foreach (var testCase in testCases)
+            {
+                // Act
+                var success = NoteService._TryCreateDate(testCase.Year, testCase.Month, testCase.Day, timeZone, out var timestamp);
+
+                // Assert
+                Assert.That(success, Is.True, $"Should successfully create date for {testCase.Description}");
+                
+                var resultDate = TimeZoneInfo.ConvertTime(DateTimeOffset.FromUnixTimeSeconds(timestamp), timeZone);
+                Assert.That(resultDate.Year, Is.EqualTo(testCase.Year), $"Year mismatch for {testCase.Description}");
+                Assert.That(resultDate.Month, Is.EqualTo(testCase.Month), $"Month mismatch for {testCase.Description}");
+                Assert.That(resultDate.Day, Is.EqualTo(testCase.Day), $"Day mismatch for {testCase.Description}");
+                Assert.That(resultDate.Hour, Is.EqualTo(0), $"Hour should be 0 for {testCase.Description}");
+                Assert.That(resultDate.Minute, Is.EqualTo(0), $"Minute should be 0 for {testCase.Description}");
+            }
+        }
     }
 }

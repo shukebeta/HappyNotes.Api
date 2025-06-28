@@ -374,12 +374,13 @@ public class NoteService(
         }
     }
 
-    private static bool _TryCreateDate(int year, int month, int day, TimeZoneInfo timeZone, out long timestamp)
+    internal static bool _TryCreateDate(int year, int month, int day, TimeZoneInfo timeZone, out long timestamp)
     {
         timestamp = 0;
         try
         {
-            var date = new DateTimeOffset(year, month, day, 0, 0, 0, timeZone.GetUtcOffset(DateTime.Today));
+            var targetDate = new DateTime(year, month, day, 0, 0, 0, DateTimeKind.Unspecified);
+            var date = new DateTimeOffset(targetDate, timeZone.GetUtcOffset(targetDate));
             timestamp = date.ToUnixTimeSeconds();
             return true;
         }
