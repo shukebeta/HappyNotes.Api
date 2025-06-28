@@ -18,3 +18,4 @@ generate_mcp_yaml.py
 install_rooflow_conport.sh
 system_prompt.md
 .roo
+.claude
