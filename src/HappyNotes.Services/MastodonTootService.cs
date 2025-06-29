@@ -62,7 +62,7 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
     private async Task<Status> _SendLongTootAsPhotoAsync(string instanceUrl, string accessToken, string longText,
         bool isPrivate, bool isMarkdown)
     {
-        logger.LogInformation("Converting long text to image for {InstanceUrl}, textLength: {TextLength}",
+        logger.LogDebug("Converting long text to image for {InstanceUrl}, textLength: {TextLength}",
             instanceUrl, longText.Length);
 
         var client = new MastodonClient(instanceUrl, accessToken);
@@ -80,7 +80,7 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
                 mediaIds: [media.Id,]
             );
 
-            logger.LogInformation("Successfully published long text as photo to {InstanceUrl}, statusId: {StatusId}",
+            logger.LogDebug("Successfully published long text as photo to {InstanceUrl}, statusId: {StatusId}",
                 instanceUrl, status.Id);
             return status;
         }
@@ -158,7 +158,7 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
                 mediaIds: isMarkdown ? mediaIds : null // Only include mediaIds if markdown was processed
             );
 
-            logger.LogInformation("Successfully edited toot {TootId} on {InstanceUrl}", tootId, instanceUrl);
+            logger.LogDebug("Successfully edited toot {TootId} on {InstanceUrl}", tootId, instanceUrl);
             return updatedStatus;
         }
         catch (Exception ex)
@@ -197,14 +197,14 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
 
     public async Task DeleteTootAsync(string instanceUrl, string accessToken, string tootId)
     {
-        logger.LogInformation("Starting DeleteTootAsync for instance: {InstanceUrl}, tootId: {TootId}",
+        logger.LogDebug("Starting DeleteTootAsync for instance: {InstanceUrl}, tootId: {TootId}",
             instanceUrl, tootId);
 
         try
         {
             var client = new MastodonClient(instanceUrl, accessToken);
             await client.DeleteStatus(tootId);
-            logger.LogInformation("Successfully deleted toot {TootId} from {InstanceUrl}", tootId, instanceUrl);
+            logger.LogDebug("Successfully deleted toot {TootId} from {InstanceUrl}", tootId, instanceUrl);
         }
         catch (Exception ex)
         {
@@ -222,7 +222,7 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
         bool isPrivate,
         bool isMarkdown)
     {
-        logger.LogInformation("Editing long toot as photo for {InstanceUrl}, tootId: {TootId}, textLength: {TextLength}",
+        logger.LogDebug("Editing long toot as photo for {InstanceUrl}, tootId: {TootId}, textLength: {TextLength}",
             instanceUrl, tootId, longText.Length);
 
         try
@@ -256,7 +256,7 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
                 mediaIds: [media.Id]
             );
 
-            logger.LogInformation("Successfully edited long toot as photo {TootId} on {InstanceUrl}", tootId, instanceUrl);
+            logger.LogDebug("Successfully edited long toot as photo {TootId} on {InstanceUrl}", tootId, instanceUrl);
             return editedStatus;
         }
         catch (Exception ex)

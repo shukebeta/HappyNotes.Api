@@ -31,7 +31,7 @@ public class MastodonSyncNoteService(
         try
         {
             var accounts = await _GetToSyncMastodonUserAccounts(note);
-            logger.LogInformation("Found {AccountCount} Mastodon accounts to sync for note {NoteId}",
+            logger.LogDebug("Found {AccountCount} Mastodon accounts to sync for note {NoteId}",
                 accounts.Count, note.Id);
 
             if (accounts.Any())
@@ -83,7 +83,7 @@ public class MastodonSyncNoteService(
         var accounts = await mastodonUserAccountCacheService.GetAsync(note.UserId);
         if (!accounts.Any())
         {
-            logger.LogInformation("No Mastodon accounts found for user {UserId}, skipping sync edit of note {NoteId}",
+            logger.LogDebug("No Mastodon accounts found for user {UserId}, skipping sync edit of note {NoteId}",
                 note.UserId, note.Id);
             return;
         }
@@ -98,7 +98,7 @@ public class MastodonSyncNoteService(
             var tobeRemoved = instanceData.toBeRemoved;
             var tobeUpdated = instanceData.toBeUpdated;
 
-            logger.LogInformation("Edit sync plan for note {NoteId}: {ToSendCount} to send, {ToUpdateCount} to update, {ToRemoveCount} to remove",
+            logger.LogDebug("Edit sync plan for note {NoteId}: {ToSendCount} to send, {ToUpdateCount} to update, {ToRemoveCount} to remove",
                 note.Id, toBeSent.Count, tobeUpdated.Count, tobeRemoved.Count);
 
             // there are existing synced channels
@@ -202,13 +202,13 @@ public class MastodonSyncNoteService(
 
                 if (!accounts.Any())
                 {
-                    logger.LogInformation("No Mastodon accounts found for user {UserId}, skipping sync delete of note {NoteId}",
+                    logger.LogDebug("No Mastodon accounts found for user {UserId}, skipping sync delete of note {NoteId}",
                         note.UserId, note.Id);
                     return;
                 }
 
                 var syncedInstances = _GetSyncedInstances(note);
-                logger.LogInformation("Deleting note {NoteId} from {InstanceCount} Mastodon instances",
+                logger.LogDebug("Deleting note {NoteId} from {InstanceCount} Mastodon instances",
                     note.Id, syncedInstances.Count);
 
                 foreach (var instance in syncedInstances)
