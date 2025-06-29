@@ -19,39 +19,76 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
     public async Task<Status> SendTootAsync(string instanceUrl, string accessToken, string text, bool isPrivate,
         bool isMarkdown = false)
     {
-        var fullText = _GetFullText(text, isMarkdown);
-        if (fullText.Length > Constants.MastodonTootLength)
+        logger.LogInformation("Starting SendTootAsync for instance: {InstanceUrl}, textLength: {TextLength}, isPrivate: {IsPrivate}, isMarkdown: {IsMarkdown}",
+            instanceUrl, text.Length, isPrivate, isMarkdown);
+
+        try
         {
-            return await _SendLongTootAsPhotoAsync(instanceUrl, accessToken, fullText, isPrivate, isMarkdown);
+            var fullText = _GetFullText(text, isMarkdown);
+            if (fullText.Length > Constants.MastodonTootLength)
+            {
+                logger.LogInformation("Text exceeds {CharLimit} characters, sending as photo for instance: {InstanceUrl}",
+                    Constants.MastodonTootLength, instanceUrl);
+                return await _SendLongTootAsPhotoAsync(instanceUrl, accessToken, fullText, isPrivate, isMarkdown);
+            }
+
+            var client = new MastodonClient(instanceUrl, accessToken);
+
+            if (!isMarkdown)
+            {
+                logger.LogDebug("Publishing plain text status to {InstanceUrl}", instanceUrl);
+                return await client.PublishStatus(fullText, isPrivate ? Visibility.Private : Visibility.Public);
+            }
+
+            logger.LogDebug("Processing markdown images for {InstanceUrl}", instanceUrl);
+            var (processedText, mediaIds) = await ProcessMarkdownImagesAsync(client, fullText);
+
+            logger.LogDebug("Publishing markdown status with {MediaCount} media attachments to {InstanceUrl}",
+                mediaIds.Count(), instanceUrl);
+            return await client.PublishStatus(
+                processedText,
+                visibility: isPrivate ? Visibility.Private : Visibility.Public,
+                mediaIds: mediaIds
+            );
         }
-
-        var client = new MastodonClient(instanceUrl, accessToken);
-        if (!isMarkdown)
-            return await client.PublishStatus(fullText, isPrivate ? Visibility.Private : Visibility.Public);
-        var (processedText, mediaIds) = await ProcessMarkdownImagesAsync(client, fullText);
-
-        return await client.PublishStatus(
-            processedText,
-            visibility: isPrivate ? Visibility.Private : Visibility.Public,
-            mediaIds: mediaIds
-        );
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send toot to {InstanceUrl}. Error: {ErrorMessage}",
+                instanceUrl, ex.Message);
+            throw new Exception($"Failed to send toot to {instanceUrl}: {ex.Message}", ex);
+        }
     }
 
-    private static async Task<Status> _SendLongTootAsPhotoAsync(string instanceUrl, string accessToken, string longText,
+    private async Task<Status> _SendLongTootAsPhotoAsync(string instanceUrl, string accessToken, string longText,
         bool isPrivate, bool isMarkdown)
     {
+        logger.LogDebug("Converting long text to image for {InstanceUrl}, textLength: {TextLength}",
+            instanceUrl, longText.Length);
+
         var client = new MastodonClient(instanceUrl, accessToken);
         var filePath = Path.GetTempFileName();
 
         try
         {
             var media = await _UploadLongTextAsMedia(client, longText, isMarkdown);
+            logger.LogDebug("Successfully uploaded long text as media to {InstanceUrl}, mediaId: {MediaId}",
+                instanceUrl, media.Id);
 
-            return await client.PublishStatus(
+            var status = await client.PublishStatus(
                 _GetStringTags(longText),
                 isPrivate ? Visibility.Private : Visibility.Public,
                 mediaIds: [media.Id,]
             );
+
+            logger.LogDebug("Successfully published long text as photo to {InstanceUrl}, statusId: {StatusId}",
+                instanceUrl, status.Id);
+            return status;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send long toot as photo to {InstanceUrl}. Error: {ErrorMessage}",
+                instanceUrl, ex.Message);
+            throw new Exception($"Failed to send long toot as photo to {instanceUrl}: {ex.Message}", ex);
         }
         finally
         {
@@ -70,44 +107,66 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
         bool isPrivate,
         bool isMarkdown = false)
     {
-        var fullText = _GetFullText(newText, isMarkdown);
-        if (fullText.Length > Constants.MastodonTootLength)
+        logger.LogInformation("Starting EditTootAsync for instance: {InstanceUrl}, tootId: {TootId}, textLength: {TextLength}, isPrivate: {IsPrivate}, isMarkdown: {IsMarkdown}",
+            instanceUrl, tootId, newText.Length, isPrivate, isMarkdown);
+
+        try
         {
-            return await _EditLongTootAsPhotoAsync(instanceUrl, accessToken, tootId, fullText, isPrivate, isMarkdown);
-        }
+            var fullText = _GetFullText(newText, isMarkdown);
+            if (fullText.Length > Constants.MastodonTootLength)
+            {
+                logger.LogInformation("Text exceeds {CharLimit} characters, editing as photo for instance: {InstanceUrl}, tootId: {TootId}",
+                    Constants.MastodonTootLength, instanceUrl, tootId);
+                return await _EditLongTootAsPhotoAsync(instanceUrl, accessToken, tootId, fullText, isPrivate, isMarkdown);
+            }
 
-        var client = new MastodonClient(instanceUrl, accessToken);
-        var visibility = isPrivate ? Visibility.Private : Visibility.Public;
+            var client = new MastodonClient(instanceUrl, accessToken);
+            var visibility = isPrivate ? Visibility.Private : Visibility.Public;
 
-        // Get original toot
-        var toot = await client.GetStatus(tootId);
+            // Get original toot
+            logger.LogDebug("Fetching original toot {TootId} from {InstanceUrl}", tootId, instanceUrl);
+            var toot = await client.GetStatus(tootId);
 
-        // Process markdown if enabled
-        var processedText = fullText;
-        IEnumerable<string> mediaIds = Array.Empty<string>();
+            // Process markdown if enabled
+            var processedText = fullText;
+            IEnumerable<string> mediaIds = Array.Empty<string>();
 
-        if (isMarkdown)
-        {
-            (processedText, mediaIds) = await ProcessMarkdownImagesAsync(client, newText);
-        }
+            if (isMarkdown)
+            {
+                logger.LogDebug("Processing markdown images for edit on {InstanceUrl}", instanceUrl);
+                (processedText, mediaIds) = await ProcessMarkdownImagesAsync(client, newText);
+            }
 
-        // If visibility changed, delete and recreate
-        if (toot.Visibility != visibility)
-        {
-            await client.DeleteStatus(tootId);
-            return await client.PublishStatus(
+            // If visibility changed, delete and recreate
+            if (toot.Visibility != visibility)
+            {
+                logger.LogInformation("Visibility changed for toot {TootId} on {InstanceUrl}, deleting and recreating",
+                    tootId, instanceUrl);
+                await client.DeleteStatus(tootId);
+                return await client.PublishStatus(
+                    processedText,
+                    visibility: visibility,
+                    mediaIds: mediaIds
+                );
+            }
+
+            // Otherwise, update existing toot
+            logger.LogDebug("Updating existing toot {TootId} on {InstanceUrl}", tootId, instanceUrl);
+            var updatedStatus = await client.EditStatus(
+                tootId,
                 processedText,
-                visibility: visibility,
-                mediaIds: mediaIds
+                mediaIds: isMarkdown ? mediaIds : null // Only include mediaIds if markdown was processed
             );
-        }
 
-        // Otherwise, update existing toot
-        return await client.EditStatus(
-            tootId,
-            processedText,
-            mediaIds: isMarkdown ? mediaIds : null // Only include mediaIds if markdown was processed
-        );
+            logger.LogDebug("Successfully edited toot {TootId} on {InstanceUrl}", tootId, instanceUrl);
+            return updatedStatus;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to edit toot {TootId} on {InstanceUrl}. Error: {ErrorMessage}",
+                tootId, instanceUrl, ex.Message);
+            throw new Exception($"Failed to edit toot {tootId} on {instanceUrl}: {ex.Message}", ex);
+        }
     }
 
     private static string _GetFullText(string text, bool isMarkdown)
@@ -138,11 +197,24 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
 
     public async Task DeleteTootAsync(string instanceUrl, string accessToken, string tootId)
     {
-        var client = new MastodonClient(instanceUrl, accessToken);
-        await client.DeleteStatus(tootId);
+        logger.LogDebug("Starting DeleteTootAsync for instance: {InstanceUrl}, tootId: {TootId}",
+            instanceUrl, tootId);
+
+        try
+        {
+            var client = new MastodonClient(instanceUrl, accessToken);
+            await client.DeleteStatus(tootId);
+            logger.LogDebug("Successfully deleted toot {TootId} from {InstanceUrl}", tootId, instanceUrl);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to delete toot {TootId} from {InstanceUrl}. Error: {ErrorMessage}",
+                tootId, instanceUrl, ex.Message);
+            throw new Exception($"Failed to delete toot {tootId} from {instanceUrl}: {ex.Message}", ex);
+        }
     }
 
-    private static async Task<Status> _EditLongTootAsPhotoAsync(
+    private async Task<Status> _EditLongTootAsPhotoAsync(
         string instanceUrl,
         string accessToken,
         string tootId,
@@ -150,6 +222,9 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
         bool isPrivate,
         bool isMarkdown)
     {
+        logger.LogDebug("Editing long toot as photo for {InstanceUrl}, tootId: {TootId}, textLength: {TextLength}",
+            instanceUrl, tootId, longText.Length);
+
         try
         {
             var client = new MastodonClient(instanceUrl, accessToken);
@@ -157,9 +232,14 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
             var visibility = isPrivate ? Visibility.Private : Visibility.Public;
             var media = await _UploadLongTextAsMedia(client, longText, isMarkdown);
 
+            logger.LogDebug("Successfully uploaded long text as media for edit on {InstanceUrl}, mediaId: {MediaId}",
+                instanceUrl, media.Id);
+
             // If visibility changed, we need to delete and recreate
             if (toot.Visibility != visibility)
             {
+                logger.LogInformation("Visibility changed for long toot {TootId} on {InstanceUrl}, deleting and recreating",
+                    tootId, instanceUrl);
                 await client.DeleteStatus(tootId);
                 return await client.PublishStatus(
                     string.Empty,
@@ -169,15 +249,21 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
             }
 
             // Otherwise, edit the existing toot
-            return await client.EditStatus(
+            logger.LogDebug("Editing existing long toot {TootId} on {InstanceUrl}", tootId, instanceUrl);
+            var editedStatus = await client.EditStatus(
                 tootId,
                 _GetStringTags(longText),
                 mediaIds: [media.Id]
             );
+
+            logger.LogDebug("Successfully edited long toot as photo {TootId} on {InstanceUrl}", tootId, instanceUrl);
+            return editedStatus;
         }
         catch (Exception ex)
         {
-            throw new Exception($"Failed to edit long toot as photo: {ex.Message}", ex);
+            logger.LogError(ex, "Failed to edit long toot as photo {TootId} on {InstanceUrl}. Error: {ErrorMessage}",
+                tootId, instanceUrl, ex.Message);
+            throw new Exception($"Failed to edit long toot as photo {tootId} on {instanceUrl}: {ex.Message}", ex);
         }
     }
 
@@ -213,7 +299,7 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
         catch
         {
             // collect successful results only from all tasks
-            for(var i = 0; i < uploadTasks.Count; i++)
+            for (var i = 0; i < uploadTasks.Count; i++)
             {
                 var task = uploadTasks[i];
                 if (task.Status == TaskStatus.RanToCompletion)
@@ -278,10 +364,16 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
         const int maxRetries = 3;
         var retryDelay = TimeSpan.FromSeconds(1);
 
+        logger.LogDebug("Starting image upload: {ImageUrl}, index: {Index}, altText: {AltText}",
+            imageUrl, index, altText);
+
         for (var attempt = 1; attempt <= maxRetries; attempt++)
         {
             try
             {
+                logger.LogDebug("Image upload attempt {Attempt}/{MaxRetries} for {ImageUrl}",
+                    attempt, maxRetries, imageUrl);
+
                 using var httpClient = httpClientFactory.CreateClient();
                 using var response = await httpClient.GetAsync(imageUrl, HttpCompletionOption.ResponseHeadersRead);
 
@@ -312,6 +404,9 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
                     filename = $"image_{index}.jpg";
                 }
 
+                logger.LogDebug("Uploading image {ImageUrl} with filename {Filename} and contentType {ContentType}",
+                    imageUrl, filename, contentType);
+
                 // Read the content as a stream
                 await using var imageStream = await response.Content.ReadAsStreamAsync();
 
@@ -320,18 +415,27 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
                     ? await client.UploadMedia(imageStream, filename, altText)
                     : await client.UploadMedia(imageStream, filename);
 
+                logger.LogDebug("Successfully uploaded image {ImageUrl}, attachmentId: {AttachmentId}",
+                    imageUrl, attachment.Id);
                 return (index, attachment);
             }
             catch (Exception ex)
             {
+                logger.LogWarning(ex, "Image upload attempt {Attempt}/{MaxRetries} failed for {ImageUrl}: {ErrorMessage}",
+                    attempt, maxRetries, imageUrl, ex.Message);
+
                 // If this was our last retry, throw the exception
                 if (attempt == maxRetries)
                 {
+                    logger.LogError(ex, "Failed to upload image {ImageUrl} after {MaxRetries} attempts",
+                        imageUrl, maxRetries);
                     throw new Exception($"Failed to upload image {imageUrl} after {maxRetries} attempts: {ex.Message}",
                         ex);
                 }
 
                 // Wait before retrying, using exponential backoff
+                logger.LogDebug("Waiting {RetryDelay}ms before retry {NextAttempt} for image {ImageUrl}",
+                    retryDelay.TotalMilliseconds, attempt + 1, imageUrl);
                 await Task.Delay(retryDelay);
                 retryDelay *= 2; // Double the delay for next attempt
             }
