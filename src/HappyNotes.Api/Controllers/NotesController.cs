@@ -14,8 +14,7 @@ namespace HappyNotes.Api.Controllers;
 public class NotesController(IMapper mapper
     , INoteService noteService
     , ICurrentUser currentUser
-    , ISearchService searchService
-): BaseController
+) : BaseController
 {
     [HttpGet("{pageSize:int}/{pageNumber:int}")]
     [EnforcePageSizeLimit(Constants.MaxPageSize)]
@@ -73,7 +72,7 @@ public class NotesController(IMapper mapper
     public async Task<ApiResult> PurgeDeleted()
     {
         await noteService.PurgeUserDeletedNotes(currentUser.Id);
-        return new SuccessfulResult<object>(null); // Indicate success with no specific data
+        return Success();
     }
 
     [HttpGet("{pageSize:int}/{pageNumber:int}")]
