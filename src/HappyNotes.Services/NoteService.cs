@@ -220,8 +220,16 @@ public class NoteService(
         // Get the specified time zone
         TimeZoneInfo timeZone = TimeZoneInfo.FindSystemTimeZoneById(localTimezone);
         // Parse the date string to a DateTime object
-        var dayStartTimestamp = DateTimeOffset.ParseExact(yyyyMMdd, "yyyyMMdd", CultureInfo.InvariantCulture)
-            .GetDayStartTimestamp(timeZone);
+        DateTimeOffset dateTimeOffset;
+        try
+        {
+            dateTimeOffset = DateTimeOffset.ParseExact(yyyyMMdd, "yyyyMMdd", CultureInfo.InvariantCulture);
+        }
+        catch (FormatException)
+        {
+            throw new ArgumentException($"Invalid date format '{yyyyMMdd}'. Expected format: yyyyMMdd (e.g., 20250212)");
+        }
+        var dayStartTimestamp = dateTimeOffset.GetDayStartTimestamp(timeZone);
         var notes = await noteRepository.GetListAsync(w =>
             w.UserId == userId && w.CreatedAt >= dayStartTimestamp &&
             w.CreatedAt < dayStartTimestamp + 86400 && w.DeletedAt == null, w => w.CreatedAt);
