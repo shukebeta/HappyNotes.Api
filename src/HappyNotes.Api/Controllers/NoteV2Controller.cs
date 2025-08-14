@@ -43,7 +43,7 @@ public class NoteV2Controller(
         }
 
         await noteService.Update(currentUser.Id, noteId, request);
-        var note = await noteService.Get(currentUser.Id, noteId, true);
+        var note = await noteService.Get(currentUser.Id, noteId);
         return new SuccessfulResult<NoteDto>(mapper.Map<NoteDto>(note));
     }
 }

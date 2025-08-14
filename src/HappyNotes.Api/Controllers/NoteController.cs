@@ -15,12 +15,12 @@ namespace HappyNotes.Api.Controllers;
 public class NoteController(IMapper mapper
     , ICurrentUser currentUser
     , INoteService noteService
-): BaseController
+) : BaseController
 {
     [HttpGet("{noteId:long}")]
-    public async Task<ApiResult<NoteDto>> Get(long noteId, bool includeDeleted = false)
+    public async Task<ApiResult<NoteDto>> Get(long noteId)
     {
-        var note = await noteService.Get(currentUser.Id, noteId, includeDeleted);
+        var note = await noteService.Get(currentUser.Id, noteId);
         return new SuccessfulResult<NoteDto>(mapper.Map<NoteDto>(note));
     }
 

@@ -23,8 +23,8 @@ public enum EventId
     [Description("Invalid operation: note with id {0} is not deleted")]
     _00103_NoteIsNotDeleted = 103,
 
-    [Description("Invalid operation: Note with id {0} has already been deleted.")]
-    _00104_NoteIsDeleted = 104,
+    [Description("Invalid operation: Note with id {0} has already been deleted and it is not yours.")]
+    _00104_NoteIsDeletedAndNotYours = 104,
 
     [Description("Duplicate request detected. The request has been ignored.")]
     _00105_DetectedDuplicatePostRequest = 105,
