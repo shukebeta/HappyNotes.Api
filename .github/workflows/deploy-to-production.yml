@@ -38,6 +38,8 @@ jobs:
         run: dotnet publish -c Release --property:PublishDir=/var/www/HappyNotes.Api
 
       - name: Replace placeholders with actual information
+        env:
+          SEQ_KEY: ${{ secrets.PRODUCTION_SEQ_API_KEY }}
         run: |
           set -x
           pwd
@@ -50,7 +52,7 @@ jobs:
           sed -i "s/VERSION_PLACEHOLDER/$VERSION_INFO/"  /var/www/HappyNotes.Api/appsettings.json
           sed -i "s/default_mysql_server/127.0.0.1/" /var/www/HappyNotes.Api/appsettings.json
           sed -i "s/default_manticore_server/arm.shukebeta.eu.org/" /var/www/HappyNotes.Api/appsettings.json
-          sed -i "s#seq-api-key-placeholder#${{ secrets.PRODUCTION_SEQ_API_KEY }}#g" /var/www/HappyNotes.Api/appsettings.json
+          sed -i '/"SeqApiKey":/c\  "SeqApiKey": "$SEQ_KEY",' /var/www/HappyNotes.Api/appsettings.json
 
       - name: Restart the app
         run: |
