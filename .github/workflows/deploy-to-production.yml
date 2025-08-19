@@ -39,6 +39,7 @@ jobs:
 
       - name: Replace placeholders with actual information
         run: |
+          set -x
           pwd
           sed -i "s/password-placeholder/${{ secrets.PRODUCTION_MYSQL_PASSWORD }}/g" /var/www/HappyNotes.Api/appsettings.json
           sed -i "s/symmetric-security-key-placeholder/${{ secrets.PRODUCTION_SYMMETRIC_SECURITY_KEY }}/g" /var/www/HappyNotes.Api/appsettings.json
@@ -49,7 +50,7 @@ jobs:
           sed -i "s/VERSION_PLACEHOLDER/$VERSION_INFO/"  /var/www/HappyNotes.Api/appsettings.json
           sed -i "s/default_mysql_server/127.0.0.1/" /var/www/HappyNotes.Api/appsettings.json
           sed -i "s/default_manticore_server/arm.shukebeta.eu.org/" /var/www/HappyNotes.Api/appsettings.json
-          sed -i "s/seq-api-key-placeholder/${{ secrets.PRODUCTION_SEQ_API_KEY }}/g" /var/www/HappyNotes.Api/appsettings.json
+          sed -i "s#seq-api-key-placeholder#${{ secrets.PRODUCTION_SEQ_API_KEY }}#g" /var/www/HappyNotes.Api/appsettings.json
 
       - name: Restart the app
         run: |
