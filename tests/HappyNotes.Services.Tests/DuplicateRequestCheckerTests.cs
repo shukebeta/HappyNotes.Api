@@ -47,19 +47,25 @@ public class DuplicateRequestCheckerTests
     public async Task PeriodicCleanup_ShouldRemoveOldEntries()
     {
         // Arrange
-        await Task.Delay(TimeSpan.FromSeconds(3)); // Wait for cleanup
+        // Use specific, short intervals for this test to make it fast and predictable.
+        DuplicateRequestChecker.SetExpirationDuration(TimeSpan.FromSeconds(1));
+        DuplicateRequestChecker.SetCleanupInterval(TimeSpan.FromSeconds(2));
+        DuplicateRequestChecker.RecentRequests.Clear(); // Ensure a clean state for this test
 
         var userId = 3;
-        var request = new PostNoteRequest { Content = "Old entry content", };
-
-        // Add an old entry
-        DuplicateRequestChecker.IsDuplicate(userId, request);
-        Assert.That(DuplicateRequestChecker.Length(3), Is.EqualTo(1));
+        var request = new PostNoteRequest { Content = "Old entry content" };
 
         // Act
-        await Task.Delay(TimeSpan.FromSeconds(3)); // Wait for cleanup
+        // Add an entry. It is set to expire in 1 second.
+        DuplicateRequestChecker.IsDuplicate(userId, request);
+        Assert.That(DuplicateRequestChecker.Length(3), Is.EqualTo(1), "Entry should be added initially.");
 
-        Assert.That(DuplicateRequestChecker.Length(3), Is.EqualTo(0));
+        // Wait long enough for the entry to expire AND a cleanup cycle to run.
+        // Waiting 3 seconds is safely longer than the expiration (1s) and the cleanup interval (2s).
+        await Task.Delay(TimeSpan.FromSeconds(3));
+
+        // Assert
+        Assert.That(DuplicateRequestChecker.Length(3), Is.EqualTo(0), "Entry should have been removed by the cleanup task.");
     }
 
     [Test]

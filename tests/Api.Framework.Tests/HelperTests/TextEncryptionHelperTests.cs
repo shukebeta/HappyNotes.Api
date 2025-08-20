@@ -25,12 +25,22 @@ public class TextEncryptionHelperTests
     }
 
     [Test]
-    public void Decrypt_WithWrongKey_ShouldThrowException()
+    public void Decrypt_WithWrongKey_ShouldNotProduceOriginalText()
     {
         var encryptedText = TextEncryptionHelper.Encrypt(TestPlainText, TestKey);
-        Assert.Throws<CryptographicException>(
-            () => TextEncryptionHelper.Decrypt(encryptedText, "wrong_key"),
-            "Decrypting with the wrong key should throw an exception.");
+
+        try
+        {
+            var decryptedText = TextEncryptionHelper.Decrypt(encryptedText, "wrong_key");
+            // Scenario 1: No exception is thrown. This is acceptable as long as the original text is not returned.
+            // This handles the flaky case where padding bytes are coincidentally valid.
+            Assert.That(decryptedText, Is.Not.EqualTo(TestPlainText));
+        }
+        catch (CryptographicException)
+        {
+            // Scenario 2: The expected exception is thrown. This is also a success.
+            Assert.Pass();
+        }
     }
 
     [Test]
