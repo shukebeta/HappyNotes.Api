@@ -62,10 +62,12 @@ public class TelegramSyncNoteService(
     {
         var settings = await telegramSettingsCacheService.GetAsync(note.UserId);
         if (!settings.Any()) return;
+
         var syncedChannels = new List<SyncedTelegramChannel>();
 
         var channelData = await _GetRequiredChannelData(note);
         var toBeSent = channelData.toBeSent;
+
         // there are existing synced channels
         if (!string.IsNullOrWhiteSpace(note.TelegramMessageIds))
         {
@@ -77,63 +79,62 @@ public class TelegramSyncNoteService(
             }
 
             var tobeUpdated = channelData.toBeUpdatedChannels;
+
+            // First, handle messages that are short enough to be edited in-place.
             if (fullContent.Length <= Constants.TelegramMessageLength)
             {
+                var successfullyEdited = new List<SyncedTelegramChannel>();
                 try
                 {
                     foreach (var channel in tobeUpdated)
                     {
-                        var channelId = channel.ChannelId;
-                        var setting = settings.FirstOrDefault(s => s.ChannelId.Equals(channelId));
+                        var setting = settings.FirstOrDefault(s => s.ChannelId.Equals(channel.ChannelId));
                         if (setting == null) continue;
 
-                        var token = TextEncryptionHelper.Decrypt(setting.EncryptedToken,
-                            TokenKey);
+                        var token = TextEncryptionHelper.Decrypt(setting.EncryptedToken, TokenKey);
                         try
                         {
-                            await telegramService.EditMessageAsync(token, channelId, channel.MessageId, fullContent,
-                                note.IsMarkdown);
+                            await telegramService.EditMessageAsync(token, channel.ChannelId, channel.MessageId, fullContent, note.IsMarkdown);
                         }
                         catch (ApiRequestException ex)
                         {
-                            logger.LogError(ex.ToString());
+                            logger.LogError(ex, "Failed to edit message with Markdown for note {NoteId} in channel {ChannelId}. Retrying without Markdown.", note.Id, channel.ChannelId);
                             if (note.IsMarkdown)
                             {
-                                // exception can be caused by the Markdown parser, so we do the edit again without setting markdown flag
-                                await telegramService.EditMessageAsync(token, channelId, channel.MessageId, fullContent,
-                                    false);
+                                await telegramService.EditMessageAsync(token, channel.ChannelId, channel.MessageId, fullContent, false);
                             }
                         }
-                        finally
+
+                        // This message is now successfully updated.
+                        syncedChannels.Add(new SyncedTelegramChannel
                         {
-                            syncedChannels.Add(new SyncedTelegramChannel
-                            {
-                                ChannelId = channelId,
-                                MessageId = channel.MessageId,
-                            });
-                        }
+                            ChannelId = channel.ChannelId,
+                            MessageId = channel.MessageId,
+                        });
+                        successfullyEdited.Add(channel);
                     }
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex.ToString());
+                    logger.LogError(ex, "An unexpected error occurred while editing messages for note {NoteId}", note.Id);
                 }
+                // Remove the successfully edited channels from the list of channels to be updated.
+                tobeUpdated.RemoveAll(c => successfullyEdited.Contains(c));
             }
-            else
+
+            // For messages that were too long (or if editing failed), delete and resend.
+            foreach (var channel in tobeUpdated)
             {
-                // delete existing message, then resend as message with attachments
-                foreach (var channel in tobeUpdated)
+                var setting = settings.FirstOrDefault(s => s.ChannelId.Equals(channel.ChannelId));
+                if (setting != null)
                 {
-                    var setting = settings.FirstOrDefault(s => s.ChannelId.Equals(channel.ChannelId));
-                    if (setting != null)
-                    {
-                        await _DeleteMessage(setting, channel);
-                        toBeSent.Add(channel.ChannelId);
-                    }
+                    await _DeleteMessage(setting, channel);
+                    toBeSent.Add(channel.ChannelId);
                 }
             }
         }
 
+        // This part remains the same
         foreach (var channelId in toBeSent)
         {
             var setting = settings.FirstOrDefault(s => s.ChannelId.Equals(channelId));
