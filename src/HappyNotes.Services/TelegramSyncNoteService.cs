@@ -265,8 +265,22 @@ public class TelegramSyncNoteService(
         }
         else
         {
-            var message = await telegramService.SendMessageAsync(token, channelId, text, note.IsMarkdown);
-            return message.MessageId;
+            try
+            {
+                var message = await telegramService.SendMessageAsync(token, channelId, text, note.IsMarkdown);
+                return message.MessageId;
+            }
+            catch (ApiRequestException ex)
+            {
+                logger.LogError(ex, "Failed to send message with Markdown for note {NoteId} in channel {ChannelId}. Retrying without Markdown.", note.Id, channelId);
+                if (note.IsMarkdown)
+                {
+                    // Fallback: retry sending without markdown
+                    var message = await telegramService.SendMessageAsync(token, channelId, text, false);
+                    return message.MessageId;
+                }
+                throw; // Re-throw if it wasn't a markdown issue or if we shouldn't retry
+            }
         }
     }
 
