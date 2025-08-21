@@ -11,7 +11,7 @@ jobs:
 
     strategy:
       matrix:
-        dotnet: ["8.0.411"]
+        dotnet: ["8.0.x"]
 
     steps:
       - uses: actions/checkout@v4
@@ -71,8 +71,7 @@ jobs:
           export XDG_RUNTIME_DIR=/run/user/$(id -u)
           systemctl --user daemon-reload
           systemctl --user enable HappyNotes.Api.test.service || true
-          systemctl --user stop HappyNotes.Api.test.service || true
-          systemctl --user start HappyNotes.Api.test.service
+          systemctl --user restart HappyNotes.Api.test.service
 
           echo "Test service status:"
           systemctl --user status HappyNotes.Api.test.service
