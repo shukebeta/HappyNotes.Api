@@ -15,126 +15,43 @@ jobs:
 
     strategy:
       matrix:
-        dotnet: ["8.0.411"]
+        dotnet: ["8.0.x"]
 
     # A sequence of tasks that will execute as part of the job
     steps:
       # Checks out repository so our job can access it
       - uses: actions/checkout@v4
 
-      # 2. Forensic environment check from within workflow
-      - name: Forensic Environment Check
+      - name: Fetch Git Commit Hash
+        id: get_commit
         run: |
-          echo "--- Running diagnostics from WITHIN the workflow ---"
-          echo "--- WHO AM I & WHERE AM I ---"
-          whoami
-          pwd
-          echo "--- DOTNET INFO ---"
-          dotnet --info || echo "dotnet not found or failed"
-          echo "--- WHICH DOTNET ---"
-          which dotnet || echo "which dotnet failed"
-          echo "--- LISTING ~/.dotnet ---"
-          ls -la ~/.dotnet || echo "~/.dotnet not found"
-          echo "--- LISTING ~/.nuget ---"
-          ls -la ~/.nuget || echo "~/.nuget not found"
-          echo "--- LISTING ~/.config/NuGet ---"
-          ls -la ~/.config/NuGet || echo "~/.config/NuGet not found"
-          echo "--- ENVIRONMENT VARIABLES ---"
-          env | sort
-          echo "--- END OF DIAGNOSTICS ---"
+          echo "::set-output name=commit_hash::$(git rev-parse --short HEAD)"
+          echo "::set-output name=build_date::$(date '+%Y-%b-%d')"
 
-      # Verify dotnet version consistency
-      - name: Verify .NET SDK Version Consistency
-        run: |
-          echo "--- VERIFYING DOTNET VERSION CONSISTENCY ---"
-          echo "Installed dotnet version:"
-          /var/www/HappyNotes.Api/.dotnet-sdk/dotnet --version
-          echo "Dotnet info:"
-          /var/www/HappyNotes.Api/.dotnet-sdk/dotnet --info | head -10
-          echo "--- VERSION VERIFICATION COMPLETE ---"
+      - name: Install dependencies
+        run: dotnet restore
 
-      # 3. Restore dependencies with maximum verbosity
-      - name: Restore Dependencies with Maximum Verbosity
-        run: |
-          # Clean first to prevent issues
-          git clean -xdf
-          dotnet nuget locals all --clear
-          /var/www/HappyNotes.Api/.dotnet-sdk/dotnet restore HappyNotes.Api.sln -v diag
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
 
-      # 4. Publish with maximum verbosity
-      - name: Publish with Maximum Verbosity
-        run: |
-          # Note: --no-restore is important here
-          /var/www/HappyNotes.Api/.dotnet-sdk/dotnet publish src/HappyNotes.Api/HappyNotes.Api.csproj -c Release --no-restore -o /var/www/HappyNotes.Api -v diag
+      - name: Publish
+        run: dotnet publish -c Release --property:PublishDir=/var/www/HappyNotes.Api
 
-      # 5. Replace configuration placeholders
       - name: Replace placeholders with actual information
         run: |
-          echo "--- REPLACING CONFIGURATION PLACEHOLDERS ---"
           pwd
-          ls -la /var/www/HappyNotes.Api/
-          
-          echo "Original appsettings.json content:"
-          cat /var/www/HappyNotes.Api/appsettings.json
-          
           sed -i "s/password-placeholder/${{ secrets.STAGING_MYSQL_PASSWORD }}/g" /var/www/HappyNotes.Api/appsettings.json
           sed -i "s/symmetric-security-key-placeholder/${{ secrets.STAGING_SYMMETRIC_SECURITY_KEY }}/g" /var/www/HappyNotes.Api/appsettings.json
+          COMMIT_HASH=${{ steps.get_commit.outputs.commit_hash }}
+          BUILD_DATE=${{ steps.get_commit.outputs.build_date }}
+          VERSION_INFO="$COMMIT_HASH ($BUILD_DATE)"
+          sed -i "s/VERSION_PLACEHOLDER/$VERSION_INFO/" /var/www/HappyNotes.Api/appsettings.json
           sed -i "s/default_mysql_server/127.0.0.1/" /var/www/HappyNotes.Api/appsettings.json
           sed -i "s/default_manticore_server/sydney.shukebeta.eu.org/" /var/www/HappyNotes.Api/appsettings.json
           sed -i "s/seq-api-key-placeholder/${{ secrets.STAGING_SEQ_API_KEY }}/g" /var/www/HappyNotes.Api/appsettings.json
-          
-          echo "Modified appsettings.json content:"
-          cat /var/www/HappyNotes.Api/appsettings.json
 
-      # 6. Deploy systemd service file with detailed logging
-      - name: Deploy systemd service file
+      - name: Restart the app
         run: |
-          echo "--- DEPLOYING SYSTEMD SERVICE ---"
-          echo "Current user: $(whoami)"
-          echo "Home directory: $HOME"
-          echo "Checking systemd user directory..."
-          mkdir -p ~/.config/systemd/user
-          ls -la ~/.config/systemd/user
-          
-          echo "Copying service file..."
-          cp deploy/systemd/happynotes-api.service ~/.config/systemd/user/HappyNotes.Api.service
-          
-          echo "Service file content:"
-          cat ~/.config/systemd/user/HappyNotes.Api.service
-          
-          echo "Setting up systemd environment..."
+          echo $XDG_RUNTIME_DIR
           export XDG_RUNTIME_DIR=/run/user/$(id -u)
-          echo "XDG_RUNTIME_DIR: $XDG_RUNTIME_DIR"
-          
-          echo "Reloading systemd daemon..."
-          systemctl --user daemon-reload
-          
-          echo "Current service status:"
-          systemctl --user status HappyNotes.Api.service || echo "Service not running or not found"
-          
-          echo "Restarting service..."
           systemctl --user restart HappyNotes.Api.service
-          
-          echo "Final service status:"
-          systemctl --user status HappyNotes.Api.service
-          
-          echo "Service logs (last 50 lines):"
-          journalctl --user -u HappyNotes.Api.service --no-pager -n 50 || echo "Could not fetch logs"
-          
-          echo "--- DEPLOYMENT COMPLETE ---"
-
-      # 7. Verify deployment
-      - name: Verify deployment
-        run: |
-          echo "--- DEPLOYMENT VERIFICATION ---"
-          echo "Checking if process is running..."
-          ps aux | grep HappyNotes.Api || echo "Process not found"
-          
-          echo "Checking listening ports..."
-          netstat -tlnp | grep 5012 || echo "Port 5012 not listening"
-          
-          echo "Testing HTTP endpoint..."
-          sleep 5
-          curl -f http://127.0.0.1:5012/health || echo "Health check failed"
-          
-          echo "--- VERIFICATION COMPLETE ---"
