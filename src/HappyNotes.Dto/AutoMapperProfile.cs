@@ -8,7 +8,7 @@ using HappyNotes.Models;
 
 namespace HappyNotes.Dto;
 
-public class AutoMapperProfile: Profile
+public class AutoMapperProfile : Profile
 {
     public AutoMapperProfile()
     {
@@ -19,8 +19,8 @@ public class AutoMapperProfile: Profile
         CreateMap<PostMastodonApplicationRequest, MastodonApplication>();
         CreateMap<TelegramSettings, TelegramSettingsDto>();
         CreateMap<PostNoteRequest, Note>()
-            .ForMember(m => m.TagList, m => m.MapFrom((src,_) => src.Content.GetTags()))
-            .ForMember(m => m.IsLong, m => m.MapFrom((src,_) => src.Content.IsLong()))
+            .ForMember(m => m.TagList, m => m.MapFrom((src, _) => src.Content.GetTags()))
+            .ForMember(m => m.IsLong, m => m.MapFrom((src, _) => src.Content.IsLong()))
             .ForMember(m => m.CreatedAt, m => m.MapFrom<CreatedAtResolver>())
             .AfterMap((src, dst) =>
             {

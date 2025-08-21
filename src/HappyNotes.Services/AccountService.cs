@@ -8,7 +8,7 @@ using HappyNotes.Services.interfaces;
 
 namespace HappyNotes.Services;
 
-public class AccountService(IRepositoryBase<User> userRepository): IAccountService
+public class AccountService(IRepositoryBase<User> userRepository) : IAccountService
 {
     public async Task<bool> IsValidLogin(string username, string password)
     {

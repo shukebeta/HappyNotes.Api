@@ -1,4 +1,4 @@
-﻿namespace Api.Framework.Result;
+namespace Api.Framework.Result;
 
 public abstract class ApiResult
 {

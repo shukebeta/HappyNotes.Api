@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Text.Json;
 using Api.Framework.Models;
@@ -7,7 +8,6 @@ using HappyNotes.Entities;
 using HappyNotes.Services.interfaces;
 using Moq;
 using Moq.Protected;
-using System.Diagnostics.CodeAnalysis;
 
 namespace HappyNotes.Services.Tests;
 

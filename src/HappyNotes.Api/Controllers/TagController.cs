@@ -9,7 +9,7 @@ namespace HappyNotes.Api.Controllers;
 [Authorize]
 public class TagController(ICurrentUser currentUser
     , INoteTagService noteTagService
-): BaseController
+) : BaseController
 {
     [HttpGet]
     public async Task<ApiResult<List<TagCount>>> MyTagCloud(int limit = 80)

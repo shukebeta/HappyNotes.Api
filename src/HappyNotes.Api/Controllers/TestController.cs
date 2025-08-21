@@ -1,4 +1,4 @@
-﻿using Api.Framework.Helper;
+using Api.Framework.Helper;
 using Api.Framework.Models;
 using Api.Framework.Result;
 using Microsoft.AspNetCore.Mvc;
@@ -15,8 +15,8 @@ public class TestController(ILogger<TestController> logger, IConfiguration confi
     [HttpGet]
     public string Version()
     {
-         return $"Version: {configuration["Version"]}";
-     }
+        return $"Version: {configuration["Version"]}";
+    }
 
     [HttpGet]
     public ApiResult<string> ServiceStatus()
@@ -35,6 +35,6 @@ public class TestController(ILogger<TestController> logger, IConfiguration confi
     [HttpGet]
     public ApiResult<JwtToken> SampleCustomException()
     {
-        throw CustomExceptionHelper.New(new JwtToken {Token="hello"}, "test custom exception with data");
+        throw CustomExceptionHelper.New(new JwtToken { Token = "hello" }, "test custom exception with data");
     }
 }

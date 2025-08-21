@@ -40,7 +40,7 @@ public class NoteRepository(ISqlSugarClient dbClient) : RepositoryBase<Note>(dbC
         if (includePrivate)
         {
             return await _GetPageDataAsync(pageSize, pageNumber,
-                n => n.UserId == userId && n.DeletedAt == null ,
+                n => n.UserId == userId && n.DeletedAt == null,
                 n => n.CreatedAt, isAsc);
 
         }

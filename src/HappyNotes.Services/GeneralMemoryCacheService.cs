@@ -25,7 +25,7 @@ public class GeneralMemoryCacheService(
     public void Set<T>(string cacheKey, T value, TimeSpan? expiration = null)
     {
         expiration ??= TimeSpan.FromMinutes(defaultCacheExpirationInMins);
-        var cacheOptions = new MemoryCacheEntryOptions().SetSlidingExpiration((TimeSpan) expiration);
+        var cacheOptions = new MemoryCacheEntryOptions().SetSlidingExpiration((TimeSpan)expiration);
         cache.Set(CacheKey(cacheKey), value, cacheOptions);
     }
 

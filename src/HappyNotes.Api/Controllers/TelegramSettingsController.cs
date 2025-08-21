@@ -163,11 +163,11 @@ public class TelegramSettingsController(
 
         if (existingSetting == null)
         {
-            throw new Exception( "Could find this setting.");
+            throw new Exception("Could find this setting.");
         }
         if (string.IsNullOrWhiteSpace(existingSetting.EncryptedToken) || string.IsNullOrWhiteSpace(existingSetting.ChannelId))
         {
-            throw new Exception( "token or channelId is empty, cannot test.");
+            throw new Exception("token or channelId is empty, cannot test.");
         }
         var token = TextEncryptionHelper.Decrypt(existingSetting.EncryptedToken, _jwtConfig.SymmetricSecurityKey);
         var message = await telegramService.SendMessageAsync(token, existingSetting.ChannelId, "Hello *world!*", true);

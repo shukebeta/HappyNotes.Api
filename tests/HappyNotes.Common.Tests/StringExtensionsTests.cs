@@ -50,7 +50,7 @@ public class StringExtensionsTests
     {
         // Arrange
         var shortStr = new string('x', Constants.ShortNotesMaxLength);
-        var input =  shortStr + new string('y', 1);
+        var input = shortStr + new string('y', 1);
         // Act & Assert
         Assert.That(input.GetShort(), Is.EqualTo(shortStr));
     }
