@@ -49,6 +49,9 @@ jobs:
       - name: Clean project
         run: dotnet clean --configuration Release
 
+      - name: Clean build cache directories
+        run: rm -rf src/*/bin src/*/obj
+
       - name: Build
         run: dotnet build --configuration Release --no-restore
 
