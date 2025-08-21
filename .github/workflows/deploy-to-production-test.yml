@@ -27,6 +27,7 @@ jobs:
           echo "::set-output name=commit_hash::$(git rev-parse --short HEAD)"
           echo "::set-output name=build_date::$(date '+%Y-%b-%d')"
 
+      # Create service file EARLY (needs source code access)
       - name: Create test systemd service
         run: |
           # Create test service file
@@ -41,14 +42,7 @@ jobs:
           echo "Test service file content:"
           cat ~/.config/systemd/user/HappyNotes.Api.test.service
 
-      - name: Start test service
-        run: |
-          export XDG_RUNTIME_DIR=/run/user/$(id -u)
-          systemctl --user daemon-reload
-          systemctl --user enable HappyNotes.Api.test.service || true
-          systemctl --user restart HappyNotes.Api.test.service
-
-      # Test with simple approach first (like staging)
+      # Then build and publish
       - name: Install dependencies
         run: dotnet restore
 
@@ -79,7 +73,7 @@ jobs:
           sed -i "s/default_manticore_server/arm.shukebeta.eu.org/" /var/www/HappyNotes.Api.test/appsettings.json
           sed -i "s#seq-api-key-placeholder#${{ secrets.PRODUCTION_SEQ_API_KEY }}#g" /var/www/HappyNotes.Api.test/appsettings.json
 
-      - name: Start test service
+      - name: Start test service (after DLL is published)
         run: |
           echo "ASPNETCORE_ENVIRONMENT: $ASPNETCORE_ENVIRONMENT"
           export XDG_RUNTIME_DIR=/run/user/$(id -u)
