@@ -52,6 +52,11 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release --no-restore
 
+      - name: Stop test service before cleaning directory
+        run: |
+          export XDG_RUNTIME_DIR=/run/user/$(id -u)
+          systemctl --user stop HappyNotes.Api.test.service || true
+
       - name: Clean deployment directory
         run: rm -rf /var/www/HappyNotes.Api.test/*
 
