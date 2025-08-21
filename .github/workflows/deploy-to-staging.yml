@@ -43,18 +43,28 @@ jobs:
           env | sort
           echo "--- END OF DIAGNOSTICS ---"
 
+      # Verify dotnet version consistency
+      - name: Verify .NET SDK Version Consistency
+        run: |
+          echo "--- VERIFYING DOTNET VERSION CONSISTENCY ---"
+          echo "Installed dotnet version:"
+          /var/www/HappyNotes.Api/.dotnet-sdk/dotnet --version
+          echo "Dotnet info:"
+          /var/www/HappyNotes.Api/.dotnet-sdk/dotnet --info | head -10
+          echo "--- VERSION VERIFICATION COMPLETE ---"
+
       # 3. Restore dependencies with maximum verbosity
       - name: Restore Dependencies with Maximum Verbosity
         run: |
           # Clean first to prevent issues
           git clean -xdf
-          dotnet restore HappyNotes.Api.sln -v diag
+          /var/www/HappyNotes.Api/.dotnet-sdk/dotnet restore HappyNotes.Api.sln -v diag
 
       # 4. Publish with maximum verbosity
       - name: Publish with Maximum Verbosity
         run: |
           # Note: --no-restore is important here
-          dotnet publish src/HappyNotes.Api/HappyNotes.Api.csproj -c Release --no-restore -o /var/www/HappyNotes.Api -v diag
+          /var/www/HappyNotes.Api/.dotnet-sdk/dotnet publish src/HappyNotes.Api/HappyNotes.Api.csproj -c Release --no-restore -o /var/www/HappyNotes.Api -v diag
 
       # 5. Replace configuration placeholders
       - name: Replace placeholders with actual information
