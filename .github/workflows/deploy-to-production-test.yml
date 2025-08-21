@@ -43,14 +43,14 @@ jobs:
           cat ~/.config/systemd/user/HappyNotes.Api.test.service
 
       # Then build and publish
-      - name: Install dependencies
-        run: dotnet restore
-
       - name: Clean project
         run: dotnet clean --configuration Release
 
       - name: Clean build cache directories
         run: rm -rf src/*/bin src/*/obj
+
+      - name: Install dependencies
+        run: dotnet restore
 
       - name: Build
         run: dotnet build --configuration Release --no-restore
