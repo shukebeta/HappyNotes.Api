@@ -1,4 +1,3 @@
-using System.Net.Http;
 using HappyNotes.Common;
 using HappyNotes.Services.interfaces;
 using Telegram.Bot;

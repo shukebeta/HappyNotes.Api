@@ -69,6 +69,9 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release --no-restore
 
+      - name: Clean deployment directory
+        run: rm -rf /var/www/HappyNotes.Api/*
+
       - name: Publish
         run: dotnet publish -c Release --self-contained false --runtime linux-x64 --property:PublishDir=/var/www/HappyNotes.Api
 

@@ -1,9 +1,5 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Net;
-using System.Text.Json;
-using Api.Framework.Models;
 using HappyNotes.Common.Enums;
-using HappyNotes.Dto;
 using HappyNotes.Entities;
 using HappyNotes.Services.interfaces;
 using Moq;
