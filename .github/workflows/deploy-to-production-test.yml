@@ -36,9 +36,17 @@ jobs:
           # Modify service file for test environment
           sed -i 's|WorkingDirectory=/var/www/HappyNotes.Api|WorkingDirectory=/var/www/HappyNotes.Api.test|g' ~/.config/systemd/user/HappyNotes.Api.test.service
           sed -i 's|ExecStart=.*|ExecStart=/home/shukebeta/.dotnet/dotnet /var/www/HappyNotes.Api.test/HappyNotes.Api.dll --urls "http://127.0.0.1:5013"|g' ~/.config/systemd/user/HappyNotes.Api.test.service
+          sed -i '/Environment=ASPNETCORE_ENVIRONMENT=Staging/d' ~/.config/systemd/user/HappyNotes.Api.test.service
 
           echo "Test service file content:"
           cat ~/.config/systemd/user/HappyNotes.Api.test.service
+
+      - name: Start test service
+        run: |
+          export XDG_RUNTIME_DIR=/run/user/$(id -u)
+          systemctl --user daemon-reload
+          systemctl --user enable HappyNotes.Api.test.service || true
+          systemctl --user restart HappyNotes.Api.test.service
 
       # Test with simple approach first (like staging)
       - name: Install dependencies
@@ -73,6 +81,7 @@ jobs:
 
       - name: Start test service
         run: |
+          echo "ASPNETCORE_ENVIRONMENT: $ASPNETCORE_ENVIRONMENT"
           export XDG_RUNTIME_DIR=/run/user/$(id -u)
           systemctl --user daemon-reload
           systemctl --user enable HappyNotes.Api.test.service || true
