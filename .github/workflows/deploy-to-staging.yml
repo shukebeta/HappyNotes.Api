@@ -15,7 +15,7 @@ jobs:
 
     strategy:
       matrix:
-        dotnet: ["8.0.300"]
+        dotnet: ["8.0.411"]
 
     # A sequence of tasks that will execute as part of the job
     steps:
@@ -30,34 +30,34 @@ jobs:
           key: manual-dotnet-sdk-${{ runner.os }}-${{ matrix.dotnet }}
           restore-keys: |
             manual-dotnet-sdk-${{ runner.os }}-
-      
+
       # Manually download and install .NET SDK to deployment directory
       - name: Install .NET SDK Manually
         run: |
           # Define installation directory in deployment path
           INSTALL_DIR="/var/www/HappyNotes.Api/.dotnet-sdk"
-          
+
           # Create directory if not exists
           mkdir -p "$INSTALL_DIR"
-          
+
           # Download official installation script
           curl -L https://dot.net/v1/dotnet-install.sh -o dotnet-install.sh
-          
+
           # Grant execution permission
           chmod +x dotnet-install.sh
-          
+
           # Run script with --install-dir to force local installation
           ./dotnet-install.sh --version ${{ matrix.dotnet }} --install-dir "$INSTALL_DIR"
-          
+
           # Add SDK path to current job's PATH environment
           echo "$INSTALL_DIR" >> $GITHUB_PATH
-      
+
       # Verify installation success
       - name: Verify .NET SDK installation
         run: |
           which dotnet
           dotnet --info
-      
+
       # Test systemd directory access
       - name: Test systemd directory access
         run: |
@@ -80,7 +80,7 @@ jobs:
         run: dotnet build --configuration Release --no-restore
 
       - name: Publish
-        run: dotnet publish -c Release --property:PublishDir=/var/www/HappyNotes.Api
+        run: dotnet publish -c Release --self-contained true --property:PublishDir=/var/www/HappyNotes.Api
 
       - name: Replace placeholders with actual information
         run: |
@@ -100,7 +100,7 @@ jobs:
           # Copy service file to user systemd directory
           mkdir -p ~/.config/systemd/user
           cp deploy/systemd/happynotes-api.service ~/.config/systemd/user/HappyNotes.Api.service
-          
+
           # Reload systemd and restart service
           export XDG_RUNTIME_DIR=/run/user/$(id -u)
           systemctl --user daemon-reload
