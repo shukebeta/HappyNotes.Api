@@ -1,4 +1,4 @@
-﻿namespace Api.Framework.Database
+namespace Api.Framework.Database
 {
     public enum DatabaseType
     {

@@ -7,7 +7,7 @@ namespace Api.Framework.Helper;
 
 public static class TokenHelper
 {
-    public static string JwtTokenGenerator(Claim[] claims, string jwtIssuer, string jwtKey, int expireInDays, int notBeforeInMinutes=5)
+    public static string JwtTokenGenerator(Claim[] claims, string jwtIssuer, string jwtKey, int expireInDays, int notBeforeInMinutes = 5)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
         var token = new JwtSecurityToken(
@@ -21,7 +21,7 @@ public static class TokenHelper
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
-    
+
     public static Claim[] ClaimsGenerator(long id, string username, string email)
     {
         return

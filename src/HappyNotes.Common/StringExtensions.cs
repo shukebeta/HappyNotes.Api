@@ -1,4 +1,4 @@
-﻿using System.Text.RegularExpressions;
+using System.Text.RegularExpressions;
 using ReverseMarkdown;
 
 namespace HappyNotes.Common;
@@ -17,7 +17,7 @@ public static partial class StringExtensions
     /// 4 new line in a row or <!-- more --> means a manual separated long note
     /// </summary>
     /// <returns></returns>
-    [GeneratedRegex(@"\n{4,}|\r{4,}|(?:\r\n){4,}|<!--\s*more\s*-->", RegexOptions.IgnoreCase| RegexOptions.Singleline)]
+    [GeneratedRegex(@"\n{4,}|\r{4,}|(?:\r\n){4,}|<!--\s*more\s*-->", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex _Separator();
 
     [GeneratedRegex(@"\s+", RegexOptions.IgnoreCase)]

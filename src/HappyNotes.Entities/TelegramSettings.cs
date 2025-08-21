@@ -7,7 +7,7 @@ namespace HappyNotes.Entities;
 /// <summary>
 /// Represents the settings for Telegram synchronization.
 /// </summary>
-public class TelegramSettings: TelegramSettingsBase
+public class TelegramSettings : TelegramSettingsBase
 {
     /// <summary>
     /// Gets or sets the unique identifier for the settings.

@@ -29,7 +29,7 @@ public class MastodonSyncNoteServiceTests
         _mockJwtConfig = new Mock<IOptions<JwtConfig>>();
         _mockLogger = new Mock<ILogger<MastodonSyncNoteService>>();
 
-        var jwtConfig = new JwtConfig {SymmetricSecurityKey = "test_key"};
+        var jwtConfig = new JwtConfig { SymmetricSecurityKey = "test_key" };
         _mockJwtConfig.Setup(x => x.Value).Returns(jwtConfig);
 
         _mastodonSyncNoteService = new MastodonSyncNoteService(
@@ -75,7 +75,7 @@ public class MastodonSyncNoteServiceTests
 
         _mockMastodonTootService
             .Setup(s => s.SendTootAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), false))
-            .ReturnsAsync(new Status {Id = "12345"});
+            .ReturnsAsync(new Status { Id = "12345" });
 
         // Act
         await _mastodonSyncNoteService.SyncNewNote(note, fullContent);

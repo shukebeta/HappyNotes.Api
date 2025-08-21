@@ -4,7 +4,7 @@ using SqlSugar;
 
 namespace HappyNotes.Entities;
 
-public class Note: EntityBase
+public class Note : EntityBase
 {
     [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
     public long Id { get; set; }

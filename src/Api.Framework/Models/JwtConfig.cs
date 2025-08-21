@@ -1,4 +1,4 @@
-﻿namespace Api.Framework.Models;
+namespace Api.Framework.Models;
 
 public class JwtConfig
 {

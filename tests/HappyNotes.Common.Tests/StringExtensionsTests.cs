@@ -50,7 +50,7 @@ public class StringExtensionsTests
     {
         // Arrange
         var shortStr = new string('x', Constants.ShortNotesMaxLength);
-        var input =  shortStr + new string('y', 1);
+        var input = shortStr + new string('y', 1);
         // Act & Assert
         Assert.That(input.GetShort(), Is.EqualTo(shortStr));
     }
@@ -74,7 +74,7 @@ public class StringExtensionsTests
     public void GetTags_Multiline()
     {
         var input = @"#123中
-#234国 
+#234国
 #345人
 #456民#567还没站起来";
         // Act

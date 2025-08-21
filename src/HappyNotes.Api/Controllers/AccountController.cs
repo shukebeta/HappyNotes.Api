@@ -1,4 +1,4 @@
-﻿using Api.Framework;
+using Api.Framework;
 using Api.Framework.Extensions;
 using Api.Framework.Helper;
 using Api.Framework.Models;
@@ -36,7 +36,7 @@ namespace HappyNotes.Api.Controllers
             var claims = TokenHelper.ClaimsGenerator(currentUser.Id, currentUser.Username, currentUser.Email);
 
             var token = TokenHelper.JwtTokenGenerator(claims, _jwtConfig.Issuer, _jwtConfig.SymmetricSecurityKey, TokenExpiresInDays);
-            return new SuccessfulResult<JwtToken>(new JwtToken {Token = token,});
+            return new SuccessfulResult<JwtToken>(new JwtToken { Token = token, });
         }
 
         [AllowAnonymous]
@@ -86,7 +86,7 @@ namespace HappyNotes.Api.Controllers
             var claims = TokenHelper.ClaimsGenerator(id, request.Username, request.Email);
             var jwtToken = TokenHelper.JwtTokenGenerator(claims, _jwtConfig.Issuer, _jwtConfig.SymmetricSecurityKey, TokenExpiresInDays);
 
-            return new SuccessfulResult<JwtToken>(new JwtToken {Token = jwtToken,});
+            return new SuccessfulResult<JwtToken>(new JwtToken { Token = jwtToken, });
         }
 
 
@@ -120,7 +120,7 @@ namespace HappyNotes.Api.Controllers
             var claims = TokenHelper.ClaimsGenerator(user.Id, user.Username, user.Email);
             var jwtToken = TokenHelper.JwtTokenGenerator(claims, _jwtConfig.Issuer, _jwtConfig.SymmetricSecurityKey, TokenExpiresInDays);
 
-            return new SuccessfulResult<JwtToken>(new JwtToken {Token = jwtToken,});
+            return new SuccessfulResult<JwtToken>(new JwtToken { Token = jwtToken, });
         }
 
         [HttpGet]
@@ -152,7 +152,7 @@ namespace HappyNotes.Api.Controllers
             var success = await accountService.ChangePasswordAsync(userId, request.CurrentPassword, request.NewPassword);
             return success
                 ? Success("Password changed successfully")
-                : Fail( "Failed to change password. Current password may be incorrect.");
+                : Fail("Failed to change password. Current password may be incorrect.");
         }
     }
 }

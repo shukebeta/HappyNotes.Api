@@ -12,7 +12,7 @@ public interface INoteRepository : IRepositoryBase<Note>
     Task<PageData<Note>> GetUserNotes(long userId, int pageSize, int pageNumber, bool includePrivate = false,
         bool isAsc = false);
     Task<PageData<Note>> GetPublicNotes(int pageSize, int pageNumber, bool isAsc = false);
-    Task<PageData<Note>> GetLinkedNotes(long userId, long noteId, int max=100);
+    Task<PageData<Note>> GetLinkedNotes(long userId, long noteId, int max = 100);
 
     Task<PageData<Note>> GetUserDeletedNotes(long userId, int pageSize, int pageNumber);
     Task PurgeUserDeletedNotes(long userId);

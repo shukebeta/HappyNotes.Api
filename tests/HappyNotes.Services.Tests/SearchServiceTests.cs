@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Text.Json;
 using Api.Framework.Models;
@@ -7,7 +8,7 @@ using HappyNotes.Entities;
 using HappyNotes.Services.interfaces;
 using Moq;
 using Moq.Protected;
-using System.Diagnostics.CodeAnalysis;
+using SqlSugar;
 
 namespace HappyNotes.Services.Tests;
 
@@ -140,30 +141,26 @@ public class SearchServiceTests
         {
             Id = 1,
             UserId = 1,
-            IsLong = false,
-            IsPrivate = false,
-            IsMarkdown = true,
             Content = "Test content",
             CreatedAt = 1625097600,
-            UpdatedAt = null,
-            DeletedAt = null
         };
         string fullContent = "Test content";
 
         _mockDatabaseClient.Setup(client => client.ExecuteCommandAsync(
             It.Is<string>(sql => sql.Contains("REPLACE INTO noteindex")),
-            It.Is<object>(param => param.ToString()!.Contains(note.Id.ToString()) && param.ToString()!.Contains(fullContent))))
+            It.IsAny<SugarParameter[]>()))
             .ReturnsAsync(1); // Simulate successful execution
 
         // Act
         await _searchService.SyncNoteToIndexAsync(note, fullContent);
 
         // Assert
-        // Verify that the method was called at least once with the expected parameters.
-        // Due to potential multiple test runs or shared mock state, we use AtLeastOnce instead of Once.
         _mockDatabaseClient.Verify(client => client.ExecuteCommandAsync(
             It.Is<string>(sql => sql.Contains("REPLACE INTO noteindex")),
-            It.Is<object>(param => param.ToString()!.Contains(note.Id.ToString()) && param.ToString()!.Contains(fullContent))), Times.AtLeastOnce);
+            It.Is<SugarParameter[]>(p =>
+                p.Any(sp => sp.ParameterName == "@id" && (long)sp.Value == note.Id) &&
+                p.Any(sp => sp.ParameterName == "@content" && (string)sp.Value == fullContent)
+            )), Times.AtLeastOnce);
     }
 
     [Test]
@@ -174,29 +171,26 @@ public class SearchServiceTests
         {
             Id = 2,
             UserId = 1,
-            IsLong = false,
-            IsPrivate = false,
-            IsMarkdown = false,
-            Content = "Content with 'quotes' and \\slashes\\",
+            Content = @"Content with 'quotes' and \slashes\",
             CreatedAt = 1625097600,
-            UpdatedAt = null,
-            DeletedAt = null
         };
-        string fullContent = "Content with 'quotes' and \\slashes\\";
+        string fullContent = @"Content with 'quotes' and \slashes\";
 
         _mockDatabaseClient.Setup(client => client.ExecuteCommandAsync(
             It.Is<string>(sql => sql.Contains("REPLACE INTO noteindex")),
-            It.Is<object>(param => param.ToString()!.Contains(note.Id.ToString()) && param.ToString()!.Contains(fullContent))))
+            It.IsAny<SugarParameter[]>()))
             .ReturnsAsync(1);
 
         // Act
         await _searchService.SyncNoteToIndexAsync(note, fullContent);
 
         // Assert
-        // Verify at least once due to potential multiple invocations across tests.
         _mockDatabaseClient.Verify(client => client.ExecuteCommandAsync(
             It.Is<string>(sql => sql.Contains("REPLACE INTO noteindex")),
-            It.Is<object>(param => param.ToString()!.Contains(note.Id.ToString()) && param.ToString()!.Contains(fullContent))), Times.AtLeastOnce);
+            It.Is<SugarParameter[]>(p =>
+                p.Any(sp => sp.ParameterName == "@id" && (long)sp.Value == note.Id) &&
+                p.Any(sp => sp.ParameterName == "@content" && (string)sp.Value == fullContent)
+            )), Times.AtLeastOnce);
     }
 
     [Test]

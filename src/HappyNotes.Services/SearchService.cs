@@ -9,6 +9,7 @@ using HappyNotes.Dto;
 using HappyNotes.Entities;
 using HappyNotes.Models.Search;
 using HappyNotes.Services.interfaces;
+using SqlSugar;
 
 namespace HappyNotes.Services;
 
@@ -64,20 +65,23 @@ public class SearchService : ISearchService
 
     public async Task SyncNoteToIndexAsync(Note note, string fullContent)
     {
+        var parameters = new SugarParameter[]
+        {
+            new SugarParameter("@id", note.Id),
+            new SugarParameter("@userId", note.UserId),
+            new SugarParameter("@isLong", note.IsLong ? 1 : 0),
+            new SugarParameter("@isPrivate", note.IsPrivate ? 1 : 0),
+            new SugarParameter("@isMarkdown", note.IsMarkdown ? 1 : 0),
+            new SugarParameter("@content", fullContent),
+            new SugarParameter("@tags", string.Join(" ", fullContent.GetTags())),
+            new SugarParameter("@createdAt", note.CreatedAt),
+            new SugarParameter("@updatedAt", note.UpdatedAt ?? 0),
+            new SugarParameter("@deletedAt", note.DeletedAt ?? 0)
+        };
+
         await _client.ExecuteCommandAsync(
             "REPLACE INTO noteindex (Id, UserId, IsLong, IsPrivate, IsMarkdown, Content, Tags, CreatedAt, UpdatedAt, DeletedAt) VALUES (@id, @userId, @isLong, @isPrivate, @isMarkdown, @content, @tags, @createdAt, @updatedAt, @deletedAt)",
-            new
-            {
-                note.Id, note.UserId,
-                isLong = note.IsLong ? 1 : 0,
-                isPrivate = note.IsPrivate ? 1 : 0,
-                isMarkdown = note.IsMarkdown ? 1 : 0,
-                content = fullContent,
-                tags = string.Join(" ", fullContent.GetTags()),
-                note.CreatedAt,
-                updatedAt = note.UpdatedAt ?? 0,
-                deletedAt = note.DeletedAt ?? 0,
-            });
+            parameters);
     }
 
     public async Task DeleteNoteFromIndexAsync(long id)
