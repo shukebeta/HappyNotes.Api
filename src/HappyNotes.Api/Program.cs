@@ -48,7 +48,11 @@ builder.Services.AddSingleton(typeof(ILogger<>), typeof(Logger<>));
 builder.Services.AddSqlSugarSetup(builder.Configuration.GetSection("DatabaseConnectionOptions")
     .Get<DatabaseConnectionOptions>()!, logger);
 
-builder.Services.AddSingleton(builder.Configuration.GetSection("ManticoreConnectionOptions").Get<ManticoreConnectionOptions>()!);
+var manticoreOptions = builder.Configuration.GetSection("ManticoreConnectionOptions").Get<ManticoreConnectionOptions>();
+if (manticoreOptions != null)
+{
+    builder.Services.AddSingleton(manticoreOptions);
+}
 
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
