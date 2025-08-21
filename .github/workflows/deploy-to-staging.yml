@@ -58,6 +58,7 @@ jobs:
         run: |
           # Clean first to prevent issues
           git clean -xdf
+          dotnet nuget locals all --clear
           /var/www/HappyNotes.Api/.dotnet-sdk/dotnet restore HappyNotes.Api.sln -v diag
 
       # 4. Publish with maximum verbosity
