@@ -24,17 +24,28 @@ jobs:
           echo "::set-output name=commit_hash::$(git rev-parse --short HEAD)"
           echo "::set-output name=build_date::$(date '+%Y-%b-%d')"
 
+      - name: Clean project
+        run: dotnet clean --configuration Release
+
+      - name: Clean build cache directories
+        run: rm -rf src/*/bin src/*/obj
+
       - name: Install dependencies
         run: dotnet restore
 
       - name: Build
         run: dotnet build --configuration Release --no-restore
 
+      - name: Stop service before cleaning directory
+        run: |
+          export XDG_RUNTIME_DIR=/run/user/$(id -u)
+          systemctl --user stop HappyNotes.Api.service || true
+
       - name: Clean deployment directory
         run: rm -rf /var/www/HappyNotes.Api/*
 
       - name: Publish
-        run: dotnet publish -c Release --property:PublishDir=/var/www/HappyNotes.Api
+        run: dotnet publish -c Release --self-contained true --runtime linux-x64 --property:PublishDir=/var/www/HappyNotes.Api
 
       - name: Replace placeholders with actual information
         run: |
