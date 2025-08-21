@@ -16,6 +16,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+#      - name: Setup .NET Core SDK ${{ matrix.dotnet }}
+#        uses: actions/setup-dotnet@v4
+#        with:
+#          dotnet-version: ${{ matrix.dotnet }}
+
       - name: Fetch Git Commit Hash
         id: get_commit
         run: |
@@ -49,7 +54,7 @@ jobs:
         run: rm -rf /var/www/HappyNotes.Api.test/*
 
       - name: Publish to test directory
-        run: dotnet publish -c Release --property:PublishDir=/var/www/HappyNotes.Api.test
+        run: dotnet publish -c Release --self-contained false --runtime linux-x64 --property:PublishDir=/var/www/HappyNotes.Api.test
 
       - name: Replace placeholders with actual information
         run: |
