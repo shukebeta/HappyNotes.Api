@@ -22,12 +22,31 @@ jobs:
           echo "::set-output name=commit_hash::$(git rev-parse --short HEAD)"
           echo "::set-output name=build_date::$(date '+%Y-%b-%d')"
 
+      - name: Create test systemd service
+        run: |
+          # Create test service file
+          mkdir -p ~/.config/systemd/user
+          cp deploy/systemd/happynotes-api.service ~/.config/systemd/user/HappyNotes.Api.test.service
+
+          # Modify service file for test environment
+          sed -i 's|WorkingDirectory=/var/www/HappyNotes.Api|WorkingDirectory=/var/www/HappyNotes.Api.test|g' ~/.config/systemd/user/HappyNotes.Api.test.service
+          sed -i 's|ExecStart=.*|ExecStart=/usr/bin/dotnet /var/www/HappyNotes.Api.test/HappyNotes.Api.dll --urls "http://127.0.0.1:5013"|g' ~/.config/systemd/user/HappyNotes.Api.test.service
+
+          echo "Test service file content:"
+          cat ~/.config/systemd/user/HappyNotes.Api.test.service
+
       # Test with simple approach first (like staging)
       - name: Install dependencies
         run: dotnet restore
 
+      - name: Clean project
+        run: dotnet clean --configuration Release
+
       - name: Build
         run: dotnet build --configuration Release --no-restore
+
+      - name: Clean deployment directory
+        run: rm -rf /var/www/HappyNotes.Api.test/*
 
       - name: Publish to test directory
         run: dotnet publish -c Release --property:PublishDir=/var/www/HappyNotes.Api.test
@@ -47,29 +66,16 @@ jobs:
           sed -i "s/default_manticore_server/arm.shukebeta.eu.org/" /var/www/HappyNotes.Api.test/appsettings.json
           sed -i "s#seq-api-key-placeholder#${{ secrets.PRODUCTION_SEQ_API_KEY }}#g" /var/www/HappyNotes.Api.test/appsettings.json
 
-      - name: Create test systemd service
-        run: |
-          # Create test service file
-          mkdir -p ~/.config/systemd/user
-          cp deploy/systemd/happynotes-api.service ~/.config/systemd/user/HappyNotes.Api.test.service
-          
-          # Modify service file for test environment
-          sed -i 's|WorkingDirectory=/var/www/HappyNotes.Api|WorkingDirectory=/var/www/HappyNotes.Api.test|g' ~/.config/systemd/user/HappyNotes.Api.test.service
-          sed -i 's|ExecStart=.*|ExecStart=/usr/bin/dotnet /var/www/HappyNotes.Api.test/HappyNotes.Api.dll --urls "http://127.0.0.1:5013"|g' ~/.config/systemd/user/HappyNotes.Api.test.service
-          
-          echo "Test service file content:"
-          cat ~/.config/systemd/user/HappyNotes.Api.test.service
-
       - name: Start test service
         run: |
           export XDG_RUNTIME_DIR=/run/user/$(id -u)
           systemctl --user daemon-reload
           systemctl --user stop HappyNotes.Api.test.service || true
           systemctl --user start HappyNotes.Api.test.service
-          
+
           echo "Test service status:"
           systemctl --user status HappyNotes.Api.test.service
-          
+
           echo "Test service logs (last 20 lines):"
           journalctl --user -u HappyNotes.Api.test.service --no-pager -n 20 || echo "Could not fetch logs"
 
@@ -78,6 +84,6 @@ jobs:
           echo "Checking if test process is running on port 5013..."
           sleep 5
           netstat -tlnp | grep 5013 || echo "Port 5013 not listening"
-          
+
           echo "Testing test HTTP endpoint..."
           curl -f http://127.0.0.1:5013/health || echo "Health check failed on test service"
