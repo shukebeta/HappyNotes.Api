@@ -26,6 +26,14 @@ public class SearchService : ISearchService
 
     public async Task<(List<long>, int)> GetNoteIdsByKeywordAsync(long userId, string query, int pageNumber, int pageSize, NoteFilterType filter = NoteFilterType.Normal)
     {
+        query = query?.Trim() ?? string.Empty;
+        if (query.Length == 0)
+            return (new List<long>(), 0);
+
+        // Bigram indexing requires at least 2 characters to generate valid tokens
+        if (query.Length == 1)
+            return (new List<long>(), 0);
+
         var queryObject = _BuildNoteSearchQuery(userId, query, filter, pageSize, pageNumber);
 
         var content = new StringContent(JsonSerializer.Serialize(queryObject), Encoding.UTF8, "application/json");
@@ -134,6 +142,10 @@ public class SearchService : ISearchService
                                 new Dictionary<string, object> // Regular match as fallback
                                 {
                                     { "match", new Dictionary<string, string> { { "Content", query } } }
+                                },
+                                new Dictionary<string, object> // Match in tags
+                                {
+                                    { "match", new Dictionary<string, string> { { "Tags", query } } }
                                 }
                             }
                         },
