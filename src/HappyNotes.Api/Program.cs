@@ -20,8 +20,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using NLog.Web;
-using Polly;
-using Polly.Extensions.Http;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -61,33 +59,6 @@ ConfigAuthentication(builder);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 
-// Configure HttpClientFactory for TelegramBotClient with Polly retry policy
-var retryPolicyConfig = builder.Configuration.GetSection("PollyPolicies:TelegramRetry");
-var sleepDurations = retryPolicyConfig
-    .GetSection("SleepDurations")
-    .Get<string[]>()?
-    .Select(TimeSpan.Parse)
-    .ToArray() ?? new[] { TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) }; // Fallback
-
-builder.Services.AddHttpClient("TelegramBotClient", client =>
-{
-    client.Timeout = TimeSpan.FromSeconds(100); // Keep existing timeout
-})
-.AddPolicyHandler((serviceProvider, request) =>
-{
-    var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
-    return HttpPolicyExtensions
-        .HandleTransientHttpError()
-        .WaitAndRetryAsync(sleepDurations, onRetry: (outcome, timeSpan, retryCount, context) =>
-        {
-            logger.LogWarning(outcome.Exception,
-                "Polly retry {RetryCount} for {Url} due to {StatusCode}. Waited {TimeSpan}s.",
-                retryCount,
-                request.RequestUri,
-                outcome.Result?.StatusCode,
-                timeSpan.TotalSeconds);
-        });
-});
 
 builder.Services.RegisterServices();
 
