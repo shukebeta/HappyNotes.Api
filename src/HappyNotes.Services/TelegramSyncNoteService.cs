@@ -6,6 +6,8 @@ using HappyNotes.Entities;
 using HappyNotes.Models;
 using HappyNotes.Repositories.interfaces;
 using HappyNotes.Services.interfaces;
+using HappyNotes.Services.SyncQueue.Interfaces;
+using HappyNotes.Services.SyncQueue.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Telegram.Bot.Exceptions;
@@ -17,6 +19,7 @@ public class TelegramSyncNoteService(
     ITelegramSettingsCacheService telegramSettingsCacheService,
     INoteRepository noteRepository,
     IOptions<JwtConfig> jwtConfig,
+    ISyncQueueService syncQueueService,
     ILogger<TelegramSyncNoteService> logger
 )
     : ISyncNoteService
@@ -37,14 +40,30 @@ public class TelegramSyncNoteService(
                 {
                     var token = TextEncryptionHelper.Decrypt(validSettings.First().EncryptedToken,
                         TokenKey);
+
+                    // Try immediate sync first, fallback to queue on failure
                     foreach (var channelId in toSyncChannelIds)
                     {
-                        var messageId = await _SentNoteToChannel(note, fullContent, token, channelId);
-                        syncedChannels.Add(new SyncedTelegramChannel
+                        try
                         {
-                            ChannelId = channelId,
-                            MessageId = messageId,
-                        });
+                            var messageId = await _SentNoteToChannel(note, fullContent, token, channelId);
+                            syncedChannels.Add(new SyncedTelegramChannel
+                            {
+                                ChannelId = channelId,
+                                MessageId = messageId,
+                            });
+
+                            logger.LogDebug("Successfully synced note {NoteId} to Telegram channel {ChannelId}",
+                                note.Id, channelId);
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogWarning(ex, "Failed to sync note {NoteId} to channel {ChannelId}, queuing for retry",
+                                note.Id, channelId);
+
+                            // Queue the task for retry
+                            await EnqueueSyncTask(note, fullContent, token, channelId, "CREATE");
+                        }
                     }
                 }
             }
@@ -54,7 +73,7 @@ public class TelegramSyncNoteService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex.ToString());
+            logger.LogError(ex, "Error in SyncNewNote for note {NoteId}", note.Id);
         }
     }
 
@@ -346,5 +365,25 @@ public class TelegramSyncNoteService(
                 MessageId = int.TryParse(sync[1], out var messageId) ? messageId : 0,
             };
         }).ToList();
+    }
+
+    private async Task EnqueueSyncTask(Note note, string fullContent, string token, string channelId, string action, int? messageId = null)
+    {
+        var payload = new TelegramSyncPayload
+        {
+            Action = action,
+            FullContent = fullContent,
+            // Security: BotToken removed - will be retrieved in handler using UserId + ChannelId
+            ChannelId = channelId,
+            MessageId = messageId,
+            IsMarkdown = note.IsMarkdown
+        };
+
+        var task = SyncTask.Create("telegram", action, note.Id, note.UserId, payload);
+
+        await syncQueueService.EnqueueAsync("telegram", task);
+
+        logger.LogInformation("Enqueued Telegram sync task {TaskId} for note {NoteId}, action: {Action}",
+            task.Id, note.Id, action);
     }
 }

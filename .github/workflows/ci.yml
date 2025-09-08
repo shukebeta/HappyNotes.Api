@@ -5,10 +5,13 @@ name: .NET Test Runner
 on:
   push:
     branches: [ "**" ]
+  pull_request:
+    branches: [ "master" ]
 
 jobs:
-  test:
+  unit-tests:
     runs-on: ubuntu-latest
+    name: Unit Tests
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -16,7 +19,7 @@ jobs:
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: '8.0.x' # Update to match your project's SDK
+          dotnet-version: '8.0.x'
 
       - name: Restore dependencies
         run: dotnet restore
@@ -24,5 +27,75 @@ jobs:
       - name: Build solution
         run: dotnet build --configuration Release --no-restore
 
-      - name: Run tests
-        run: dotnet test --configuration Release --no-build --no-restore
+      - name: Run unit tests
+        run: dotnet test --configuration Release --no-build --no-restore --filter "TestCategory!=Integration" --logger trx --results-directory TestResults/
+
+      - name: Upload unit test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: unit-test-results
+          path: TestResults/*.trx
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    name: Integration Tests
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build solution
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Wait for Redis
+        run: |
+          timeout 30s bash -c 'until printf "" 2>>/dev/null >>/dev/tcp/localhost/6379; do sleep 1; done'
+          echo "Redis is ready!"
+
+      - name: Run integration tests
+        env:
+          REDIS_CONNECTION_STRING: localhost:6379
+        run: dotnet test --configuration Release --no-build --no-restore --filter "TestCategory=Integration" --logger trx --results-directory TestResults/
+
+      - name: Upload integration test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: integration-test-results
+          path: TestResults/*.trx
+
+  test-summary:
+    runs-on: ubuntu-latest
+    name: Test Summary
+    needs: [unit-tests, integration-tests]
+    if: always()
+    steps:
+      - name: Check test results
+        run: |
+          if [[ "${{ needs.unit-tests.result }}" != "success" ]]; then
+            echo "Unit tests failed"
+            exit 1
+          fi
+          if [[ "${{ needs.integration-tests.result }}" != "success" ]]; then
+            echo "Integration tests failed"
+            exit 1
+          fi
+          echo "All tests passed successfully!"

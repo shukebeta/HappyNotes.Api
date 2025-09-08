@@ -4,7 +4,7 @@ name: Deploy to the staging env
 on:
   # Triggers the workflow on push request event for master and feature branches
   push:
-    branches: 
+    branches:
       - master
       - 'feature/**'
   # Allows manual triggering from the Actions tab
@@ -54,6 +54,8 @@ jobs:
           sed -i "s/default_mysql_server/127.0.0.1/" /var/www/HappyNotes.Api/appsettings.json
           sed -i "s/default_manticore_server/sydney.shukebeta.eu.org/" /var/www/HappyNotes.Api/appsettings.json
           sed -i "s/seq-api-key-placeholder/${{ secrets.STAGING_SEQ_API_KEY }}/g" /var/www/HappyNotes.Api/appsettings.json
+          sed -i "s/seq-server-url-placeholder/${{ secrets.STAGING_SEQ_SERVER_URL }}/g" /var/www/HappyNotes.Api/appsettings.json
+          sed -i "s/redis-connection-placeholder/seq.shukebeta.eu.org:6780/g" /var/www/HappyNotes.Api/appsettings.json
 
       - name: Restart the app
         run: |

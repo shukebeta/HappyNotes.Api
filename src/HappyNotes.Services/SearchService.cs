@@ -36,7 +36,7 @@ public class SearchService : ISearchService
 
         var queryObject = _BuildNoteSearchQuery(userId, query, filter, pageSize, pageNumber);
 
-        var content = new StringContent(JsonSerializer.Serialize(queryObject), Encoding.UTF8, "application/json");
+        var content = new StringContent(JsonSerializer.Serialize(queryObject, JsonSerializerConfig.Default), Encoding.UTF8, "application/json");
         var response = await _httpClient.PostAsync("json/search", content);
 
         if (!response.IsSuccessStatusCode)
@@ -51,7 +51,7 @@ public class SearchService : ISearchService
         // Log the raw response for debugging
         Console.WriteLine("ManticoreSearch Response: " + responseContent);
 
-        var searchResult = JsonSerializer.Deserialize<ManticoreSearchResult>(responseContent);
+        var searchResult = JsonSerializer.Deserialize<ManticoreSearchResult>(responseContent, JsonSerializerConfig.Default);
 
         var total = searchResult?.hits?.total ?? 0;
         var noteIdList = new List<long>();

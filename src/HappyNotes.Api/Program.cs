@@ -7,9 +7,11 @@ using Api.Framework.Exceptions;
 using Api.Framework.Extensions;
 using Api.Framework.Models;
 using HappyNotes.Api;
+using HappyNotes.Common;
 using HappyNotes.Dto;
 using HappyNotes.Services;
 using HappyNotes.Services.interfaces;
+using HappyNotes.Services.SyncQueue.Extensions;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Cors.Infrastructure;
@@ -36,8 +38,15 @@ builder.Host.UseNLog();
 
 builder.Services.AddControllers().AddJsonOptions(options =>
 {
-    options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-    // Optionally configure other serialization options here
+    var defaultOptions = JsonSerializerConfig.Default;
+    options.JsonSerializerOptions.PropertyNamingPolicy = defaultOptions.PropertyNamingPolicy;
+    options.JsonSerializerOptions.PropertyNameCaseInsensitive = defaultOptions.PropertyNameCaseInsensitive;
+    options.JsonSerializerOptions.DefaultIgnoreCondition = defaultOptions.DefaultIgnoreCondition;
+    options.JsonSerializerOptions.WriteIndented = defaultOptions.WriteIndented;
+    foreach (var converter in defaultOptions.Converters)
+    {
+        options.JsonSerializerOptions.Converters.Add(converter);
+    }
 });
 builder.Services.AddAutoMapper(typeof(AutoMapperProfile));
 builder.Services.AddEndpointsApiExplorer();
@@ -90,6 +99,9 @@ builder.Services.AddHttpClient("TelegramBotClient", client =>
 });
 
 builder.Services.RegisterServices();
+
+// Add Sync Queue services
+builder.Services.AddSyncQueue(builder.Configuration);
 
 var app = builder.Build();
 if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Local"))
