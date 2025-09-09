@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Monitor staging deployment and verify queue behavior
-STAGING_URL="https://staging.happynotes.api.url"  # Update with actual staging URL
+STAGING_URL="https://staging-happynotes-api.shukebeta.com"
 API_PATH="/api/admin/sync-queue"
 
 echo "🚀 Monitoring Redis Sync Queue deployment to staging..."
