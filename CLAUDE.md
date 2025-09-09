@@ -2,10 +2,25 @@
 
 ## Build & Test Commands
 - Build solution: `dotnet build`
-- Run all tests: `dotnet test`
+- Run unit tests only: `dotnet test --filter "TestCategory!=Integration"`
+- Run all tests (including integration): `dotnet test`
+- Run integration tests only: `dotnet test --filter "TestCategory=Integration"`
 - Run specific test project: `dotnet test tests/HappyNotes.Services.Tests`
 - Run single test class: `dotnet test --filter "FullyQualifiedName~NoteServiceTests"`
 - Run single test method: `dotnet test --filter "FullyQualifiedName~NoteServiceTests.Get_WithExistingPublicNote_ReturnsNote"`
+
+### Integration Tests Setup
+- Redis integration tests require a Redis instance
+- Set `REDIS_CONNECTION_STRING` environment variable (defaults to `localhost:6379`)
+- Tests are automatically skipped if Redis is unavailable
+- Local Docker: `docker run --rm -p 6379:6379 redis:7-alpine`
+
+### GitHub Actions CI
+- **Unit tests**: Run on every push/PR (fast feedback)
+- **Integration tests**: Run with Redis service container
+- **Parallel execution**: Unit and integration tests run simultaneously
+- **PR checks**: Quick unit test feedback for all PRs
+- **Label-triggered**: Add `needs-integration-tests` label to run integration tests on PRs
 
 ## Code Style Guidelines
 - **Naming**: PascalCase for classes/methods, camelCase for variables/parameters

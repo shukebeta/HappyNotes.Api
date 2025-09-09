@@ -31,20 +31,20 @@ public class SyncQueueProcessor : BackgroundService
     {
         _logger.LogInformation("SyncQueueProcessor started");
 
-        using var scope = _serviceProvider.CreateScope();
-        var handlers = scope.ServiceProvider.GetServices<ISyncHandler>();
-        
-        if (!handlers.Any())
+        // Get registered service names from a temporary scope
+        var serviceNames = GetRegisteredServiceNames();
+
+        if (!serviceNames.Any())
         {
             _logger.LogWarning("No sync handlers registered, processor will not process any tasks");
             return;
         }
 
-        var processingTasks = handlers.Select(handler => 
-            ProcessServiceQueue(handler, stoppingToken)).ToArray();
-        
+        var processingTasks = serviceNames.Select(serviceName =>
+            ProcessServiceQueue(serviceName, stoppingToken)).ToArray();
+
         // Start recovery task for all services
-        var recoveryTask = RunRecoveryLoop(handlers.Select(h => h.ServiceName), stoppingToken);
+        var recoveryTask = RunRecoveryLoop(serviceNames, stoppingToken);
 
         try
         {
@@ -65,9 +65,15 @@ public class SyncQueueProcessor : BackgroundService
         }
     }
 
-    private async Task ProcessServiceQueue(ISyncHandler handler, CancellationToken cancellationToken)
+    private string[] GetRegisteredServiceNames()
     {
-        var serviceName = handler.ServiceName;
+        using var scope = _serviceProvider.CreateScope();
+        var handlers = scope.ServiceProvider.GetServices<ISyncHandler>();
+        return handlers.Select(h => h.ServiceName).ToArray();
+    }
+
+    private async Task ProcessServiceQueue(string serviceName, CancellationToken cancellationToken)
+    {
         _logger.LogInformation("Started processing queue for service: {ServiceName}", serviceName);
 
         using var semaphore = new SemaphoreSlim(_options.Processing.MaxConcurrentTasks);
@@ -77,9 +83,9 @@ public class SyncQueueProcessor : BackgroundService
             try
             {
                 await semaphore.WaitAsync(cancellationToken);
-                
+
                 var task = await _queueService.DequeueAsync<object>(serviceName, cancellationToken);
-                
+
                 if (task == null)
                 {
                     semaphore.Release();
@@ -87,13 +93,24 @@ public class SyncQueueProcessor : BackgroundService
                     continue;
                 }
 
-                // Process task in background without blocking dequeue
+                // Process task in background with fresh scope per task
                 _ = Task.Run(async () =>
                 {
+                    using var taskScope = _serviceProvider.CreateScope();
                     try
                     {
-                        var syncTask = new SyncTask 
-                        { 
+                        // Resolve handler fresh for each task (with clean scoped dependencies)
+                        var handler = taskScope.ServiceProvider.GetServices<ISyncHandler>()
+                            .FirstOrDefault(h => h.ServiceName == serviceName);
+
+                        if (handler == null)
+                        {
+                            _logger.LogError("No handler found for service {ServiceName}", serviceName);
+                            return;
+                        }
+
+                        var syncTask = new SyncTask
+                        {
                             Id = task.Id,
                             Service = task.Service,
                             Action = task.Action,
@@ -131,7 +148,7 @@ public class SyncQueueProcessor : BackgroundService
     {
         var serviceName = handler.ServiceName;
         var taskId = task.Id;
-        
+
         _logger.LogDebug("Processing task {TaskId} for service {ServiceName}", taskId, serviceName);
 
         try
@@ -167,30 +184,30 @@ public class SyncQueueProcessor : BackgroundService
     {
         var serviceName = handler.ServiceName;
         var taskId = task.Id;
-        
+
         if (task.AttemptCount >= handler.MaxRetryAttempts)
         {
-            _logger.LogWarning("Task {TaskId} exceeded max retry attempts ({MaxAttempts}), moving to failed queue", 
+            _logger.LogWarning("Task {TaskId} exceeded max retry attempts ({MaxAttempts}), moving to failed queue",
                 taskId, handler.MaxRetryAttempts);
-            
+
             await _queueService.MoveToFailedAsync(serviceName, task, errorMessage);
         }
         else
         {
             var retryDelay = handler.CalculateRetryDelay(task.AttemptCount);
-            
-            _logger.LogWarning("Task {TaskId} failed (attempt {AttemptCount}/{MaxAttempts}), scheduling retry in {RetryDelay}: {Error}", 
+
+            _logger.LogWarning("Task {TaskId} failed (attempt {AttemptCount}/{MaxAttempts}), scheduling retry in {RetryDelay}: {Error}",
                 taskId, task.AttemptCount + 1, handler.MaxRetryAttempts, retryDelay, errorMessage);
-            
+
             await _queueService.RemoveFromProcessingAsync(serviceName, task);
             await _queueService.ScheduleRetryAsync(serviceName, task, retryDelay);
         }
     }
-    
+
     private async Task RunRecoveryLoop(IEnumerable<string> serviceNames, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Started processing queue recovery task");
-        
+
         while (!cancellationToken.IsCancellationRequested)
         {
             try
@@ -199,7 +216,7 @@ public class SyncQueueProcessor : BackgroundService
                 {
                     await _queueService.RecoverExpiredTasksAsync(serviceName);
                 }
-                
+
                 await Task.Delay(_options.Processing.RecoveryInterval, cancellationToken);
             }
             catch (OperationCanceledException)
@@ -212,7 +229,7 @@ public class SyncQueueProcessor : BackgroundService
                 await Task.Delay(TimeSpan.FromMinutes(1), cancellationToken);
             }
         }
-        
+
         _logger.LogInformation("Stopped processing queue recovery task");
     }
 }
