@@ -137,11 +137,11 @@ public class TelegramSyncHandler : ISyncHandler
         switch (payload.Action.ToUpperInvariant())
         {
             case "CREATE":
-                await ProcessCreateAction(payload, botToken);
+                await ProcessCreateAction(payload, botToken, task);
                 break;
 
             case "UPDATE":
-                await ProcessUpdateAction(payload, botToken);
+                await ProcessUpdateAction(payload, botToken, task);
                 break;
 
             case "DELETE":
@@ -153,29 +153,98 @@ public class TelegramSyncHandler : ISyncHandler
         }
     }
 
-    private async Task ProcessCreateAction(TelegramSyncPayload payload, string botToken)
+    private async Task ProcessCreateAction(TelegramSyncPayload payload, string botToken, SyncTask task)
     {
         _logger.LogDebug("Creating Telegram message in channel {ChannelId}", payload.ChannelId);
 
+        int messageId;
         if (payload.FullContent.Length > 4096) // Telegram's text message limit
         {
-            await _telegramService.SendLongMessageAsFileAsync(
-                botToken,
-                payload.ChannelId,
-                payload.FullContent,
-                payload.IsMarkdown ? ".md" : ".txt");
+            // For long messages, send as file with Markdown fallback
+            try
+            {
+                var longMessage = await _telegramService.SendLongMessageAsFileAsync(
+                    botToken,
+                    payload.ChannelId,
+                    payload.FullContent,
+                    payload.IsMarkdown ? ".md" : ".txt");
+                messageId = longMessage.MessageId;
+
+                _logger.LogDebug("Successfully created long message file {MessageId} in channel {ChannelId}",
+                    messageId, payload.ChannelId);
+            }
+            catch (ApiRequestException ex)
+            {
+                _logger.LogWarning(ex, "Failed to send long message with Markdown for note {NoteId} in channel {ChannelId}. Retrying without Markdown.",
+                    task.EntityId, payload.ChannelId);
+
+                if (payload.IsMarkdown)
+                {
+                    // Fallback: retry sending long message as plain text file
+                    var longMessage = await _telegramService.SendLongMessageAsFileAsync(
+                        botToken,
+                        payload.ChannelId,
+                        payload.FullContent,
+                        ".txt");
+                    messageId = longMessage.MessageId;
+
+                    _logger.LogDebug("Successfully created long message file {MessageId} in channel {ChannelId} without Markdown",
+                        messageId, payload.ChannelId);
+                }
+                else
+                {
+                    throw; // Re-throw if it wasn't a markdown issue
+                }
+            }
         }
         else
         {
-            await _telegramService.SendMessageAsync(
-                botToken,
-                payload.ChannelId,
-                payload.FullContent,
-                payload.IsMarkdown);
+            // For short messages, try Markdown first, fallback to plain text
+            try
+            {
+                var message = await _telegramService.SendMessageAsync(
+                    botToken,
+                    payload.ChannelId,
+                    payload.FullContent,
+                    payload.IsMarkdown);
+                messageId = message.MessageId;
+
+                _logger.LogDebug("Successfully created message {MessageId} in channel {ChannelId}",
+                    messageId, payload.ChannelId);
+            }
+            catch (ApiRequestException ex)
+            {
+                _logger.LogWarning(ex, "Failed to send message with Markdown for note {NoteId} in channel {ChannelId}. Retrying without Markdown.",
+                    task.EntityId, payload.ChannelId);
+
+                if (payload.IsMarkdown)
+                {
+                    // Fallback: retry sending without markdown
+                    var message = await _telegramService.SendMessageAsync(
+                        botToken,
+                        payload.ChannelId,
+                        payload.FullContent,
+                        false);
+                    messageId = message.MessageId;
+
+                    _logger.LogDebug("Successfully created message {MessageId} in channel {ChannelId} without Markdown",
+                        messageId, payload.ChannelId);
+                }
+                else
+                {
+                    throw; // Re-throw if it wasn't a markdown issue
+                }
+            }
         }
+
+        // Update note with the new message ID
+        await AddMessageIdToNote(task.EntityId, payload.ChannelId, messageId);
+
+        _logger.LogDebug("Successfully added message {MessageId} to note {NoteId} TelegramMessageIds",
+            messageId, task.EntityId);
     }
 
-    private async Task ProcessUpdateAction(TelegramSyncPayload payload, string botToken)
+    private async Task ProcessUpdateAction(TelegramSyncPayload payload, string botToken, SyncTask task)
     {
         if (!payload.MessageId.HasValue)
         {
@@ -185,21 +254,57 @@ public class TelegramSyncHandler : ISyncHandler
         _logger.LogDebug("Updating Telegram message {MessageId} in channel {ChannelId}",
             payload.MessageId.Value, payload.ChannelId);
 
-        // For updates, if the message is too long, we need to delete and recreate
+        // CRITICAL: The SyncEditNote should only send UPDATE for messages <= 4096 chars
+        // But add safety check in case of inconsistency
         if (payload.FullContent.Length > 4096)
         {
+            _logger.LogWarning("UPDATE action received for long content ({Length} chars) - this should have been DELETE+CREATE. Processing as DELETE+CREATE.",
+                payload.FullContent.Length);
+
             // Delete the old message and create a new one
             await _telegramService.DeleteMessageAsync(botToken, payload.ChannelId, payload.MessageId.Value);
-            await ProcessCreateAction(payload, botToken);
+
+            // Create new message and update note with new messageId
+            await ProcessCreateAction(payload, botToken, task);
         }
         else
         {
-            await _telegramService.EditMessageAsync(
-                botToken,
-                payload.ChannelId,
-                payload.MessageId.Value,
-                payload.FullContent,
-                payload.IsMarkdown);
+            // For short messages, try to edit with Markdown first, fallback to plain text
+            try
+            {
+                await _telegramService.EditMessageAsync(
+                    botToken,
+                    payload.ChannelId,
+                    payload.MessageId.Value,
+                    payload.FullContent,
+                    payload.IsMarkdown);
+
+                _logger.LogDebug("Successfully updated message {MessageId} in channel {ChannelId}",
+                    payload.MessageId.Value, payload.ChannelId);
+            }
+            catch (ApiRequestException ex)
+            {
+                _logger.LogWarning(ex, "Failed to edit message with Markdown for note {NoteId} in channel {ChannelId}. Retrying without Markdown.",
+                    task.EntityId, payload.ChannelId);
+
+                if (payload.IsMarkdown)
+                {
+                    // Fallback: retry editing without markdown
+                    await _telegramService.EditMessageAsync(
+                        botToken,
+                        payload.ChannelId,
+                        payload.MessageId.Value,
+                        payload.FullContent,
+                        false);
+
+                    _logger.LogDebug("Successfully updated message {MessageId} in channel {ChannelId} without Markdown",
+                        payload.MessageId.Value, payload.ChannelId);
+                }
+                else
+                {
+                    throw; // Re-throw if it wasn't a markdown issue
+                }
+            }
         }
     }
 
@@ -223,34 +328,76 @@ public class TelegramSyncHandler : ISyncHandler
             payload.MessageId.Value, task.EntityId);
     }
 
+    private async Task AddMessageIdToNote(long noteId, string channelId, int messageId)
+    {
+        // First get current TelegramMessageIds to compute the new value
+        var currentNote = await _noteRepository.GetFirstOrDefaultAsync(
+            n => n.Id == noteId,
+            orderBy: null);
+
+        if (currentNote == null)
+        {
+            _logger.LogWarning("Note {NoteId} not found, cannot add Telegram message ID", noteId);
+            return;
+        }
+
+        var messageIdEntry = $"{channelId}:{messageId}";
+        string updatedMessageIds;
+
+        if (string.IsNullOrWhiteSpace(currentNote.TelegramMessageIds))
+        {
+            updatedMessageIds = messageIdEntry;
+        }
+        else
+        {
+            var messageIds = currentNote.TelegramMessageIds.Split(',').ToList();
+            var existingIndex = messageIds.FindIndex(id => id.StartsWith($"{channelId}:"));
+
+            if (existingIndex >= 0)
+            {
+                messageIds[existingIndex] = messageIdEntry;
+            }
+            else
+            {
+                messageIds.Add(messageIdEntry);
+            }
+
+            updatedMessageIds = string.Join(",", messageIds);
+        }
+
+        // Use precise update - only update TelegramMessageIds field
+        await _noteRepository.UpdateAsync(
+            note => new Note { TelegramMessageIds = updatedMessageIds },
+            note => note.Id == noteId);
+
+        _logger.LogDebug("Updated note {NoteId} TelegramMessageIds after adding {ChannelId}:{MessageId}",
+            noteId, channelId, messageId);
+    }
+
     private async Task RemoveMessageIdFromNote(long noteId, string channelId, int messageId)
     {
-        var note = await _noteRepository.GetFirstOrDefaultAsync(n => n.Id == noteId);
-        if (note == null || string.IsNullOrWhiteSpace(note.TelegramMessageIds))
+        // Get current TelegramMessageIds to compute the new value
+        var currentNote = await _noteRepository.GetFirstOrDefaultAsync(
+            n => n.Id == noteId,
+            orderBy: null);
+
+        if (currentNote == null || string.IsNullOrWhiteSpace(currentNote.TelegramMessageIds))
         {
             _logger.LogWarning("Note {NoteId} not found or has no Telegram message IDs", noteId);
             return;
         }
 
-        // Parse existing message IDs
-        var messageIds = note.TelegramMessageIds.Split(',').ToList();
+        var messageIds = currentNote.TelegramMessageIds.Split(',').ToList();
         var targetId = $"{channelId}:{messageId}";
 
-        // Remove the specific message ID
         messageIds.RemoveAll(id => id.Equals(targetId, StringComparison.OrdinalIgnoreCase));
 
-        // Update the note
-        if (messageIds.Any())
-        {
-            note.TelegramMessageIds = string.Join(",", messageIds);
-        }
-        else
-        {
-            // If no message IDs left, clear the field
-            note.TelegramMessageIds = null;
-        }
+        string? updatedMessageIds = messageIds.Any() ? string.Join(",", messageIds) : null;
 
-        await _noteRepository.UpdateAsync(note);
+        // Use precise update - only update TelegramMessageIds field
+        await _noteRepository.UpdateAsync(
+            note => new Note { TelegramMessageIds = updatedMessageIds },
+            note => note.Id == noteId);
 
         _logger.LogDebug("Updated note {NoteId} TelegramMessageIds after removing {ChannelId}:{MessageId}",
             noteId, channelId, messageId);
