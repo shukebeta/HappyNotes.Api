@@ -29,6 +29,27 @@ public class RedisSyncQueueService : ISyncQueueService
         return json
     ";
 
+    // Lua script for atomic delayed tasks processing with batch limit
+    private static readonly string ProcessDelayedTasksScript = @"
+        local delayedKey = KEYS[1]
+        local queueKey = KEYS[2]
+        local now = ARGV[1]
+        local batchLimit = tonumber(ARGV[2]) or 100
+        
+        -- Get ready tasks with limit
+        local readyTasks = redis.call('ZRANGEBYSCORE', delayedKey, 0, now, 'LIMIT', 0, batchLimit)
+        
+        if #readyTasks > 0 then
+            -- Move tasks atomically
+            for i = 1, #readyTasks do
+                redis.call('LPUSH', queueKey, readyTasks[i])
+                redis.call('ZREM', delayedKey, readyTasks[i])
+            end
+        end
+        
+        return #readyTasks
+    ";
+
     public RedisSyncQueueService(
         IConnectionMultiplexer redis,
         IOptions<SyncQueueOptions> options,
@@ -282,24 +303,25 @@ public class RedisSyncQueueService : ISyncQueueService
         var delayedKey = GetQueueKey(service, "delayed");
         var queueKey = GetQueueKey(service, "queue");
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var batchLimit = 100; // Limit batch size to prevent overwhelming Redis
 
-        // Get tasks that are ready to be processed
-        var readyTasks = await _database.SortedSetRangeByScoreAsync(delayedKey, 0, now);
+        // Use Lua script for atomic batch processing with limit
+        var movedCount = (int)await _database.ScriptEvaluateAsync(
+            ProcessDelayedTasksScript,
+            new RedisKey[] { delayedKey, queueKey },
+            new RedisValue[] { now, batchLimit }
+        );
 
-        if (readyTasks.Length > 0)
+        if (movedCount > 0)
         {
-            // Move them to main queue and remove from delayed
-            var transaction = _database.CreateTransaction();
+            _logger.LogDebug("Moved {Count} delayed tasks to queue for service {Service}", movedCount, service);
 
-            foreach (var task in readyTasks)
+            // If we moved the maximum batch, there might be more ready tasks
+            // Let rate limiter handle the next batch in subsequent calls
+            if (movedCount == batchLimit)
             {
-                _ = transaction.ListLeftPushAsync(queueKey, task);
-                _ = transaction.SortedSetRemoveAsync(delayedKey, task);
+                _logger.LogDebug("Batch limit reached, more delayed tasks may be ready for service {Service}", service);
             }
-
-            await transaction.ExecuteAsync();
-
-            _logger.LogDebug("Moved {Count} delayed tasks to queue for service {Service}", readyTasks.Length, service);
         }
     }
 

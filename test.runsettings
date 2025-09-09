@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <TestRunParameters>
+    <!-- Environment variables for tests -->
+    <Parameter name="REDIS_CONNECTION_STRING" value="localhost:6379" />
+  </TestRunParameters>
+  
+  <!-- Filters for running different test categories -->
+  <!-- To run only unit tests (excluding integration tests): -->
+  <!-- dotnet test --settings test.runsettings --filter "TestCategory!=Integration" -->
+  
+  <!-- To run all tests including integration tests: -->
+  <!-- dotnet test --settings test.runsettings -->
+  
+  <!-- To run only integration tests: -->
+  <!-- dotnet test --settings test.runsettings --filter "TestCategory=Integration" -->
+</RunSettings>
