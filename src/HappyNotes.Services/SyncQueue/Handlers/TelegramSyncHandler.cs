@@ -2,6 +2,8 @@ using System.Text.Json;
 using Api.Framework.Helper;
 using Api.Framework.Models;
 using HappyNotes.Common;
+using HappyNotes.Entities;
+using HappyNotes.Repositories.interfaces;
 using HappyNotes.Services.interfaces;
 using HappyNotes.Services.SyncQueue.Configuration;
 using HappyNotes.Services.SyncQueue.Interfaces;
@@ -16,25 +18,28 @@ public class TelegramSyncHandler : ISyncHandler
 {
     private readonly ITelegramService _telegramService;
     private readonly ITelegramSettingsCacheService _telegramSettingsCache;
+    private readonly INoteRepository _noteRepository;
     private readonly SyncQueueOptions _options;
     private readonly JwtConfig _jwtConfig;
     private readonly ILogger<TelegramSyncHandler> _logger;
 
     public string ServiceName => "telegram";
 
-    public int MaxRetryAttempts => _options.Handlers.TryGetValue(ServiceName, out var config) 
-        ? config.MaxRetries 
+    public int MaxRetryAttempts => _options.Handlers.TryGetValue(ServiceName, out var config)
+        ? config.MaxRetries
         : 3;
 
     public TelegramSyncHandler(
         ITelegramService telegramService,
         ITelegramSettingsCacheService telegramSettingsCache,
+        INoteRepository noteRepository,
         IOptions<SyncQueueOptions> options,
         IOptions<JwtConfig> jwtConfig,
         ILogger<TelegramSyncHandler> logger)
     {
         _telegramService = telegramService;
         _telegramSettingsCache = telegramSettingsCache;
+        _noteRepository = noteRepository;
         _options = options.Value;
         _jwtConfig = jwtConfig.Value;
         _logger = logger;
@@ -45,7 +50,7 @@ public class TelegramSyncHandler : ISyncHandler
         try
         {
             TelegramSyncPayload? payload;
-            
+
             // Handle both typed and untyped task objects
             if (task.Payload is JsonElement jsonElement)
             {
@@ -68,19 +73,19 @@ public class TelegramSyncHandler : ISyncHandler
             // Security: Get BotToken from settings cache instead of payload
             var telegramSettings = await _telegramSettingsCache.GetAsync(task.UserId);
             var setting = telegramSettings.FirstOrDefault(s => s.ChannelId == payload.ChannelId);
-            
+
             if (setting == null)
             {
                 return SyncResult.Failure($"No Telegram settings found for user {task.UserId} and channel {payload.ChannelId}", shouldRetry: false);
             }
 
-            _logger.LogDebug("Processing Telegram sync task {TaskId} - Action: {Action}, Channel: {ChannelId}", 
+            _logger.LogDebug("Processing Telegram sync task {TaskId} - Action: {Action}, Channel: {ChannelId}",
                 task.Id, payload.Action, payload.ChannelId);
 
             // Security: Decrypt token from encrypted storage
             var decryptedToken = TextEncryptionHelper.Decrypt(setting.EncryptedToken, _jwtConfig.SymmetricSecurityKey);
-            
-            await ProcessTelegramAction(payload, decryptedToken, cancellationToken);
+
+            await ProcessTelegramAction(payload, decryptedToken, task, cancellationToken);
 
             return SyncResult.Success();
         }
@@ -122,27 +127,27 @@ public class TelegramSyncHandler : ISyncHandler
         var baseDelay = TimeSpan.FromSeconds(config.BaseDelaySeconds);
         var multiplier = Math.Pow(config.BackoffMultiplier, attemptCount);
         var delay = TimeSpan.FromTicks((long)(baseDelay.Ticks * multiplier));
-        
+
         var maxDelay = TimeSpan.FromMinutes(config.MaxDelayMinutes);
         return delay > maxDelay ? maxDelay : delay;
     }
 
-    private async Task ProcessTelegramAction(TelegramSyncPayload payload, string botToken, CancellationToken cancellationToken)
+    private async Task ProcessTelegramAction(TelegramSyncPayload payload, string botToken, SyncTask task, CancellationToken cancellationToken)
     {
         switch (payload.Action.ToUpperInvariant())
         {
             case "CREATE":
                 await ProcessCreateAction(payload, botToken);
                 break;
-            
+
             case "UPDATE":
                 await ProcessUpdateAction(payload, botToken);
                 break;
-            
+
             case "DELETE":
-                await ProcessDeleteAction(payload, botToken);
+                await ProcessDeleteAction(payload, botToken, task);
                 break;
-            
+
             default:
                 throw new ArgumentException($"Unknown action: {payload.Action}");
         }
@@ -151,21 +156,21 @@ public class TelegramSyncHandler : ISyncHandler
     private async Task ProcessCreateAction(TelegramSyncPayload payload, string botToken)
     {
         _logger.LogDebug("Creating Telegram message in channel {ChannelId}", payload.ChannelId);
-        
+
         if (payload.FullContent.Length > 4096) // Telegram's text message limit
         {
             await _telegramService.SendLongMessageAsFileAsync(
-                botToken, 
-                payload.ChannelId, 
+                botToken,
+                payload.ChannelId,
                 payload.FullContent,
                 payload.IsMarkdown ? ".md" : ".txt");
         }
         else
         {
             await _telegramService.SendMessageAsync(
-                botToken, 
-                payload.ChannelId, 
-                payload.FullContent, 
+                botToken,
+                payload.ChannelId,
+                payload.FullContent,
                 payload.IsMarkdown);
         }
     }
@@ -177,7 +182,7 @@ public class TelegramSyncHandler : ISyncHandler
             throw new ArgumentException("MessageId is required for UPDATE action");
         }
 
-        _logger.LogDebug("Updating Telegram message {MessageId} in channel {ChannelId}", 
+        _logger.LogDebug("Updating Telegram message {MessageId} in channel {ChannelId}",
             payload.MessageId.Value, payload.ChannelId);
 
         // For updates, if the message is too long, we need to delete and recreate
@@ -190,25 +195,65 @@ public class TelegramSyncHandler : ISyncHandler
         else
         {
             await _telegramService.EditMessageAsync(
-                botToken, 
-                payload.ChannelId, 
+                botToken,
+                payload.ChannelId,
                 payload.MessageId.Value,
-                payload.FullContent, 
+                payload.FullContent,
                 payload.IsMarkdown);
         }
     }
 
-    private async Task ProcessDeleteAction(TelegramSyncPayload payload, string botToken)
+    private async Task ProcessDeleteAction(TelegramSyncPayload payload, string botToken, SyncTask task)
     {
         if (!payload.MessageId.HasValue)
         {
             throw new ArgumentException("MessageId is required for DELETE action");
         }
 
-        _logger.LogDebug("Deleting Telegram message {MessageId} from channel {ChannelId}", 
+        _logger.LogDebug("Deleting Telegram message {MessageId} from channel {ChannelId}",
             payload.MessageId.Value, payload.ChannelId);
 
+        // Delete from Telegram first
         await _telegramService.DeleteMessageAsync(botToken, payload.ChannelId, payload.MessageId.Value);
+
+        // Update note to remove this specific message ID from TelegramMessageIds
+        await RemoveMessageIdFromNote(task.EntityId, payload.ChannelId, payload.MessageId.Value);
+
+        _logger.LogDebug("Successfully removed message {MessageId} from note {NoteId} TelegramMessageIds",
+            payload.MessageId.Value, task.EntityId);
+    }
+
+    private async Task RemoveMessageIdFromNote(long noteId, string channelId, int messageId)
+    {
+        var note = await _noteRepository.GetFirstOrDefaultAsync(n => n.Id == noteId);
+        if (note == null || string.IsNullOrWhiteSpace(note.TelegramMessageIds))
+        {
+            _logger.LogWarning("Note {NoteId} not found or has no Telegram message IDs", noteId);
+            return;
+        }
+
+        // Parse existing message IDs
+        var messageIds = note.TelegramMessageIds.Split(',').ToList();
+        var targetId = $"{channelId}:{messageId}";
+
+        // Remove the specific message ID
+        messageIds.RemoveAll(id => id.Equals(targetId, StringComparison.OrdinalIgnoreCase));
+
+        // Update the note
+        if (messageIds.Any())
+        {
+            note.TelegramMessageIds = string.Join(",", messageIds);
+        }
+        else
+        {
+            // If no message IDs left, clear the field
+            note.TelegramMessageIds = null;
+        }
+
+        await _noteRepository.UpdateAsync(note);
+
+        _logger.LogDebug("Updated note {NoteId} TelegramMessageIds after removing {ChannelId}:{MessageId}",
+            noteId, channelId, messageId);
     }
 
     private static bool IsRetryableException(ApiRequestException ex)

@@ -183,7 +183,6 @@ public class TelegramSyncNoteService(
             try
             {
                 var settings = await telegramSettingsCacheService.GetAsync(note.UserId);
-
                 if (!settings.Any()) return;
 
                 var syncedChannels = _GetSyncedChannels(note);
@@ -193,15 +192,16 @@ public class TelegramSyncNoteService(
                     var setting = settings.FirstOrDefault(s => s.ChannelId.Equals(channelId));
                     if (setting == null) continue;
 
-                    await _DeleteMessage(setting, channel);
+                    // Use queue instead of direct deletion - content not needed for DELETE
+                    await EnqueueSyncTask(note, string.Empty, string.Empty, channelId, "DELETE", channel.MessageId);
                 }
 
-                note.TelegramMessageIds = null;
-                await noteRepository.UpdateAsync(note);
+                // Note: TelegramMessageIds will be cleared by the handler after successful deletion
+                // This ensures we can retry if the deletion fails
             }
             catch (Exception ex)
             {
-                logger.LogError(ex.ToString());
+                logger.LogError(ex, "Error enqueueing Telegram delete tasks for note {NoteId}", note.Id);
             }
         }
     }
