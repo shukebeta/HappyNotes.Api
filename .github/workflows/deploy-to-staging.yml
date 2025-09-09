@@ -55,7 +55,7 @@ jobs:
           sed -i "s/default_manticore_server/sydney.shukebeta.eu.org/" /var/www/HappyNotes.Api/appsettings.json
           sed -i "s/seq-api-key-placeholder/${{ secrets.STAGING_SEQ_API_KEY }}/g" /var/www/HappyNotes.Api/appsettings.json
           sed -i "s/seq-server-url-placeholder/${{ secrets.STAGING_SEQ_SERVER_URL }}/g" /var/www/HappyNotes.Api/appsettings.json
-          sed -i "s/redis-connection-placeholder/seq.shukebeta.eu.org:6780/g" /var/www/HappyNotes.Api/appsettings.json
+          sed -i "s|redis-connection-placeholder|seq.shukebeta.eu.org:6780|g" /var/www/HappyNotes.Api/appsettings.json
 
       - name: Restart the app
         run: |
