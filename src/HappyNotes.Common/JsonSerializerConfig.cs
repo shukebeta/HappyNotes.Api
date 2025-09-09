@@ -15,10 +15,7 @@ public static class JsonSerializerConfig
         PropertyNameCaseInsensitive = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         WriteIndented = false,
-        Converters = 
-        {
-            new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)
-        }
+        Converters = { }
     };
 
     /// <summary>
@@ -30,9 +27,6 @@ public static class JsonSerializerConfig
         PropertyNameCaseInsensitive = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         WriteIndented = true,
-        Converters = 
-        {
-            new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)
-        }
+        Converters = { }
     };
 }
