@@ -43,19 +43,32 @@ jobs:
         run: dotnet publish -c Release --property:PublishDir=/var/www/HappyNotes.Api
 
       - name: Replace placeholders with actual information
+        env:
+          STAGING_MYSQL_PASSWORD: ${{ secrets.STAGING_MYSQL_PASSWORD }}
+          STAGING_SYMMETRIC_SECURITY_KEY: ${{ secrets.STAGING_SYMMETRIC_SECURITY_KEY }}
+          STAGING_SEQ_API_KEY: ${{ secrets.STAGING_SEQ_API_KEY }}
+          STAGING_SEQ_SERVER_URL: ${{ secrets.STAGING_SEQ_SERVER_URL }}
         run: |
-          pwd
-          sed -i "s/password-placeholder/${{ secrets.STAGING_MYSQL_PASSWORD }}/g" /var/www/HappyNotes.Api/appsettings.json
-          sed -i "s/symmetric-security-key-placeholder/${{ secrets.STAGING_SYMMETRIC_SECURITY_KEY }}/g" /var/www/HappyNotes.Api/appsettings.json
+          set -exuo pipefail
+          file=/var/www/HappyNotes.Api/appsettings.json
+          # commit/date from earlier step outputs
           COMMIT_HASH=${{ steps.get_commit.outputs.commit_hash }}
           BUILD_DATE=${{ steps.get_commit.outputs.build_date }}
           VERSION_INFO="$COMMIT_HASH ($BUILD_DATE)"
-          sed -i "s/VERSION_PLACEHOLDER/$VERSION_INFO/" /var/www/HappyNotes.Api/appsettings.json
-          sed -i "s/default_mysql_server/127.0.0.1/" /var/www/HappyNotes.Api/appsettings.json
-          sed -i "s/default_manticore_server/sydney.shukebeta.eu.org/" /var/www/HappyNotes.Api/appsettings.json
-          sed -i "s/seq-api-key-placeholder/${{ secrets.STAGING_SEQ_API_KEY }}/g" /var/www/HappyNotes.Api/appsettings.json
-          sed -i "s/seq-server-url-placeholder/${{ secrets.STAGING_SEQ_SERVER_URL }}/g" /var/www/HappyNotes.Api/appsettings.json
-          sed -i 's@redis-connection-placeholder@seq.shukebeta.eu.org:6380@g' /var/www/HappyNotes.Api/appsettings.json
+          # escape function: escape backslash, ampersand and the '|' delimiter
+          esc() { printf '%s' "$1" | sed -e 's/\/\\/g' -e 's/&/\&/g' -e 's/|/\|/g'; }
+          p=$(esc "$STAGING_MYSQL_PASSWORD")
+          k=$(esc "$STAGING_SYMMETRIC_SECURITY_KEY")
+          seqk=$(esc "$STAGING_SEQ_API_KEY")
+          sequ=$(esc "$STAGING_SEQ_SERVER_URL")
+          v=$(esc "$VERSION_INFO")sed -i "s|password-placeholder|$p|g" "$file"
+          sed -i "s|symmetric-security-key-placeholder|$k|g" "$file"
+          sed -i "s|VERSION_PLACEHOLDER|$v|g" "$file"
+          sed -i "s|default_mysql_server|127.0.0.1|g" "$file"
+          sed -i "s|default_manticore_server|sydney.shukebeta.eu.org|g" "$file"
+          sed -i "s|seq-api-key-placeholder|$seqk|g" "$file"
+          sed -i "s|seq-server-url-placeholder|$sequ|g" "$file"
+          sed -i 's@redis-connection-placeholder@seq.shukebeta.eu.org:6380@g' "$file"appsettings.json
 
       - name: Restart the app
         run: |
