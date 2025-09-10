@@ -45,6 +45,7 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
 
             logger.LogDebug("Publishing markdown status with {MediaCount} media attachments to {InstanceUrl}",
                 mediaIds.Count(), instanceUrl);
+
             return await client.PublishStatus(
                 processedText,
                 visibility: isPrivate ? Visibility.Private : Visibility.Public,
@@ -391,13 +392,13 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
                 }
 
                 // Extract filename from URL or use default
-                var filename = string.Join("_",
-                    imageUrl.Split('/', StringSplitOptions.RemoveEmptyEntries)
-                        .Last()
-                        .Split('?')[0]
-                        .Split('#')[0]
-                        .Take(20)
-                );
+                var rawFilename = imageUrl.Split('/', StringSplitOptions.RemoveEmptyEntries)
+                    .Last()
+                    .Split('?')[0]
+                    .Split('#')[0];
+
+                // Limit filename length to avoid issues with long filenames
+                var filename = rawFilename.Length > 50 ? rawFilename[..50] : rawFilename;
 
                 if (string.IsNullOrWhiteSpace(filename))
                 {

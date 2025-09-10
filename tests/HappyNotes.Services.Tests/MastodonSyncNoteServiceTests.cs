@@ -4,6 +4,8 @@ using HappyNotes.Common.Enums;
 using HappyNotes.Entities;
 using HappyNotes.Repositories.interfaces;
 using HappyNotes.Services.interfaces;
+using HappyNotes.Services.SyncQueue.Interfaces;
+using HappyNotes.Services.SyncQueue.Models;
 using Mastonet.Entities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -17,6 +19,7 @@ public class MastodonSyncNoteServiceTests
     private Mock<INoteRepository> _mockNoteRepository;
     private Mock<IMastodonUserAccountCacheService> _mockMastodonUserAccountCacheService;
     private Mock<IOptions<JwtConfig>> _mockJwtConfig;
+    private Mock<ISyncQueueService> _mockSyncQueueService;
     private Mock<ILogger<MastodonSyncNoteService>> _mockLogger;
     private MastodonSyncNoteService _mastodonSyncNoteService;
 
@@ -27,6 +30,7 @@ public class MastodonSyncNoteServiceTests
         _mockNoteRepository = new Mock<INoteRepository>();
         _mockMastodonUserAccountCacheService = new Mock<IMastodonUserAccountCacheService>();
         _mockJwtConfig = new Mock<IOptions<JwtConfig>>();
+        _mockSyncQueueService = new Mock<ISyncQueueService>();
         _mockLogger = new Mock<ILogger<MastodonSyncNoteService>>();
 
         var jwtConfig = new JwtConfig { SymmetricSecurityKey = "test_key" };
@@ -37,6 +41,7 @@ public class MastodonSyncNoteServiceTests
             _mockNoteRepository.Object,
             _mockMastodonUserAccountCacheService.Object,
             _mockJwtConfig.Object,
+            _mockSyncQueueService.Object,
             _mockLogger.Object
         );
     }
@@ -73,15 +78,22 @@ public class MastodonSyncNoteServiceTests
             .Setup(s => s.GetAsync(note.UserId))
             .ReturnsAsync(mastodonUserAccounts);
 
-        _mockMastodonTootService
-            .Setup(s => s.SendTootAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), false))
-            .ReturnsAsync(new Status { Id = "12345" });
-
         // Act
         await _mastodonSyncNoteService.SyncNewNote(note, fullContent);
 
-        // Assert
-        _mockNoteRepository.Verify(repo => repo.UpdateAsync(It.Is<Note>(n => n.MastodonTootIds!.Contains("12345"))),
-            shouldSync ? Times.Once : Times.Never);
+        // Assert - Verify queue operation instead of direct database update
+        if (shouldSync)
+        {
+            _mockSyncQueueService.Verify(s => s.EnqueueAsync("mastodon",
+                It.Is<SyncTask<MastodonSyncPayload>>(task =>
+                    task.Action == "CREATE" &&
+                    task.EntityId == note.Id &&
+                    task.UserId == note.UserId)),
+                Times.Once);
+        }
+        else
+        {
+            _mockSyncQueueService.Verify(s => s.EnqueueAsync(It.IsAny<string>(), It.IsAny<SyncTask<object>>()), Times.Never);
+        }
     }
 }

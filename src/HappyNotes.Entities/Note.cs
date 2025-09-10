@@ -28,4 +28,45 @@ public class Note : EntityBase
     {
         TelegramMessageIds = string.Join(",", channels.Select(r => $"{r.ChannelId}:{r.MessageId}"));
     }
+
+    public void AddMastodonTootId(long userAccountId, string tootId)
+    {
+        var tootIdEntry = $"{userAccountId}:{tootId}";
+
+        if (string.IsNullOrWhiteSpace(MastodonTootIds))
+        {
+            MastodonTootIds = tootIdEntry;
+        }
+        else
+        {
+            var tootIds = MastodonTootIds.Split(',').ToList();
+            var existingIndex = tootIds.FindIndex(id => id.StartsWith($"{userAccountId}:"));
+
+            if (existingIndex >= 0)
+            {
+                tootIds[existingIndex] = tootIdEntry;
+            }
+            else
+            {
+                tootIds.Add(tootIdEntry);
+            }
+
+            MastodonTootIds = string.Join(",", tootIds);
+        }
+    }
+
+    public void RemoveMastodonTootId(long userAccountId, string tootId)
+    {
+        if (string.IsNullOrWhiteSpace(MastodonTootIds))
+        {
+            return;
+        }
+
+        var tootIds = MastodonTootIds.Split(',').ToList();
+        var targetId = $"{userAccountId}:{tootId}";
+
+        tootIds.RemoveAll(id => id.Equals(targetId, StringComparison.OrdinalIgnoreCase));
+
+        MastodonTootIds = tootIds.Any() ? string.Join(",", tootIds) : null;
+    }
 }

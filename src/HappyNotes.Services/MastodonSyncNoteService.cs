@@ -4,6 +4,8 @@ using HappyNotes.Entities;
 using HappyNotes.Models;
 using HappyNotes.Repositories.interfaces;
 using HappyNotes.Services.interfaces;
+using HappyNotes.Services.SyncQueue.Interfaces;
+using HappyNotes.Services.SyncQueue.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Telegram.Bot.Exceptions;
@@ -15,6 +17,7 @@ public class MastodonSyncNoteService(
     INoteRepository noteRepository,
     IMastodonUserAccountCacheService mastodonUserAccountCacheService,
     IOptions<JwtConfig> jwtConfig,
+    ISyncQueueService syncQueueService,
     ILogger<MastodonSyncNoteService> logger
 )
     : ISyncNoteService
@@ -27,7 +30,6 @@ public class MastodonSyncNoteService(
         logger.LogInformation("Starting sync of new note {NoteId} for user {UserId}. ContentLength: {ContentLength}, IsPrivate: {IsPrivate}, IsMarkdown: {IsMarkdown}",
             note.Id, note.UserId, fullContent.Length, note.IsPrivate, note.IsMarkdown);
 
-        var syncedInstances = new List<MastodonSyncedInstance>();
         try
         {
             var accounts = await _GetToSyncMastodonUserAccounts(note);
@@ -36,42 +38,21 @@ public class MastodonSyncNoteService(
 
             if (accounts.Any())
             {
+                // UNIFIED QUEUE MODE: Always use queue for consistent behavior
                 foreach (var account in accounts)
                 {
-                    logger.LogDebug("Syncing note {NoteId} to account {AccountId} ({InstanceUrl})",
+                    await EnqueueSyncTask(note, fullContent, account, "CREATE");
+                    logger.LogDebug("Queued CREATE task for note {NoteId} to Mastodon account {AccountId} ({InstanceUrl})",
                         note.Id, account.Id, account.InstanceUrl);
-
-                    try
-                    {
-                        var tootId = await _SentNoteToMastodon(note, fullContent, account);
-                        syncedInstances.Add(new MastodonSyncedInstance
-                        {
-                            UserAccountId = account.Id,
-                            TootId = tootId,
-                        });
-
-                        logger.LogDebug("Successfully synced note {NoteId} to {InstanceUrl}, tootId: {TootId}",
-                            note.Id, account.InstanceUrl, tootId);
-                    }
-                    catch (Exception accountEx)
-                    {
-                        logger.LogError(accountEx, "Failed to sync note {NoteId} to account {AccountId} ({InstanceUrl}): {ErrorMessage}",
-                            note.Id, account.Id, account.InstanceUrl, accountEx.Message);
-                        // Continue with other accounts even if one fails
-                    }
                 }
             }
 
-            note.UpdateMastodonInstanceIds(syncedInstances);
-            await noteRepository.UpdateAsync(note);
-
-            logger.LogInformation("Completed sync of note {NoteId}. Successfully synced to {SyncedCount}/{TotalCount} accounts",
-                note.Id, syncedInstances.Count, accounts.Count);
+            // Note: MastodonTootIds will be updated by the handler after successful creation
+            // This ensures we only record successful syncs and can retry failures
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to sync new note {NoteId} for user {UserId}: {ErrorMessage}",
-                note.Id, note.UserId, ex.Message);
+            logger.LogError(ex, "Error in SyncNewNote for note {NoteId}", note.Id);
         }
     }
 
@@ -80,19 +61,16 @@ public class MastodonSyncNoteService(
         logger.LogInformation("Starting sync edit of note {NoteId} for user {UserId}. ContentLength: {ContentLength}, IsPrivate: {IsPrivate}, IsMarkdown: {IsMarkdown}",
             note.Id, note.UserId, fullContent.Length, note.IsPrivate, note.IsMarkdown);
 
-        var accounts = await mastodonUserAccountCacheService.GetAsync(note.UserId);
-        if (!accounts.Any())
-        {
-            logger.LogDebug("No Mastodon accounts found for user {UserId}, skipping sync edit of note {NoteId}",
-                note.UserId, note.Id);
-            return;
-        }
-
-        logger.LogDebug("Found {AccountCount} Mastodon accounts for user {UserId}", accounts.Count, note.UserId);
-        var instances = new List<MastodonSyncedInstance>();
-
         try
         {
+            var accounts = await mastodonUserAccountCacheService.GetAsync(note.UserId);
+            if (!accounts.Any())
+            {
+                logger.LogDebug("No Mastodon accounts found for user {UserId}, skipping sync edit of note {NoteId}",
+                    note.UserId, note.Id);
+                return;
+            }
+
             var instanceData = await _GetInstancesData(note);
             var toBeSent = instanceData.toBeSent;
             var tobeRemoved = instanceData.toBeRemoved;
@@ -101,92 +79,44 @@ public class MastodonSyncNoteService(
             logger.LogDebug("Edit sync plan for note {NoteId}: {ToSendCount} to send, {ToUpdateCount} to update, {ToRemoveCount} to remove",
                 note.Id, toBeSent.Count, tobeUpdated.Count, tobeRemoved.Count);
 
-            // there are existing synced channels
-            if (!string.IsNullOrWhiteSpace(note.MastodonTootIds))
+            // Queue DELETE operations for instances that should be removed
+            foreach (var instance in tobeRemoved)
             {
-                // Remove toots that should no longer be synced
-                foreach (var instance in tobeRemoved)
+                var account = accounts.FirstOrDefault(s => s.Id.Equals(instance.UserAccountId));
+                if (account != null)
                 {
-                    var account = accounts.FirstOrDefault(s => s.Id.Equals(instance.UserAccountId));
-                    if (account != null)
-                    {
-                        logger.LogDebug("Removing toot {TootId} from {InstanceUrl} for note {NoteId}",
-                            instance.TootId, account.InstanceUrl, note.Id);
-                        await _DeleteToot(instance, account);
-                    }
-                }
-
-                // Update existing toots
-                foreach (var instance in tobeUpdated)
-                {
-                    var userAccountId = instance.UserAccountId;
-                    var account = accounts.FirstOrDefault(s => s.Id.Equals(userAccountId));
-                    if (account == null) continue;
-
-                    try
-                    {
-                        logger.LogDebug("Updating toot {TootId} on {InstanceUrl} for note {NoteId}",
-                            instance.TootId, account.InstanceUrl, note.Id);
-
-                        await mastodonTootService.EditTootAsync(account.InstanceUrl,
-                            account.DecryptedAccessToken(TokenKey), instance.TootId,
-                            fullContent,
-                            note.IsPrivate, note.IsMarkdown);
-                        instances.Add(new MastodonSyncedInstance
-                        {
-                            UserAccountId = userAccountId,
-                            TootId = instance.TootId,
-                        });
-
-                        logger.LogDebug("Successfully updated toot {TootId} on {InstanceUrl} for note {NoteId}",
-                            instance.TootId, account.InstanceUrl, note.Id);
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogError(ex, "Failed to update toot {TootId} on {InstanceUrl} for note {NoteId}: {ErrorMessage}",
-                            instance.TootId, account.InstanceUrl, note.Id, ex.Message);
-                        throw;
-                    }
+                    await EnqueueSyncTask(note, string.Empty, account, "DELETE", instance.TootId);
+                    logger.LogDebug("Queued DELETE task for note {NoteId} from Mastodon account {AccountId} ({InstanceUrl})",
+                        note.Id, account.Id, account.InstanceUrl);
                 }
             }
 
-            // Send to new accounts
+            // Queue UPDATE operations for existing instances
+            foreach (var instance in tobeUpdated)
+            {
+                var account = accounts.FirstOrDefault(s => s.Id.Equals(instance.UserAccountId));
+                if (account != null)
+                {
+                    await EnqueueSyncTask(note, fullContent, account, "UPDATE", instance.TootId);
+                    logger.LogDebug("Queued UPDATE task for note {NoteId} to Mastodon account {AccountId} ({InstanceUrl})",
+                        note.Id, account.Id, account.InstanceUrl);
+                }
+            }
+
+            // Queue CREATE operations for new accounts
             foreach (var account in toBeSent)
             {
-                try
-                {
-                    logger.LogDebug("Sending note {NoteId} to new account {AccountId} ({InstanceUrl})",
-                        note.Id, account.Id, account.InstanceUrl);
-
-                    var tootId = await _SentNoteToMastodon(note, fullContent, account);
-                    instances.Add(new MastodonSyncedInstance
-                    {
-                        UserAccountId = account.Id,
-                        TootId = tootId,
-                    });
-
-                    logger.LogDebug("Successfully sent note {NoteId} to {InstanceUrl}, tootId: {TootId}",
-                        note.Id, account.InstanceUrl, tootId);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed to send note {NoteId} to account {AccountId} ({InstanceUrl}): {ErrorMessage}",
-                        note.Id, account.Id, account.InstanceUrl, ex.Message);
-                    // Continue with other accounts even if one fails
-                }
+                await EnqueueSyncTask(note, fullContent, account, "CREATE");
+                logger.LogDebug("Queued CREATE task for note {NoteId} to Mastodon account {AccountId} ({InstanceUrl})",
+                    note.Id, account.Id, account.InstanceUrl);
             }
 
-            note.UpdateMastodonInstanceIds(instances);
-            await noteRepository.UpdateAsync(_ => new Note { MastodonTootIds = note.MastodonTootIds, },
-                n => n.Id == note.Id);
-
-            logger.LogInformation("Completed sync edit of note {NoteId}. Final synced instances: {SyncedCount}",
-                note.Id, instances.Count);
+            // Note: MastodonTootIds will be updated by the handler after successful operations
+            // This ensures we only record successful syncs and can retry failures
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to sync edit note {NoteId} for user {UserId}: {ErrorMessage}",
-                note.Id, note.UserId, ex.Message);
+            logger.LogError(ex, "Error in SyncEditNote for note {NoteId}", note.Id);
         }
     }
 
@@ -199,7 +129,6 @@ public class MastodonSyncNoteService(
             try
             {
                 var accounts = await mastodonUserAccountCacheService.GetAsync(note.UserId);
-
                 if (!accounts.Any())
                 {
                     logger.LogDebug("No Mastodon accounts found for user {UserId}, skipping sync delete of note {NoteId}",
@@ -211,31 +140,29 @@ public class MastodonSyncNoteService(
                 logger.LogDebug("Deleting note {NoteId} from {InstanceCount} Mastodon instances",
                     note.Id, syncedInstances.Count);
 
+                // Queue DELETE operations for all synced instances
                 foreach (var instance in syncedInstances)
                 {
-                    var userAccountId = instance.UserAccountId;
-                    var account = accounts.FirstOrDefault(s => s.Id.Equals(userAccountId));
-                    if (account == null)
+                    var account = accounts.FirstOrDefault(s => s.Id.Equals(instance.UserAccountId));
+                    if (account != null)
+                    {
+                        await EnqueueSyncTask(note, string.Empty, account, "DELETE", instance.TootId);
+                        logger.LogDebug("Queued DELETE task for note {NoteId} from Mastodon account {AccountId} ({InstanceUrl})",
+                            note.Id, account.Id, account.InstanceUrl);
+                    }
+                    else
                     {
                         logger.LogWarning("Account {AccountId} not found for deleting toot {TootId} from note {NoteId}",
-                            userAccountId, instance.TootId, note.Id);
-                        continue;
+                            instance.UserAccountId, instance.TootId, note.Id);
                     }
-
-                    logger.LogDebug("Deleting toot {TootId} from {InstanceUrl} for note {NoteId}",
-                        instance.TootId, account.InstanceUrl, note.Id);
-                    await _DeleteToot(instance, account);
                 }
 
-                note.MastodonTootIds = null;
-                await noteRepository.UpdateAsync(note);
-
-                logger.LogInformation("Completed sync delete of note {NoteId} from all Mastodon instances", note.Id);
+                // Note: MastodonTootIds will be cleared by the handler after successful deletion
+                // This ensures we can retry if the deletion fails
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failed to sync delete note {NoteId} for user {UserId}: {ErrorMessage}",
-                    note.Id, note.UserId, ex.Message);
+                logger.LogError(ex, "Error enqueueing Mastodon delete tasks for note {NoteId}", note.Id);
             }
         }
         else
@@ -366,6 +293,25 @@ public class MastodonSyncNoteService(
             logger.LogError(ex, "Failed to delete toot {TootId} from {InstanceUrl}: {ErrorMessage}",
                 instance.TootId, account.InstanceUrl, ex.Message);
         }
+    }
+
+    private async Task EnqueueSyncTask(Note note, string fullContent, MastodonUserAccount account, string action, string? tootId = null)
+    {
+        var payload = new MastodonSyncPayload
+        {
+            InstanceUrl = account.InstanceUrl,
+            UserAccountId = account.Id,
+            FullContent = fullContent,
+            TootId = tootId,
+            IsPrivate = note.IsPrivate,
+            IsMarkdown = note.IsMarkdown
+        };
+
+        var task = SyncTask.Create("mastodon", action, note.Id, note.UserId, payload);
+        await syncQueueService.EnqueueAsync("mastodon", task);
+
+        logger.LogInformation("Enqueued Mastodon sync task {TaskId} for note {NoteId}, action: {Action}, account: {AccountId}",
+            task.Id, note.Id, action, account.Id);
     }
 
     private static List<MastodonSyncedInstance> _GetSyncedInstances(Note note)
