@@ -1,4 +1,5 @@
 using HappyNotes.Entities;
+using HappyNotes.Services.SyncQueue.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -12,25 +13,15 @@ namespace HappyNotes.Services.Tests;
 public class ManticoreSyncIntegrationTests
 {
     private readonly ManticoreSyncNoteService _syncService;
-    private readonly SearchService _searchService;
+    private readonly Mock<ISyncQueueService> _mockSyncQueueService;
     private readonly Mock<ILogger<ManticoreSyncNoteService>> _mockLogger;
 
     public ManticoreSyncIntegrationTests()
     {
-        // Setup for integration tests using a local Manticore instance at 127.0.0.1:9306
-        // Ensure that a Manticore Search server is running on this address and port before running tests.
-
-        var mockConfig = new Mock<IConfiguration>();
-        var mockConfigSection = new Mock<IConfigurationSection>();
-        mockConfigSection.Setup(x => x.Value).Returns("server=127.0.0.1; port=9306; charset=utf8mb4;");
-        mockConfig.Setup(x => x.GetSection("ManticoreConnectionOptions:ConnectionString")).Returns(mockConfigSection.Object);
-
-        var databaseClient = new DatabaseClient(mockConfig.Object);
-        var httpClient = new HttpClient();
-        var options = new ManticoreConnectionOptions { HttpEndpoint = "http://127.0.0.1:9312" };
-        _searchService = new SearchService(databaseClient, httpClient, options);
+        // Setup for integration tests - now using mock queue service instead of direct SearchService
+        _mockSyncQueueService = new Mock<ISyncQueueService>();
         _mockLogger = new Mock<ILogger<ManticoreSyncNoteService>>();
-        _syncService = new ManticoreSyncNoteService(_searchService, _mockLogger.Object);
+        _syncService = new ManticoreSyncNoteService(_mockSyncQueueService.Object, _mockLogger.Object);
     }
 
     [Test]

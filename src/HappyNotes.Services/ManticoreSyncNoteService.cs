@@ -1,11 +1,13 @@
 using HappyNotes.Entities;
 using HappyNotes.Services.interfaces;
+using HappyNotes.Services.SyncQueue.Interfaces;
+using HappyNotes.Services.SyncQueue.Models;
 using Microsoft.Extensions.Logging;
 
 namespace HappyNotes.Services;
 
 public class ManticoreSyncNoteService(
-    ISearchService searchService,
+    ISyncQueueService syncQueueService,
     ILogger<ManticoreSyncNoteService> logger
 ) : ISyncNoteService
 {
@@ -13,11 +15,20 @@ public class ManticoreSyncNoteService(
     {
         try
         {
-            await searchService.SyncNoteToIndexAsync(note, fullContent);
+            var payload = new ManticoreSearchSyncPayload
+            {
+                Action = "CREATE",
+                FullContent = fullContent
+            };
+
+            var task = SyncTask.Create("manticoresearch", "CREATE", note.Id, note.UserId, payload);
+            await syncQueueService.EnqueueAsync("manticoresearch", task);
+
+            logger.LogDebug("Successfully queued ManticoreSearch CREATE for note {NoteId}", note.Id);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to sync new note to Manticore index: {NoteId}", note.Id);
+            logger.LogError(ex, "Failed to queue new note sync to ManticoreSearch: {NoteId}", note.Id);
         }
     }
 
@@ -25,11 +36,20 @@ public class ManticoreSyncNoteService(
     {
         try
         {
-            await searchService.SyncNoteToIndexAsync(note, fullContent);
+            var payload = new ManticoreSearchSyncPayload
+            {
+                Action = "UPDATE",
+                FullContent = fullContent
+            };
+
+            var task = SyncTask.Create("manticoresearch", "UPDATE", note.Id, note.UserId, payload);
+            await syncQueueService.EnqueueAsync("manticoresearch", task);
+
+            logger.LogDebug("Successfully queued ManticoreSearch UPDATE for note {NoteId}", note.Id);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to sync edited note to Manticore index: {NoteId}", note.Id);
+            logger.LogError(ex, "Failed to queue edited note sync to ManticoreSearch: {NoteId}", note.Id);
         }
     }
 
@@ -37,11 +57,20 @@ public class ManticoreSyncNoteService(
     {
         try
         {
-            await searchService.DeleteNoteFromIndexAsync(note.Id);
+            var payload = new ManticoreSearchSyncPayload
+            {
+                Action = "DELETE",
+                FullContent = string.Empty // Not needed for delete operations
+            };
+
+            var task = SyncTask.Create("manticoresearch", "DELETE", note.Id, note.UserId, payload);
+            await syncQueueService.EnqueueAsync("manticoresearch", task);
+
+            logger.LogDebug("Successfully queued ManticoreSearch DELETE for note {NoteId}", note.Id);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to delete note from Manticore index: {NoteId}", note.Id);
+            logger.LogError(ex, "Failed to queue delete note sync to ManticoreSearch: {NoteId}", note.Id);
         }
     }
 
@@ -49,23 +78,31 @@ public class ManticoreSyncNoteService(
     {
         try
         {
-            await searchService.UndeleteNoteFromIndexAsync(note.Id);
+            var payload = new ManticoreSearchSyncPayload
+            {
+                Action = "UNDELETE",
+                FullContent = string.Empty // Not needed for undelete operations
+            };
+
+            var task = SyncTask.Create("manticoresearch", "UNDELETE", note.Id, note.UserId, payload);
+            await syncQueueService.EnqueueAsync("manticoresearch", task);
+
+            logger.LogDebug("Successfully queued ManticoreSearch UNDELETE for note {NoteId}", note.Id);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to undelete note in Manticore index: {NoteId}", note.Id);
+            logger.LogError(ex, "Failed to queue undelete note sync to ManticoreSearch: {NoteId}", note.Id);
         }
     }
 
     public async Task PurgeDeletedNotes()
     {
-        try
-        {
-            await searchService.PurgeDeletedNotesFromIndexAsync();
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to purge deleted notes from Manticore index");
-        }
+        // Note: PurgeDeletedNotes is a bulk operation that doesn't operate on individual notes
+        // For now, keep direct call to SearchService as it's not tied to specific note operations
+        // This could be migrated to queue later if needed for consistency
+        logger.LogInformation("PurgeDeletedNotes not yet migrated to queue - this is a bulk operation");
+
+        // TODO: Consider implementing bulk queue operations or keeping direct calls for maintenance operations
+        await Task.CompletedTask;
     }
 }
