@@ -40,7 +40,7 @@ jobs:
         run: rm -rf /var/www/HappyNotes.Api/*
 
       - name: Publish
-        run: dotnet publish -c Release --property:PublishDir=/var/www/HappyNotes.Api
+        run: dotnet publish -c Release --self-contained true --runtime linux-arm64 --property:PublishDir=/var/www/HappyNotes.Api
 
       - name: Replace placeholders with actual information
         run: |
