@@ -71,47 +71,103 @@ public class SearchService : ISearchService
 
     public async Task SyncNoteToIndexAsync(Note note, string fullContent)
     {
-        var parameters = new SugarParameter[]
+        var requestBody = new
         {
-            new SugarParameter("@id", note.Id),
-            new SugarParameter("@userId", note.UserId),
-            new SugarParameter("@isLong", note.IsLong ? 1 : 0),
-            new SugarParameter("@isPrivate", note.IsPrivate ? 1 : 0),
-            new SugarParameter("@isMarkdown", note.IsMarkdown ? 1 : 0),
-            new SugarParameter("@content", fullContent),
-            new SugarParameter("@tags", string.Join(" ", fullContent.GetTags())),
-            new SugarParameter("@createdAt", note.CreatedAt),
-            new SugarParameter("@updatedAt", note.UpdatedAt ?? 0),
-            new SugarParameter("@deletedAt", note.DeletedAt ?? 0)
+            index = "noteindex",
+            id = note.Id,
+            doc = new
+            {
+                userid = note.UserId,
+                islong = note.IsLong ? 1 : 0,
+                isprivate = note.IsPrivate ? 1 : 0,
+                ismarkdown = note.IsMarkdown ? 1 : 0,
+                content = fullContent,
+                tags = string.Join(" ", fullContent.GetTags()),
+                createdat = note.CreatedAt,
+                updatedat = note.UpdatedAt ?? 0,
+                deletedat = note.DeletedAt ?? 0
+            }
         };
 
-        await _client.ExecuteCommandAsync(
-            "REPLACE INTO noteindex (Id, UserId, IsLong, IsPrivate, IsMarkdown, Content, Tags, CreatedAt, UpdatedAt, DeletedAt) VALUES (@id, @userId, @isLong, @isPrivate, @isMarkdown, @content, @tags, @createdAt, @updatedAt, @deletedAt)",
-            parameters);
+        var content = new StringContent(JsonSerializer.Serialize(requestBody, JsonSerializerConfig.Default), Encoding.UTF8, "application/json");
+        var response = await _httpClient.PostAsync("json/replace", content);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            throw new Exception($"ManticoreSearch replace operation failed: {response.StatusCode} - {errorContent}");
+        }
     }
 
     public async Task DeleteNoteFromIndexAsync(long id)
     {
-        await _client.ExecuteCommandAsync(
-            "UPDATE noteindex SET deletedat = @timestamp WHERE Id = @id AND deletedat = 0", new
+        var updateData = new
+        {
+            index = "noteindex",
+            id = id,
+            doc = new
             {
-                timestamp = DateTime.Now.ToUnixTimeSeconds(),
-                id
-            });
+                deletedat = DateTime.Now.ToUnixTimeSeconds()
+            }
+        };
+
+        var content = new StringContent(JsonSerializer.Serialize(updateData, JsonSerializerConfig.Default), Encoding.UTF8, "application/json");
+        var response = await _httpClient.PostAsync("json/update", content);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            throw new Exception($"ManticoreSearch delete operation failed: {response.StatusCode} - {errorContent}");
+        }
     }
 
     public async Task UndeleteNoteFromIndexAsync(long id)
     {
-        await _client.ExecuteCommandAsync(
-            "UPDATE noteindex SET deletedat = 0 WHERE Id = @id", new
+        var updateData = new
+        {
+            index = "noteindex",
+            id = id,
+            doc = new
             {
-                id
-            });
+                deletedat = 0
+            }
+        };
+
+        var content = new StringContent(JsonSerializer.Serialize(updateData, JsonSerializerConfig.Default), Encoding.UTF8, "application/json");
+        var response = await _httpClient.PostAsync("json/update", content);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            throw new Exception($"ManticoreSearch undelete operation failed: {response.StatusCode} - {errorContent}");
+        }
     }
 
     public async Task PurgeDeletedNotesFromIndexAsync()
     {
-        await _client.ExecuteCommandAsync("DELETE FROM noteindex WHERE deletedAt > 0", new { });
+        var deleteQuery = new
+        {
+            index = "noteindex",
+            query = new
+            {
+                range = new
+                {
+                    deletedat = new
+                    {
+                        gt = 0
+                    }
+                }
+            }
+        };
+
+        var content = new StringContent(JsonSerializer.Serialize(deleteQuery, JsonSerializerConfig.Default), Encoding.UTF8, "application/json");
+        var response = await _httpClient.PostAsync("json/delete", content);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            throw new Exception($"ManticoreSearch purge operation failed: {response.StatusCode} - {errorContent}");
+        }
     }
 
     private static Dictionary<string, object> _BuildNoteSearchQuery(long userId, string query, NoteFilterType filter, int pageSize, int pageNumber)

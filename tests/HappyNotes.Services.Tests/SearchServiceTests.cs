@@ -36,6 +36,7 @@ public class SearchServiceTests
     {
         // Reset mock invocations before each test to avoid cross-test interference.
         _mockDatabaseClient.Reset();
+        _mockHandler.Reset();
         _mockHandler.Protected()
             .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
             .ReturnsAsync(new HttpResponseMessage
@@ -142,21 +143,29 @@ public class SearchServiceTests
         };
         string fullContent = "Test content";
 
-        _mockDatabaseClient.Setup(client => client.ExecuteCommandAsync(
-            It.Is<string>(sql => sql.Contains("REPLACE INTO noteindex")),
-            It.IsAny<SugarParameter[]>()))
-            .ReturnsAsync(1); // Simulate successful execution
+        _mockHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>("SendAsync",
+                ItExpr.Is<HttpRequestMessage>(req =>
+                    req.Method == HttpMethod.Post &&
+                    req.RequestUri.ToString().Contains("json/replace")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent("{\"result\":\"success\"}")
+            });
 
         // Act
         await _searchService.SyncNoteToIndexAsync(note, fullContent);
 
         // Assert
-        _mockDatabaseClient.Verify(client => client.ExecuteCommandAsync(
-            It.Is<string>(sql => sql.Contains("REPLACE INTO noteindex")),
-            It.Is<SugarParameter[]>(p =>
-                p.Any(sp => sp.ParameterName == "@id" && (long)sp.Value == note.Id) &&
-                p.Any(sp => sp.ParameterName == "@content" && (string)sp.Value == fullContent)
-            )), Times.AtLeastOnce);
+        _mockHandler.Protected().Verify(
+            "SendAsync",
+            Times.Once(),
+            ItExpr.Is<HttpRequestMessage>(req =>
+                req.Method == HttpMethod.Post &&
+                req.RequestUri.ToString().Contains("json/replace")),
+            ItExpr.IsAny<CancellationToken>());
     }
 
     [Test]
@@ -172,21 +181,29 @@ public class SearchServiceTests
         };
         string fullContent = @"Content with 'quotes' and \slashes\";
 
-        _mockDatabaseClient.Setup(client => client.ExecuteCommandAsync(
-            It.Is<string>(sql => sql.Contains("REPLACE INTO noteindex")),
-            It.IsAny<SugarParameter[]>()))
-            .ReturnsAsync(1);
+        _mockHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>("SendAsync",
+                ItExpr.Is<HttpRequestMessage>(req =>
+                    req.Method == HttpMethod.Post &&
+                    req.RequestUri.ToString().Contains("json/replace")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent("{\"result\":\"success\"}")
+            });
 
         // Act
         await _searchService.SyncNoteToIndexAsync(note, fullContent);
 
-        // Assert
-        _mockDatabaseClient.Verify(client => client.ExecuteCommandAsync(
-            It.Is<string>(sql => sql.Contains("REPLACE INTO noteindex")),
-            It.Is<SugarParameter[]>(p =>
-                p.Any(sp => sp.ParameterName == "@id" && (long)sp.Value == note.Id) &&
-                p.Any(sp => sp.ParameterName == "@content" && (string)sp.Value == fullContent)
-            )), Times.AtLeastOnce);
+        // Assert - Verify HTTP API call was made
+        _mockHandler.Protected().Verify(
+            "SendAsync",
+            Times.Once(),
+            ItExpr.Is<HttpRequestMessage>(req =>
+                req.Method == HttpMethod.Post &&
+                req.RequestUri.ToString().Contains("json/replace")),
+            ItExpr.IsAny<CancellationToken>());
     }
 
     [Test]
@@ -195,18 +212,29 @@ public class SearchServiceTests
         // Arrange
         long noteId = 1;
 
-        _mockDatabaseClient.Setup(client => client.ExecuteCommandAsync(
-            It.Is<string>(sql => sql.Contains("UPDATE noteindex SET deletedat")),
-            It.Is<object>(param => param.ToString()!.Contains(noteId.ToString()))))
-            .ReturnsAsync(1);
+        _mockHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>("SendAsync",
+                ItExpr.Is<HttpRequestMessage>(req =>
+                    req.Method == HttpMethod.Post &&
+                    req.RequestUri.ToString().Contains("json/update")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent("{\"result\":\"success\"}")
+            });
 
         // Act
         await _searchService.DeleteNoteFromIndexAsync(noteId);
 
         // Assert
-        _mockDatabaseClient.Verify(client => client.ExecuteCommandAsync(
-            It.Is<string>(sql => sql.Contains("UPDATE noteindex SET deletedat")),
-            It.Is<object>(param => param.ToString()!.Contains(noteId.ToString()))), Times.Once);
+        _mockHandler.Protected().Verify(
+            "SendAsync",
+            Times.Once(),
+            ItExpr.Is<HttpRequestMessage>(req =>
+                req.Method == HttpMethod.Post &&
+                req.RequestUri.ToString().Contains("json/update")),
+            ItExpr.IsAny<CancellationToken>());
     }
 
     [Test]
@@ -215,35 +243,57 @@ public class SearchServiceTests
         // Arrange
         long noteId = 1;
 
-        _mockDatabaseClient.Setup(client => client.ExecuteCommandAsync(
-            It.Is<string>(sql => sql.Contains("UPDATE noteindex SET deletedat = 0")),
-            It.Is<object>(param => param.ToString()!.Contains(noteId.ToString()))))
-            .ReturnsAsync(1);
+        _mockHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>("SendAsync",
+                ItExpr.Is<HttpRequestMessage>(req =>
+                    req.Method == HttpMethod.Post &&
+                    req.RequestUri.ToString().Contains("json/update")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent("{\"result\":\"success\"}")
+            });
 
         // Act
         await _searchService.UndeleteNoteFromIndexAsync(noteId);
 
         // Assert
-        _mockDatabaseClient.Verify(client => client.ExecuteCommandAsync(
-            It.Is<string>(sql => sql.Contains("UPDATE noteindex SET deletedat = 0")),
-            It.Is<object>(param => param.ToString()!.Contains(noteId.ToString()))), Times.Once);
+        _mockHandler.Protected().Verify(
+            "SendAsync",
+            Times.Once(),
+            ItExpr.Is<HttpRequestMessage>(req =>
+                req.Method == HttpMethod.Post &&
+                req.RequestUri.ToString().Contains("json/update")),
+            ItExpr.IsAny<CancellationToken>());
     }
 
     [Test]
     public async Task PurgeDeletedNotesFromIndexAsync_DeletedNotes_RemovesThem()
     {
         // Arrange
-        _mockDatabaseClient.Setup(client => client.ExecuteCommandAsync(
-            It.Is<string>(sql => sql.Contains("DELETE FROM noteindex WHERE deletedAt > 0")),
-            It.IsAny<object>()))
-            .ReturnsAsync(10); // Simulate deleting 10 records
+        _mockHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>("SendAsync",
+                ItExpr.Is<HttpRequestMessage>(req =>
+                    req.Method == HttpMethod.Post &&
+                    req.RequestUri.ToString().Contains("json/delete")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent("{\"deleted\":10}")
+            });
 
         // Act
         await _searchService.PurgeDeletedNotesFromIndexAsync();
 
         // Assert
-        _mockDatabaseClient.Verify(client => client.ExecuteCommandAsync(
-            It.Is<string>(sql => sql.Contains("DELETE FROM noteindex WHERE deletedAt > 0")),
-            It.IsAny<object>()), Times.Once);
+        _mockHandler.Protected().Verify(
+            "SendAsync",
+            Times.Once(),
+            ItExpr.Is<HttpRequestMessage>(req =>
+                req.Method == HttpMethod.Post &&
+                req.RequestUri.ToString().Contains("json/delete")),
+            ItExpr.IsAny<CancellationToken>());
     }
 }

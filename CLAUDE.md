@@ -10,10 +10,12 @@
 - Run single test method: `dotnet test --filter "FullyQualifiedName~NoteServiceTests.Get_WithExistingPublicNote_ReturnsNote"`
 
 ### Integration Tests Setup
-- Redis integration tests require a Redis instance
+- **Redis integration tests** require a Redis instance for sync queue functionality
 - Set `REDIS_CONNECTION_STRING` environment variable (defaults to `localhost:6379`)
 - Tests are automatically skipped if Redis is unavailable
 - Local Docker: `docker run --rm -p 6379:6379 redis:7-alpine`
+- **Queue Tests**: AtomicDequeueTests, DelayedTaskProcessingTests, RedisSyncQueueServiceTests
+- **Handler Tests**: TelegramSyncHandlerTests, MastodonSyncHandlerTests (when implemented)
 
 ### GitHub Actions CI
 - **Unit tests**: Run on every push/PR (fast feedback)
@@ -35,10 +37,38 @@
 - Api.Framework: Base classes and utilities
 - HappyNotes.Common: Shared constants and extensions
 - HappyNotes.Services: Business logic implementation
+  - **SyncQueue**: Redis-based queue system for reliable sync operations
 - HappyNotes.Entities: Database model classes
 - HappyNotes.Repositories: Data access layer
 - HappyNotes.Dto: Data transfer objects
 - HappyNotes.Models: Request/response models
+
+## Redis Sync Queue Architecture
+
+### Overview
+The application uses a **Redis-based queue system** for reliable background sync operations to external services (Telegram, Mastodon). This ensures resilience, retry capabilities, and horizontal scalability.
+
+### Key Components
+- **SyncQueueService**: Redis queue management (enqueue, dequeue, retry)
+- **SyncQueueProcessor**: Background service that processes queued tasks
+- **Sync Handlers**: Service-specific handlers (TelegramSyncHandler, MastodonSyncHandler)
+- **Multi-layer Retry Strategy**: 3-tier retry system with exponential backoff
+
+### Supported Services
+- ✅ **Telegram**: Full queue integration with channel management
+- ✅ **Mastodon**: Complete queue integration with instance management
+- ⏳ **ManticoreSearch**: Not yet migrated (still uses direct sync)
+
+### Configuration
+- **Redis Connection**: Set `REDIS_CONNECTION_STRING` environment variable
+- **Queue Options**: Configure retry attempts, delays, and timeouts in appsettings.json
+- **Handler Registration**: All handlers auto-registered via DI container
+
+### Resilience Features
+- **Exponential Backoff**: 1min → 2min → 4min → 8min retry delays
+- **Task Recovery**: Automatic recovery of expired/failed tasks
+- **Service Isolation**: Per-service queues prevent cross-contamination
+- **Graceful Degradation**: Queue failures don't crash the main application
 
 # Using Gemini CLI for Large Codebase Analysis
 
