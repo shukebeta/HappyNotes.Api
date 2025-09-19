@@ -22,7 +22,7 @@ public class RedisSyncQueueService : ISyncQueueService
         local processingKey = KEYS[2]
         local leaseExpiry = ARGV[1]
         
-        local json = redis.call('RPOP', queueKey)
+        local json = redis.call('LPOP', queueKey)
         if json then
             redis.call('ZADD', processingKey, leaseExpiry, json)
         end
@@ -65,7 +65,7 @@ public class RedisSyncQueueService : ISyncQueueService
         var key = GetQueueKey(service, "queue");
         var json = JsonSerializer.Serialize(task, JsonSerializerConfig.Default);
 
-        await _database.ListLeftPushAsync(key, json);
+        await _database.ListRightPushAsync(key, json);
 
         _logger.LogDebug("Enqueued task {TaskId} for service {Service}", task.Id, service);
     }
