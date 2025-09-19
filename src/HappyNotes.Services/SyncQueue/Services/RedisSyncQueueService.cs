@@ -327,53 +327,65 @@ public class RedisSyncQueueService : ISyncQueueService
 
     public async Task RecoverExpiredTasksAsync(string service)
     {
-        var processingKey = GetQueueKey(service, "processing");
-        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-
-        // Get expired tasks (lease expiry < now)
-        var expiredTasks = await _database.SortedSetRangeByScoreAsync(processingKey, 0, now);
-
-        if (expiredTasks.Length == 0)
-            return;
-
-        _logger.LogWarning("Found {Count} expired tasks in processing queue for service {Service}",
-            expiredTasks.Length, service);
-
-        foreach (var taskJson in expiredTasks)
+        try
         {
-            try
+            var processingKey = GetQueueKey(service, "processing");
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+            // Get expired tasks (lease expiry < now) with timeout protection
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var expiredTasks = await _database.SortedSetRangeByScoreAsync(processingKey, 0, now);
+
+            if (expiredTasks.Length == 0)
+                return;
+
+            _logger.LogWarning("Found {Count} expired tasks in processing queue for service {Service}",
+                expiredTasks.Length, service);
+
+            foreach (var taskJson in expiredTasks)
             {
-                var task = JsonSerializer.Deserialize<SyncTask<object>>(taskJson!, JsonSerializerConfig.Default);
-                if (task == null) continue;
-
-                // Remove from processing queue first
-                await _database.SortedSetRemoveAsync(processingKey, taskJson);
-
-                // Check if we should retry or move to failed
-                var handlerOptions = GetHandlerOptions(service);
-
-                if (task.AttemptCount >= handlerOptions.MaxRetries)
+                try
                 {
-                    await MoveToFailedAsync(service, task, "Task expired in processing queue");
-                    _logger.LogWarning("Moved expired task {TaskId} to failed queue (max retries exceeded)", task.Id);
+                    var task = JsonSerializer.Deserialize<SyncTask<object>>(taskJson!, JsonSerializerConfig.Default);
+                    if (task == null) continue;
+
+                    // Remove from processing queue first
+                    await _database.SortedSetRemoveAsync(processingKey, taskJson);
+
+                    // Check if we should retry or move to failed
+                    var handlerOptions = GetHandlerOptions(service);
+
+                    if (task.AttemptCount >= handlerOptions.MaxRetries)
+                    {
+                        await MoveToFailedAsync(service, task, "Task expired in processing queue");
+                        _logger.LogWarning("Moved expired task {TaskId} to failed queue (max retries exceeded)", task.Id);
+                    }
+                    else
+                    {
+                        // Calculate retry delay
+                        var retryDelay = CalculateRetryDelay(handlerOptions, task.AttemptCount);
+                        await ScheduleRetryAsync(service, task, retryDelay);
+                        _logger.LogInformation("Rescheduled expired task {TaskId} for retry in {Delay}", task.Id, retryDelay);
+                    }
                 }
-                else
+                catch (JsonException ex)
                 {
-                    // Calculate retry delay
-                    var retryDelay = CalculateRetryDelay(handlerOptions, task.AttemptCount);
-                    await ScheduleRetryAsync(service, task, retryDelay);
-                    _logger.LogInformation("Rescheduled expired task {TaskId} for retry in {Delay}", task.Id, retryDelay);
+                    _logger.LogError(ex, "Failed to deserialize expired task from processing queue: {TaskJson}", taskJson);
+                    // Remove invalid JSON from processing queue
+                    await _database.SortedSetRemoveAsync(processingKey, taskJson);
                 }
             }
-            catch (JsonException ex)
-            {
-                _logger.LogError(ex, "Failed to deserialize expired task from processing queue: {TaskJson}", taskJson);
-                // Remove invalid JSON from processing queue
-                await _database.SortedSetRemoveAsync(processingKey, taskJson);
-            }
+
+            _logger.LogInformation("Recovered {Count} expired tasks for service {Service}", expiredTasks.Length, service);
         }
-
-        _logger.LogInformation("Recovered {Count} expired tasks for service {Service}", expiredTasks.Length, service);
+        catch (RedisTimeoutException ex)
+        {
+            _logger.LogWarning(ex, "Redis timeout during recovery for service {Service} - skipping this recovery cycle", service);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error during recovery for service {Service}", service);
+        }
     }
 
     private HandlerOptions GetHandlerOptions(string service)

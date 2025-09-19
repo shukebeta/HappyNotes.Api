@@ -56,8 +56,8 @@ public class SyncQueueProcessor : BackgroundService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unhandled exception in SyncQueueProcessor");
-            throw;
+            _logger.LogError(ex, "Unhandled exception in SyncQueueProcessor - service will continue running");
+            // Don't throw - let the service continue running to maintain resilience
         }
         finally
         {
@@ -225,8 +225,8 @@ public class SyncQueueProcessor : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in recovery loop");
-                await Task.Delay(TimeSpan.FromMinutes(1), cancellationToken);
+                _logger.LogError(ex, "Error in recovery loop - will retry in 5 minutes");
+                await Task.Delay(TimeSpan.FromMinutes(5), cancellationToken);
             }
         }
 

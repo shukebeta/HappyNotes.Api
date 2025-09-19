@@ -30,9 +30,9 @@ public static class ServiceCollectionExtensions
                 // Configure resilient connection options
                 options.AbortOnConnectFail = false;      // Don't fail startup if Redis is unavailable
                 options.ConnectRetry = 3;                // Retry connection 3 times
-                options.ConnectTimeout = 5000;           // 5 second connection timeout
-                options.SyncTimeout = 5000;              // 5 second operation timeout
-                options.AsyncTimeout = 5000;             // 5 second async timeout
+                options.ConnectTimeout = 15000;          // 15 second connection timeout for cross-continent
+                options.SyncTimeout = 15000;             // 15 second operation timeout for cross-continent  
+                options.AsyncTimeout = 15000;            // 15 second async timeout for cross-continent
                 options.ReconnectRetryPolicy = new ExponentialRetry(1000); // Exponential backoff for reconnects
                 options.ResolveDns = true;               // Enable DNS resolution
 
