@@ -340,13 +340,24 @@ public class TelegramSyncHandler : ISyncHandler
         _logger.LogDebug("Deleting Telegram message {MessageId} from channel {ChannelId}",
             payload.MessageId.Value, payload.ChannelId);
 
-        // Delete from Telegram first
-        await _telegramService.DeleteMessageAsync(botToken, payload.ChannelId, payload.MessageId.Value);
+        try
+        {
+            // Delete from Telegram first
+            await _telegramService.DeleteMessageAsync(botToken, payload.ChannelId, payload.MessageId.Value);
+        }
+        catch (ApiRequestException ex) when (ex.Message.Contains("message can't be deleted", StringComparison.OrdinalIgnoreCase) ||
+                                             ex.Message.Contains("message to delete not found", StringComparison.OrdinalIgnoreCase))
+        {
+            // Treat "message can't be deleted" or "message not found" as success
+            // This can happen when messages are too old or already deleted
+            _logger.LogInformation("Telegram message {MessageId} in channel {ChannelId} cannot be deleted (likely already gone): {Error}. Treating as successful deletion.",
+                payload.MessageId.Value, payload.ChannelId, ex.Message);
+        }
 
         // Update note to remove this specific message ID from TelegramMessageIds
         await RemoveMessageIdFromNote(task.EntityId, payload.ChannelId, payload.MessageId.Value);
 
-        _logger.LogDebug("Successfully removed message {MessageId} from note {NoteId} TelegramMessageIds",
+        _logger.LogDebug("Successfully processed DELETE for message {MessageId} from note {NoteId} TelegramMessageIds",
             payload.MessageId.Value, task.EntityId);
     }
 

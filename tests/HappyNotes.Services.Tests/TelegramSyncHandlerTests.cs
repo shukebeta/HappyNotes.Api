@@ -440,6 +440,72 @@ public class TelegramSyncHandlerTests
         Assert.That(result.ErrorMessage, Contains.Substring("MessageId is required for DELETE action"));
     }
 
+    [Test]
+    public async Task ProcessDeleteAction_MessageCantBeDeleted_ShouldTreatAsSuccess()
+    {
+        // Arrange
+        var payload = new TelegramSyncPayload
+        {
+            Action = "DELETE",
+            ChannelId = TestChannelId,
+            MessageId = 100
+        };
+
+        var task = CreateSyncTask("DELETE", payload);
+        var testNote = new Note { Id = task.EntityId, TelegramMessageIds = $"{TestChannelId}:100" };
+
+        SetupTelegramSettings(1, TestChannelId, TestBotToken);
+        _mockNoteRepository.Setup(r => r.GetFirstOrDefaultAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Note, bool>>>(), null))
+            .ReturnsAsync(testNote);
+
+        // Setup DeleteMessageAsync to throw "message can't be deleted" exception
+        _mockTelegramService.Setup(s => s.DeleteMessageAsync(TestBotToken, TestChannelId, 100))
+            .ThrowsAsync(new ApiRequestException("Bad Request: message can't be deleted", 400));
+
+        // Act
+        var result = await _telegramSyncHandler.ProcessAsync(task, CancellationToken.None);
+
+        // Assert
+        Assert.That(result.IsSuccess, Is.True);
+        _mockTelegramService.Verify(s => s.DeleteMessageAsync(TestBotToken, TestChannelId, 100), Times.Once);
+        _mockNoteRepository.Verify(r => r.UpdateAsync(
+            It.IsAny<System.Linq.Expressions.Expression<Func<Note, Note>>>(),
+            It.IsAny<System.Linq.Expressions.Expression<Func<Note, bool>>>()), Times.Once);
+    }
+
+    [Test]
+    public async Task ProcessDeleteAction_MessageToDeleteNotFound_ShouldTreatAsSuccess()
+    {
+        // Arrange
+        var payload = new TelegramSyncPayload
+        {
+            Action = "DELETE",
+            ChannelId = TestChannelId,
+            MessageId = 100
+        };
+
+        var task = CreateSyncTask("DELETE", payload);
+        var testNote = new Note { Id = task.EntityId, TelegramMessageIds = $"{TestChannelId}:100" };
+
+        SetupTelegramSettings(1, TestChannelId, TestBotToken);
+        _mockNoteRepository.Setup(r => r.GetFirstOrDefaultAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Note, bool>>>(), null))
+            .ReturnsAsync(testNote);
+
+        // Setup DeleteMessageAsync to throw "message to delete not found" exception
+        _mockTelegramService.Setup(s => s.DeleteMessageAsync(TestBotToken, TestChannelId, 100))
+            .ThrowsAsync(new ApiRequestException("Bad Request: message to delete not found", 400));
+
+        // Act
+        var result = await _telegramSyncHandler.ProcessAsync(task, CancellationToken.None);
+
+        // Assert
+        Assert.That(result.IsSuccess, Is.True);
+        _mockTelegramService.Verify(s => s.DeleteMessageAsync(TestBotToken, TestChannelId, 100), Times.Once);
+        _mockNoteRepository.Verify(r => r.UpdateAsync(
+            It.IsAny<System.Linq.Expressions.Expression<Func<Note, Note>>>(),
+            It.IsAny<System.Linq.Expressions.Expression<Func<Note, bool>>>()), Times.Once);
+    }
+
     #endregion
 
     #region Database Update Tests
