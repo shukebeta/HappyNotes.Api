@@ -309,6 +309,16 @@ public class NoteService(
         // Now, attempt the undelete operation via the repository.
         await noteRepository.UndeleteAsync(id);
 
+        // Get the undeleted note and sync to all external services
+        var undeletedNote = await noteRepository.Get(id);
+        if (undeletedNote != null)
+        {
+            foreach (var syncNoteService in syncNoteServices)
+            {
+                Task.Run(async () => await syncNoteService.SyncUndeleteNote(undeletedNote));
+            }
+        }
+
         // Assuming success if no exception was thrown.
         return true;
     }

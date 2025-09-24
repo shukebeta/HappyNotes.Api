@@ -43,6 +43,8 @@ public class NoteServiceTests
             .Returns(Task.CompletedTask);
         _mockSyncNoteService.Setup(s => s.SyncDeleteNote(It.IsAny<Note>()))
             .Returns(Task.CompletedTask);
+        _mockSyncNoteService.Setup(s => s.SyncUndeleteNote(It.IsAny<Note>()))
+            .Returns(Task.CompletedTask);
 
         _noteService = new NoteService(
             _searchService.Object,
@@ -232,9 +234,17 @@ public class NoteServiceTests
             DeletedAt = DateTime.UtcNow.ToUnixTimeSeconds()
         };
 
+        var undeletedNote = new Note
+        {
+            Id = noteId,
+            Content = "Test note",
+            UserId = userId,
+            DeletedAt = null // Undeleted note has DeletedAt reset to null
+        };
+
         _mockNoteRepository.Setup(r => r.GetFirstOrDefaultAsync(x => x.Id == noteId, null)).ReturnsAsync(note);
-        _mockNoteRepository.Setup(r => r.UpdateAsync(It.IsAny<Note>()))
-            .ReturnsAsync(true);
+        _mockNoteRepository.Setup(r => r.Get(noteId)).ReturnsAsync(undeletedNote);
+        _mockNoteRepository.Setup(r => r.UndeleteAsync(noteId)).Returns(Task.CompletedTask);
 
         // Act
         var result = await _noteService.Undelete(userId, noteId);
@@ -242,6 +252,10 @@ public class NoteServiceTests
         // Assert
         Assert.That(result, Is.True);
         _mockNoteRepository.Verify(r => r.UndeleteAsync(noteId), Times.Once);
+
+        // Verify sync services are called for undelete
+        await Task.Delay(100); // Allow async tasks to complete
+        _mockSyncNoteService.Verify(s => s.SyncUndeleteNote(It.Is<Note>(n => n.Id == noteId && n.DeletedAt == null)), Times.Once);
     }
 
     [Test]

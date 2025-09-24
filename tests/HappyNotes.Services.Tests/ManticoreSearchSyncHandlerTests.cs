@@ -18,7 +18,6 @@ public class ManticoreSearchSyncHandlerTests
     private Mock<ISearchService> _mockSearchService;
     private Mock<INoteRepository> _mockNoteRepository;
     private Mock<IOptions<SyncQueueOptions>> _mockSyncQueueOptions;
-    private Mock<IOptions<JwtConfig>> _mockJwtConfig;
     private Mock<ILogger<ManticoreSearchSyncHandler>> _mockLogger;
     private ManticoreSearchSyncHandler _manticoreSearchSyncHandler;
 
@@ -30,20 +29,15 @@ public class ManticoreSearchSyncHandlerTests
         _mockSearchService = new Mock<ISearchService>();
         _mockNoteRepository = new Mock<INoteRepository>();
         _mockSyncQueueOptions = new Mock<IOptions<SyncQueueOptions>>();
-        _mockJwtConfig = new Mock<IOptions<JwtConfig>>();
         _mockLogger = new Mock<ILogger<ManticoreSearchSyncHandler>>();
 
         var syncQueueOptions = new SyncQueueOptions();
         _mockSyncQueueOptions.Setup(x => x.Value).Returns(syncQueueOptions);
 
-        var jwtConfig = new JwtConfig { SymmetricSecurityKey = TestJwtKey };
-        _mockJwtConfig.Setup(x => x.Value).Returns(jwtConfig);
-
         _manticoreSearchSyncHandler = new ManticoreSearchSyncHandler(
             _mockSearchService.Object,
             _mockNoteRepository.Object,
             _mockSyncQueueOptions.Object,
-            _mockJwtConfig.Object,
             _mockLogger.Object);
     }
 

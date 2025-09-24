@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Api.Framework.Helper;
 using Api.Framework.Models;
 using HappyNotes.Common;
 using HappyNotes.Entities;
@@ -18,7 +17,6 @@ public class ManticoreSearchSyncHandler : ISyncHandler
     private readonly ISearchService _searchService;
     private readonly INoteRepository _noteRepository;
     private readonly SyncQueueOptions _options;
-    private readonly JwtConfig _jwtConfig;
     private readonly ILogger<ManticoreSearchSyncHandler> _logger;
 
     public string ServiceName => "manticoresearch";
@@ -31,13 +29,11 @@ public class ManticoreSearchSyncHandler : ISyncHandler
         ISearchService searchService,
         INoteRepository noteRepository,
         IOptions<SyncQueueOptions> options,
-        IOptions<JwtConfig> jwtConfig,
         ILogger<ManticoreSearchSyncHandler> logger)
     {
         _searchService = searchService;
         _noteRepository = noteRepository;
         _options = options.Value;
-        _jwtConfig = jwtConfig.Value;
         _logger = logger;
     }
 
@@ -69,7 +65,7 @@ public class ManticoreSearchSyncHandler : ISyncHandler
             _logger.LogDebug("Processing ManticoreSearch sync for note {NoteId}, action: {Action}", task.EntityId, payload.Action);
 
             var note = await _noteRepository.Get(task.EntityId);
-            if (note == null)
+            if (note is null)
             {
                 _logger.LogWarning("Note {NoteId} not found for ManticoreSearch sync", task.EntityId);
                 // Consider delete successful if note doesn't exist, otherwise it's a failure
@@ -80,8 +76,8 @@ public class ManticoreSearchSyncHandler : ISyncHandler
             {
                 "CREATE" => await HandleCreateAsync(note, payload),
                 "UPDATE" => await HandleUpdateAsync(note, payload),
-                "DELETE" => await HandleDeleteAsync(note, payload),
-                "UNDELETE" => await HandleUndeleteAsync(note, payload),
+                "DELETE" => await HandleDeleteAsync(note),
+                "UNDELETE" => await HandleUndeleteAsync(note),
                 _ => throw new InvalidOperationException($"Unknown ManticoreSearch sync action: {payload.Action}")
             };
 
@@ -124,7 +120,7 @@ public class ManticoreSearchSyncHandler : ISyncHandler
         }
     }
 
-    private async Task<bool> HandleDeleteAsync(Note note, ManticoreSearchSyncPayload payload)
+    private async Task<bool> HandleDeleteAsync(Note note)
     {
         try
         {
@@ -139,7 +135,7 @@ public class ManticoreSearchSyncHandler : ISyncHandler
         }
     }
 
-    private async Task<bool> HandleUndeleteAsync(Note note, ManticoreSearchSyncPayload payload)
+    private async Task<bool> HandleUndeleteAsync(Note note)
     {
         try
         {
