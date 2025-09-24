@@ -1,32 +1,21 @@
-using Api.Framework.Helper;
-using Api.Framework.Models;
 using HappyNotes.Common;
 using HappyNotes.Common.Enums;
 using HappyNotes.Entities;
 using HappyNotes.Models;
-using HappyNotes.Repositories.interfaces;
 using HappyNotes.Services.interfaces;
 using HappyNotes.Services.SyncQueue.Interfaces;
 using HappyNotes.Services.SyncQueue.Models;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Telegram.Bot.Exceptions;
 
 namespace HappyNotes.Services;
 
 public class TelegramSyncNoteService(
-    ITelegramService telegramService,
     ITelegramSettingsCacheService telegramSettingsCacheService,
-    INoteRepository noteRepository,
-    IOptions<JwtConfig> jwtConfig,
     ISyncQueueService syncQueueService,
     ILogger<TelegramSyncNoteService> logger
 )
     : ISyncNoteService
 {
-    private readonly JwtConfig _jwtConfig = jwtConfig.Value;
-    private string TokenKey => _jwtConfig.SymmetricSecurityKey;
-
     public async Task SyncNewNote(Note note, string fullContent)
     {
         try
@@ -40,15 +29,12 @@ public class TelegramSyncNoteService(
                     // UNIFIED QUEUE MODE: Always use queue for consistent behavior
                     foreach (var channelId in toSyncChannelIds)
                     {
-                        await EnqueueSyncTask(note, fullContent, string.Empty, channelId, "CREATE");
+                        await EnqueueSyncTask(note, fullContent, channelId, "CREATE");
                         logger.LogDebug("Queued CREATE task for note {NoteId} to Telegram channel {ChannelId}",
                             note.Id, channelId);
                     }
                 }
             }
-
-            // Note: TelegramMessageIds will be updated by the handler after successful creation
-            // This ensures we only record successful syncs and can retry failures
         }
         catch (Exception ex)
         {
@@ -56,16 +42,12 @@ public class TelegramSyncNoteService(
         }
     }
 
-    public async Task SyncEditNote(Note note, string fullContent)
+    public async Task SyncEditNote(Note note, string fullContent, Note existingNote)
     {
         try
         {
             var settings = await telegramSettingsCacheService.GetAsync(note.UserId);
             if (!settings.Any()) return;
-
-            // Get the existing note for content comparison
-            var existingNote = await noteRepository.Get(note.Id);
-            if (existingNote == null) return;
 
             var channelData = await _GetRequiredChannelData(note);
             var toBeSent = channelData.toBeSent;
@@ -73,7 +55,7 @@ public class TelegramSyncNoteService(
             // Queue DELETE operations for channels that should be removed
             foreach (var channel in channelData.toBeRemovedChannels)
             {
-                await EnqueueSyncTask(note, string.Empty, string.Empty, channel.ChannelId, "DELETE", channel.MessageId);
+                await EnqueueSyncTask(note, string.Empty, channel.ChannelId, "DELETE", channel.MessageId);
                 logger.LogDebug("Queued DELETE task for note {NoteId} from Telegram channel {ChannelId}",
                     note.Id, channel.ChannelId);
             }
@@ -81,44 +63,36 @@ public class TelegramSyncNoteService(
             var tobeUpdated = channelData.toBeUpdatedChannels;
 
             // CRITICAL: Preserve the original smart decision logic - only use UPDATE for short messages
-            if (fullContent.Length <= Constants.TelegramMessageLength)
+            var hasContentChange = _HasContentChanged(existingNote, note, fullContent);
+            var isShortMessage = fullContent.Length <= Constants.TelegramMessageLength;
+            if (hasContentChange)
             {
                 // For short messages, try to UPDATE existing ones
                 foreach (var channel in tobeUpdated)
                 {
-                    // Pre-check: Only queue UPDATE if content actually changed for Telegram
-                    if (_HasContentChanged(existingNote, note, fullContent))
+                    if (isShortMessage)
                     {
-                        await EnqueueSyncTask(note, fullContent, string.Empty, channel.ChannelId, "UPDATE", channel.MessageId);
+                        await EnqueueSyncTask(note, fullContent, channel.ChannelId, "UPDATE", channel.MessageId);
                         logger.LogDebug("Queued UPDATE task for note {NoteId} to Telegram channel {ChannelId} (content changed)",
                             note.Id, channel.ChannelId);
                     }
                     else
                     {
-                        logger.LogDebug("Skipped UPDATE task for note {NoteId} to Telegram channel {ChannelId} (no content change)",
+                        // For long messages, must DELETE + CREATE (can't edit long messages)
+                        // First delete the existing message
+                        await EnqueueSyncTask(note, string.Empty, channel.ChannelId, "DELETE", channel.MessageId);
+                        logger.LogDebug("Queued DELETE task for long content note {NoteId} from Telegram channel {ChannelId}",
                             note.Id, channel.ChannelId);
+                        // Then add this channel to the list that needs new messages created
+                        toBeSent.Add(channel.ChannelId);
                     }
-                }
-            }
-            else
-            {
-                // For long messages, must DELETE + CREATE (can't edit long messages)
-                foreach (var channel in tobeUpdated)
-                {
-                    // First delete the existing message
-                    await EnqueueSyncTask(note, string.Empty, string.Empty, channel.ChannelId, "DELETE", channel.MessageId);
-                    logger.LogDebug("Queued DELETE task for long content note {NoteId} from Telegram channel {ChannelId}",
-                        note.Id, channel.ChannelId);
-
-                    // Then add this channel to the list that needs new messages created
-                    toBeSent.Add(channel.ChannelId);
                 }
             }
 
             // Queue CREATE operations for new channels (and channels that were converted from UPDATE to DELETE+CREATE)
             foreach (var channelId in toBeSent)
             {
-                await EnqueueSyncTask(note, fullContent, string.Empty, channelId, "CREATE");
+                await EnqueueSyncTask(note, fullContent, channelId, "CREATE");
                 logger.LogDebug("Queued CREATE task for note {NoteId} to Telegram channel {ChannelId}",
                     note.Id, channelId);
             }
@@ -146,7 +120,7 @@ public class TelegramSyncNoteService(
                     if (setting == null) continue;
 
                     // Use queue instead of direct deletion - content not needed for DELETE
-                    await EnqueueSyncTask(note, string.Empty, string.Empty, channelId, "DELETE", channel.MessageId);
+                    await EnqueueSyncTask(note, string.Empty, channelId, "DELETE", channel.MessageId);
                 }
 
                 // Note: TelegramMessageIds will be cleared by the handler after successful deletion
@@ -224,38 +198,6 @@ public class TelegramSyncNoteService(
         return toSyncChannelIds.Except(syncedChannels.Select(s => s.ChannelId)).ToList();
     }
 
-    private async Task<int> _SentNoteToChannel(Note note, string fullContent, string token, string channelId)
-    {
-        var text = fullContent; // Or format the message as needed
-
-        // You can use different logic here based on the note's properties
-        if (fullContent.Length > Constants.TelegramMessageLength)
-        {
-            var message = await telegramService.SendLongMessageAsFileAsync(token, channelId, fullContent,
-                note.IsMarkdown ? ".md" : ".txt");
-            return message.MessageId;
-        }
-        else
-        {
-            try
-            {
-                var message = await telegramService.SendMessageAsync(token, channelId, text, note.IsMarkdown);
-                return message.MessageId;
-            }
-            catch (ApiRequestException ex)
-            {
-                logger.LogError(ex, "Failed to send message with Markdown for note {NoteId} in channel {ChannelId}. Retrying without Markdown.", note.Id, channelId);
-                if (note.IsMarkdown)
-                {
-                    // Fallback: retry sending without markdown
-                    var message = await telegramService.SendMessageAsync(token, channelId, text, false);
-                    return message.MessageId;
-                }
-                throw; // Re-throw if it wasn't a markdown issue or if we shouldn't retry
-            }
-        }
-    }
-
     private List<string> _GetToSyncChannelIds(Note note, IList<TelegramSettings> settings)
     {
         var targetChannelList = new List<string>();
@@ -293,19 +235,6 @@ public class TelegramSyncNoteService(
         return targetChannelList.Distinct().ToList();
     }
 
-    private async Task _DeleteMessage(TelegramSettings setting, SyncedTelegramChannel telegramChannel)
-    {
-        var token = TextEncryptionHelper.Decrypt(setting.EncryptedToken, TokenKey);
-        try
-        {
-            await telegramService.DeleteMessageAsync(token, telegramChannel.ChannelId, telegramChannel.MessageId);
-        }
-        catch (ApiRequestException ex)
-        {
-            logger.LogError(ex.ToString());
-        }
-    }
-
     private static List<SyncedTelegramChannel> _GetSyncedChannels(Note note)
     {
         if (string.IsNullOrWhiteSpace(note.TelegramMessageIds)) return [];
@@ -320,7 +249,7 @@ public class TelegramSyncNoteService(
         }).ToList();
     }
 
-    private async Task EnqueueSyncTask(Note note, string fullContent, string token, string channelId, string action, int? messageId = null)
+    private async Task EnqueueSyncTask(Note note, string fullContent, string channelId, string action, int? messageId = null)
     {
         var payload = new TelegramSyncPayload
         {

@@ -124,7 +124,7 @@ public class NoteService(
 
         foreach (var syncNoteService in syncNoteServices)
         {
-            Task.Run(async () => await syncNoteService.SyncEditNote(newNote, fullContent));
+            Task.Run(async () => await syncNoteService.SyncEditNote(newNote, fullContent, existingNote));
         }
         return await noteRepository.UpdateAsync(newNote);
     }

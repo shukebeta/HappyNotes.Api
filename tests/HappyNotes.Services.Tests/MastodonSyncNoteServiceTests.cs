@@ -6,7 +6,6 @@ using HappyNotes.Repositories.interfaces;
 using HappyNotes.Services.interfaces;
 using HappyNotes.Services.SyncQueue.Interfaces;
 using HappyNotes.Services.SyncQueue.Models;
-using Mastonet.Entities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;

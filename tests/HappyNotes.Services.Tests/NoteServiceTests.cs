@@ -39,7 +39,7 @@ public class NoteServiceTests
         _mockLogger = new Mock<ILogger<NoteService>>();
         _mockSyncNoteService.Setup(s => s.SyncNewNote(It.IsAny<Note>(), It.IsAny<string>()))
             .Returns(Task.CompletedTask);
-        _mockSyncNoteService.Setup(s => s.SyncEditNote(It.IsAny<Note>(), It.IsAny<string>()))
+        _mockSyncNoteService.Setup(s => s.SyncEditNote(It.IsAny<Note>(), It.IsAny<string>(), It.IsAny<Note>()))
             .Returns(Task.CompletedTask);
         _mockSyncNoteService.Setup(s => s.SyncDeleteNote(It.IsAny<Note>()))
             .Returns(Task.CompletedTask);

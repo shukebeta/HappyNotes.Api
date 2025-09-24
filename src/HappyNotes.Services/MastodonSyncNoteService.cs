@@ -46,9 +46,6 @@ public class MastodonSyncNoteService(
                         note.Id, account.Id, account.InstanceUrl);
                 }
             }
-
-            // Note: MastodonTootIds will be updated by the handler after successful creation
-            // This ensures we only record successful syncs and can retry failures
         }
         catch (Exception ex)
         {
@@ -56,13 +53,14 @@ public class MastodonSyncNoteService(
         }
     }
 
-    public async Task SyncEditNote(Note note, string fullContent)
+    public async Task SyncEditNote(Note note, string fullContent, Note existingNote)
     {
         logger.LogInformation("Starting sync edit of note {NoteId} for user {UserId}. ContentLength: {ContentLength}, IsPrivate: {IsPrivate}, IsMarkdown: {IsMarkdown}",
             note.Id, note.UserId, fullContent.Length, note.IsPrivate, note.IsMarkdown);
 
         try
         {
+            var hasContentChange = _HasContentChanged(existingNote, note, fullContent);
             var accounts = await mastodonUserAccountCacheService.GetAsync(note.UserId);
             if (!accounts.Any())
             {
@@ -79,7 +77,6 @@ public class MastodonSyncNoteService(
             logger.LogDebug("Edit sync plan for note {NoteId}: {ToSendCount} to send, {ToUpdateCount} to update, {ToRemoveCount} to remove",
                 note.Id, toBeSent.Count, tobeUpdated.Count, tobeRemoved.Count);
 
-            // Queue DELETE operations for instances that should be removed
             foreach (var instance in tobeRemoved)
             {
                 var account = accounts.FirstOrDefault(s => s.Id.Equals(instance.UserAccountId));
@@ -91,28 +88,24 @@ public class MastodonSyncNoteService(
                 }
             }
 
-            // Queue UPDATE operations for existing instances
             foreach (var instance in tobeUpdated)
             {
                 var account = accounts.FirstOrDefault(s => s.Id.Equals(instance.UserAccountId));
-                if (account != null)
+                if (account == null) continue;
+                if (hasContentChange)
                 {
                     await EnqueueSyncTask(note, fullContent, account, "UPDATE", instance.TootId);
-                    logger.LogDebug("Queued UPDATE task for note {NoteId} to Mastodon account {AccountId} ({InstanceUrl})",
+                    logger.LogDebug("Queued UPDATE task for note {NoteId} to Mastodon account {AccountId} ({InstanceUrl}) (content changed)",
                         note.Id, account.Id, account.InstanceUrl);
                 }
             }
 
-            // Queue CREATE operations for new accounts
             foreach (var account in toBeSent)
             {
                 await EnqueueSyncTask(note, fullContent, account, "CREATE");
                 logger.LogDebug("Queued CREATE task for note {NoteId} to Mastodon account {AccountId} ({InstanceUrl})",
                     note.Id, account.Id, account.InstanceUrl);
             }
-
-            // Note: MastodonTootIds will be updated by the handler after successful operations
-            // This ensures we only record successful syncs and can retry failures
         }
         catch (Exception ex)
         {
@@ -140,7 +133,6 @@ public class MastodonSyncNoteService(
                 logger.LogDebug("Deleting note {NoteId} from {InstanceCount} Mastodon instances",
                     note.Id, syncedInstances.Count);
 
-                // Queue DELETE operations for all synced instances
                 foreach (var instance in syncedInstances)
                 {
                     var account = accounts.FirstOrDefault(s => s.Id.Equals(instance.UserAccountId));
@@ -156,9 +148,6 @@ public class MastodonSyncNoteService(
                             instance.UserAccountId, instance.TootId, note.Id);
                     }
                 }
-
-                // Note: MastodonTootIds will be cleared by the handler after successful deletion
-                // This ensures we can retry if the deletion fails
             }
             catch (Exception ex)
             {
@@ -173,27 +162,16 @@ public class MastodonSyncNoteService(
 
     public async Task SyncUndeleteNote(Note note)
     {
-        // As per user instruction, no action is taken for undeleting notes on Mastodon
         await Task.CompletedTask;
     }
 
     public async Task PurgeDeletedNotes()
     {
-        // As per user instruction, no action is taken for purging deleted notes on Mastodon
         await Task.CompletedTask;
     }
 
-    private async Task<string> _SentNoteToMastodon(Note note, string fullContent, MastodonUserAccount account)
-    {
-        var toot = await mastodonTootService.SendTootAsync(account.InstanceUrl,
-                account.DecryptedAccessToken(TokenKey), fullContent, note.IsPrivate, note.IsMarkdown);
-
-        return toot.Id;
-    }
-
-    private async
-        Task<(List<MastodonSyncedInstance> toBeUpdated, List<MastodonSyncedInstance> toBeRemoved,
-            List<MastodonUserAccount> toBeSent)> _GetInstancesData(Note note)
+    private async Task<(List<MastodonSyncedInstance> toBeUpdated, List<MastodonSyncedInstance> toBeRemoved,
+        List<MastodonUserAccount> toBeSent)> _GetInstancesData(Note note)
     {
         var syncedChannels = _GetSyncedInstances(note);
         var toSyncInstances = await _GetToSyncMastodonUserAccounts(note);
@@ -236,9 +214,6 @@ public class MastodonSyncNoteService(
         return result;
     }
 
-    /// <summary>
-    /// Gets instances that require note updates.
-    /// </summary>
     private List<MastodonSyncedInstance> _getInstancesToBeUpdated(List<MastodonSyncedInstance> instances,
         IList<MastodonUserAccount> toSyncInstances)
     {
@@ -246,9 +221,6 @@ public class MastodonSyncNoteService(
         return instances.Where(r => idsToUpdate.Contains(r.UserAccountId)).ToList();
     }
 
-    /// <summary>
-    /// Gets instances where synced notes need to be removed.
-    /// </summary>
     private List<MastodonSyncedInstance> _GetInstancesToBeRemoved(List<MastodonSyncedInstance> instances,
         IList<MastodonUserAccount> toSyncAccounts)
     {
@@ -258,9 +230,6 @@ public class MastodonSyncNoteService(
         return instances.Where(r => idsToRemove.Contains(r.UserAccountId)).ToList();
     }
 
-    /// <summary>
-    /// Gets mastodon user accounts that need new note synchronization.
-    /// </summary>
     private List<MastodonUserAccount> _GetAccountsToBeSent(List<MastodonSyncedInstance> syncedInstances,
         IList<MastodonUserAccount> toSyncAccounts)
     {
@@ -316,7 +285,7 @@ public class MastodonSyncNoteService(
 
     private static List<MastodonSyncedInstance> _GetSyncedInstances(Note note)
     {
-        if (string.IsNullOrWhiteSpace(note.MastodonTootIds)) return [];
+        if (string.IsNullOrWhiteSpace(note.MastodonTootIds)) return new List<MastodonSyncedInstance>();
         return note.MastodonTootIds.Split(",").Select(s =>
         {
             var sync = s.Split(":");
@@ -327,4 +296,21 @@ public class MastodonSyncNoteService(
             };
         }).ToList();
     }
+
+    private bool _HasContentChanged(Note existingNote, Note newNote, string newFullContent)
+    {
+        if (existingNote.Content != newFullContent)
+        {
+            return true;
+        }
+
+        if (existingNote.IsMarkdown != newNote.IsMarkdown)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
 }
+

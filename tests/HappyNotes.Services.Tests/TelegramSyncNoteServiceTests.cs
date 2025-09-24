@@ -1,24 +1,18 @@
 using Api.Framework.Helper;
-using Api.Framework.Models;
 using HappyNotes.Common;
 using HappyNotes.Common.Enums;
 using HappyNotes.Entities;
-using HappyNotes.Repositories.interfaces;
 using HappyNotes.Services.interfaces;
 using HappyNotes.Services.SyncQueue.Interfaces;
 using HappyNotes.Services.SyncQueue.Models;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Moq;
 
 namespace HappyNotes.Services.Tests;
 
 public class TelegramSyncNoteServiceTests
 {
-    private Mock<ITelegramService> _mockTelegramService;
     private Mock<ITelegramSettingsCacheService> _mockTelegramSettingsCache;
-    private Mock<INoteRepository> _mockNoteRepository;
-    private Mock<IOptions<JwtConfig>> _mockJwtConfig;
     private Mock<ISyncQueueService> _mockSyncQueueService;
     private Mock<ILogger<TelegramSyncNoteService>> _mockLogger;
     private TelegramSyncNoteService _telegramSyncNoteService;
@@ -26,21 +20,12 @@ public class TelegramSyncNoteServiceTests
     [SetUp]
     public void Setup()
     {
-        _mockTelegramService = new Mock<ITelegramService>();
         _mockTelegramSettingsCache = new Mock<ITelegramSettingsCacheService>();
-        _mockNoteRepository = new Mock<INoteRepository>();
-        _mockJwtConfig = new Mock<IOptions<JwtConfig>>();
         _mockSyncQueueService = new Mock<ISyncQueueService>();
         _mockLogger = new Mock<ILogger<TelegramSyncNoteService>>();
 
-        var jwtConfig = new JwtConfig { SymmetricSecurityKey = "test_key_1234567890123456" };
-        _mockJwtConfig.Setup(x => x.Value).Returns(jwtConfig);
-
         _telegramSyncNoteService = new TelegramSyncNoteService(
-            _mockTelegramService.Object,
             _mockTelegramSettingsCache.Object,
-            _mockNoteRepository.Object,
-            _mockJwtConfig.Object,
             _mockSyncQueueService.Object,
             _mockLogger.Object
         );
@@ -168,10 +153,21 @@ public class TelegramSyncNoteServiceTests
     public async Task SyncEditNote_WithShortContent_ShouldEnqueueUpdateTasks()
     {
         // Arrange
+        var existingNote = new Note
+        {
+            Id = 123,
+            UserId = 1,
+            Content = "old content",
+            IsPrivate = false,
+            IsMarkdown = true,
+            TelegramMessageIds = "-1001234567890:100,-1001234567891:101"
+        };
+
         var note = new Note
         {
             Id = 123,
             UserId = 1,
+            Content = "Short content for UPDATE", // Different content
             IsPrivate = false,
             IsMarkdown = true,
             TelegramMessageIds = "-1001234567890:100,-1001234567891:101"
@@ -198,12 +194,8 @@ public class TelegramSyncNoteServiceTests
             .Setup(s => s.GetAsync(note.UserId))
             .ReturnsAsync(telegramSettings);
 
-        _mockNoteRepository
-            .Setup(r => r.Get(note.Id))
-            .ReturnsAsync(note); // Return the same note for existing tests
-
         // Act
-        await _telegramSyncNoteService.SyncEditNote(note, content);
+        await _telegramSyncNoteService.SyncEditNote(note, content, existingNote);
 
         // Assert - Should enqueue UPDATE tasks for existing channels
         _mockSyncQueueService.Verify(s => s.EnqueueAsync<TelegramSyncPayload>("telegram",
@@ -225,10 +217,21 @@ public class TelegramSyncNoteServiceTests
     public async Task SyncEditNote_WithLongContent_ShouldEnqueueDeleteAndCreateTasks()
     {
         // Arrange
+        var existingNote = new Note
+        {
+            Id = 123,
+            UserId = 1,
+            Content = "old content",
+            IsPrivate = false,
+            IsMarkdown = true,
+            TelegramMessageIds = "-1001234567890:100"
+        };
+
         var note = new Note
         {
             Id = 123,
             UserId = 1,
+            Content = "new long content",
             IsPrivate = false,
             IsMarkdown = true,
             TelegramMessageIds = "-1001234567890:100"
@@ -249,12 +252,8 @@ public class TelegramSyncNoteServiceTests
             .Setup(s => s.GetAsync(note.UserId))
             .ReturnsAsync(telegramSettings);
 
-        _mockNoteRepository
-            .Setup(r => r.Get(note.Id))
-            .ReturnsAsync(note); // Return the same note for existing tests
-
         // Act
-        await _telegramSyncNoteService.SyncEditNote(note, content);
+        await _telegramSyncNoteService.SyncEditNote(note, content, existingNote);
 
         // Assert - Should enqueue DELETE then CREATE for long content
         _mockSyncQueueService.Verify(s => s.EnqueueAsync<TelegramSyncPayload>("telegram",
@@ -276,10 +275,21 @@ public class TelegramSyncNoteServiceTests
     public async Task SyncEditNote_WithRemovedChannels_ShouldEnqueueDeleteTasks()
     {
         // Arrange
+        var existingNote = new Note
+        {
+            Id = 123,
+            UserId = 1,
+            Content = "old content",
+            IsPrivate = false,
+            IsMarkdown = false,
+            TelegramMessageIds = "-1001234567890:100,-1001234567891:101" // Two existing channels
+        };
+
         var note = new Note
         {
             Id = 123,
             UserId = 1,
+            Content = "test content",
             IsPrivate = false,
             IsMarkdown = false,
             TelegramMessageIds = "-1001234567890:100,-1001234567891:101" // Two existing channels
@@ -300,12 +310,8 @@ public class TelegramSyncNoteServiceTests
             .Setup(s => s.GetAsync(note.UserId))
             .ReturnsAsync(telegramSettings);
 
-        _mockNoteRepository
-            .Setup(r => r.Get(note.Id))
-            .ReturnsAsync(note); // Return the same note for existing tests
-
         // Act
-        await _telegramSyncNoteService.SyncEditNote(note, content);
+        await _telegramSyncNoteService.SyncEditNote(note, content, existingNote);
 
         // Assert
         // Should DELETE from removed channel
@@ -328,10 +334,21 @@ public class TelegramSyncNoteServiceTests
     public async Task SyncEditNote_WithNewChannels_ShouldEnqueueCreateTasks()
     {
         // Arrange
+        var existingNote = new Note
+        {
+            Id = 123,
+            UserId = 1,
+            Content = "old content",
+            IsPrivate = false,
+            IsMarkdown = false,
+            TelegramMessageIds = "-1001234567890:100" // One existing channel
+        };
+
         var note = new Note
         {
             Id = 123,
             UserId = 1,
+            Content = "test content",
             IsPrivate = false,
             IsMarkdown = false,
             TelegramMessageIds = "-1001234567890:100" // One existing channel
@@ -358,12 +375,8 @@ public class TelegramSyncNoteServiceTests
             .Setup(s => s.GetAsync(note.UserId))
             .ReturnsAsync(telegramSettings);
 
-        _mockNoteRepository
-            .Setup(r => r.Get(note.Id))
-            .ReturnsAsync(note); // Return the same note for existing tests
-
         // Act
-        await _telegramSyncNoteService.SyncEditNote(note, content);
+        await _telegramSyncNoteService.SyncEditNote(note, content, existingNote);
 
         // Assert
         // Should UPDATE existing channel
@@ -508,12 +521,8 @@ public class TelegramSyncNoteServiceTests
             .Setup(s => s.GetAsync(updatedNote.UserId))
             .ReturnsAsync(telegramSettings);
 
-        _mockNoteRepository
-            .Setup(r => r.Get(updatedNote.Id))
-            .ReturnsAsync(existingNote);
-
         // Act
-        await _telegramSyncNoteService.SyncEditNote(updatedNote, fullContent);
+        await _telegramSyncNoteService.SyncEditNote(updatedNote, fullContent, existingNote);
 
         // Assert - Should NOT enqueue UPDATE task since content didn't change
         _mockSyncQueueService.Verify(s => s.EnqueueAsync<TelegramSyncPayload>("telegram",
@@ -562,12 +571,8 @@ public class TelegramSyncNoteServiceTests
             .Setup(s => s.GetAsync(updatedNote.UserId))
             .ReturnsAsync(telegramSettings);
 
-        _mockNoteRepository
-            .Setup(r => r.Get(updatedNote.Id))
-            .ReturnsAsync(existingNote);
-
         // Act
-        await _telegramSyncNoteService.SyncEditNote(updatedNote, fullContent);
+        await _telegramSyncNoteService.SyncEditNote(updatedNote, fullContent, existingNote);
 
         // Assert - Should enqueue UPDATE task since content changed
         _mockSyncQueueService.Verify(s => s.EnqueueAsync<TelegramSyncPayload>("telegram",
@@ -618,12 +623,8 @@ public class TelegramSyncNoteServiceTests
             .Setup(s => s.GetAsync(updatedNote.UserId))
             .ReturnsAsync(telegramSettings);
 
-        _mockNoteRepository
-            .Setup(r => r.Get(updatedNote.Id))
-            .ReturnsAsync(existingNote);
-
         // Act
-        await _telegramSyncNoteService.SyncEditNote(updatedNote, fullContent);
+        await _telegramSyncNoteService.SyncEditNote(updatedNote, fullContent, existingNote);
 
         // Assert - Should enqueue UPDATE task since markdown setting changed (affects rendering)
         _mockSyncQueueService.Verify(s => s.EnqueueAsync<TelegramSyncPayload>("telegram",

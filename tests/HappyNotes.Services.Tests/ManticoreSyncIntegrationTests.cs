@@ -76,7 +76,17 @@ public class ManticoreSyncIntegrationTests
         string fullContent = note.Content;
 
         // Act
-        await _syncService.SyncEditNote(note, fullContent);
+        var original = new Note
+        {
+            Id = note.Id,
+            UserId = note.UserId,
+            Content = "old",
+            IsMarkdown = note.IsMarkdown,
+            IsPrivate = note.IsPrivate,
+            TelegramMessageIds = note.TelegramMessageIds,
+            MastodonTootIds = note.MastodonTootIds
+        };
+        await _syncService.SyncEditNote(note, fullContent, original);
 
         // Assert
         // Assume update succeeded if no exception; in a full test, verify updated content via search.

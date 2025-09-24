@@ -32,7 +32,7 @@ public class ManticoreSyncNoteService(
         }
     }
 
-    public async Task SyncEditNote(Note note, string fullContent)
+    public async Task SyncEditNote(Note note, string fullContent, Note originalNote)
     {
         try
         {
