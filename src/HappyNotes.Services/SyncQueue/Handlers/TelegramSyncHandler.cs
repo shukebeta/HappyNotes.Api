@@ -284,21 +284,43 @@ public class TelegramSyncHandler : ISyncHandler
             }
             catch (ApiRequestException ex)
             {
+                // Special handling for "message is not modified" error - treat as success
+                if (ex.Message.Contains("message is not modified", StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogInformation("Telegram message {MessageId} in channel {ChannelId} was not modified - content already matches. Treating as successful update.",
+                        payload.MessageId.Value, payload.ChannelId);
+                    return; // Treat as successful operation
+                }
+
                 _logger.LogWarning(ex, "Failed to edit message with Markdown for note {NoteId} in channel {ChannelId}. Retrying without Markdown.",
                     task.EntityId, payload.ChannelId);
 
                 if (payload.IsMarkdown)
                 {
-                    // Fallback: retry editing without markdown
-                    await _telegramService.EditMessageAsync(
-                        botToken,
-                        payload.ChannelId,
-                        payload.MessageId.Value,
-                        payload.FullContent,
-                        false);
+                    try
+                    {
+                        // Fallback: retry editing without markdown
+                        await _telegramService.EditMessageAsync(
+                            botToken,
+                            payload.ChannelId,
+                            payload.MessageId.Value,
+                            payload.FullContent,
+                            false);
 
-                    _logger.LogDebug("Successfully updated message {MessageId} in channel {ChannelId} without Markdown",
-                        payload.MessageId.Value, payload.ChannelId);
+                        _logger.LogDebug("Successfully updated message {MessageId} in channel {ChannelId} without Markdown",
+                            payload.MessageId.Value, payload.ChannelId);
+                    }
+                    catch (ApiRequestException ex2)
+                    {
+                        // Check for "message is not modified" again in fallback
+                        if (ex2.Message.Contains("message is not modified", StringComparison.OrdinalIgnoreCase))
+                        {
+                            _logger.LogInformation("Telegram message {MessageId} in channel {ChannelId} was not modified (fallback attempt) - content already matches. Treating as successful update.",
+                                payload.MessageId.Value, payload.ChannelId);
+                            return; // Treat as successful operation
+                        }
+                        throw; // Re-throw other errors
+                    }
                 }
                 else
                 {

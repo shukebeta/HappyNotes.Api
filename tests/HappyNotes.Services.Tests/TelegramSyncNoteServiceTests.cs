@@ -198,6 +198,10 @@ public class TelegramSyncNoteServiceTests
             .Setup(s => s.GetAsync(note.UserId))
             .ReturnsAsync(telegramSettings);
 
+        _mockNoteRepository
+            .Setup(r => r.Get(note.Id))
+            .ReturnsAsync(note); // Return the same note for existing tests
+
         // Act
         await _telegramSyncNoteService.SyncEditNote(note, content);
 
@@ -245,6 +249,10 @@ public class TelegramSyncNoteServiceTests
             .Setup(s => s.GetAsync(note.UserId))
             .ReturnsAsync(telegramSettings);
 
+        _mockNoteRepository
+            .Setup(r => r.Get(note.Id))
+            .ReturnsAsync(note); // Return the same note for existing tests
+
         // Act
         await _telegramSyncNoteService.SyncEditNote(note, content);
 
@@ -291,6 +299,10 @@ public class TelegramSyncNoteServiceTests
         _mockTelegramSettingsCache
             .Setup(s => s.GetAsync(note.UserId))
             .ReturnsAsync(telegramSettings);
+
+        _mockNoteRepository
+            .Setup(r => r.Get(note.Id))
+            .ReturnsAsync(note); // Return the same note for existing tests
 
         // Act
         await _telegramSyncNoteService.SyncEditNote(note, content);
@@ -345,6 +357,10 @@ public class TelegramSyncNoteServiceTests
         _mockTelegramSettingsCache
             .Setup(s => s.GetAsync(note.UserId))
             .ReturnsAsync(telegramSettings);
+
+        _mockNoteRepository
+            .Setup(r => r.Get(note.Id))
+            .ReturnsAsync(note); // Return the same note for existing tests
 
         // Act
         await _telegramSyncNoteService.SyncEditNote(note, content);
@@ -450,5 +466,171 @@ public class TelegramSyncNoteServiceTests
 
         // Assert
         _mockSyncQueueService.Verify(s => s.EnqueueAsync<TelegramSyncPayload>(It.IsAny<string>(), It.IsAny<SyncTask<TelegramSyncPayload>>()), Times.Never);
+    }
+
+    [Test]
+    public async Task SyncEditNote_WithUnchangedContent_ShouldSkipUpdateTasks()
+    {
+        // Arrange
+        var existingNote = new Note
+        {
+            Id = 123,
+            UserId = 1,
+            Content = "existing content",
+            IsPrivate = false,
+            IsMarkdown = true,
+            TelegramMessageIds = "-1001234567890:100"
+        };
+
+        var updatedNote = new Note
+        {
+            Id = 123,
+            UserId = 1,
+            Content = "existing content", // Same content
+            IsPrivate = true, // Changed IsPrivate (but content unchanged)
+            IsMarkdown = true, // Same markdown setting
+            TelegramMessageIds = "-1001234567890:100"
+        };
+
+        var fullContent = "existing content"; // Same as existing
+
+        var telegramSettings = new List<TelegramSettings>
+        {
+            new()
+            {
+                Id = 1, UserId = 1, ChannelId = "-1001234567890",
+                EncryptedToken = TextEncryptionHelper.Encrypt("bot_token", "test_key_1234567890123456"),
+                SyncType = TelegramSyncType.All // All type channel - IsPrivate change doesn't matter
+            }
+        };
+
+        _mockTelegramSettingsCache
+            .Setup(s => s.GetAsync(updatedNote.UserId))
+            .ReturnsAsync(telegramSettings);
+
+        _mockNoteRepository
+            .Setup(r => r.Get(updatedNote.Id))
+            .ReturnsAsync(existingNote);
+
+        // Act
+        await _telegramSyncNoteService.SyncEditNote(updatedNote, fullContent);
+
+        // Assert - Should NOT enqueue UPDATE task since content didn't change
+        _mockSyncQueueService.Verify(s => s.EnqueueAsync<TelegramSyncPayload>("telegram",
+            It.Is<SyncTask<TelegramSyncPayload>>(t =>
+                t.Action == "UPDATE"
+            )), Times.Never);
+    }
+
+    [Test]
+    public async Task SyncEditNote_WithChangedContent_ShouldEnqueueUpdateTasks()
+    {
+        // Arrange
+        var existingNote = new Note
+        {
+            Id = 123,
+            UserId = 1,
+            Content = "original content",
+            IsPrivate = false,
+            IsMarkdown = true,
+            TelegramMessageIds = "-1001234567890:100"
+        };
+
+        var updatedNote = new Note
+        {
+            Id = 123,
+            UserId = 1,
+            Content = "updated content", // Content changed
+            IsPrivate = true, // IsPrivate also changed, but doesn't matter for content comparison
+            IsMarkdown = true,
+            TelegramMessageIds = "-1001234567890:100"
+        };
+
+        var fullContent = "updated content";
+
+        var telegramSettings = new List<TelegramSettings>
+        {
+            new()
+            {
+                Id = 1, UserId = 1, ChannelId = "-1001234567890",
+                EncryptedToken = TextEncryptionHelper.Encrypt("bot_token", "test_key_1234567890123456"),
+                SyncType = TelegramSyncType.All
+            }
+        };
+
+        _mockTelegramSettingsCache
+            .Setup(s => s.GetAsync(updatedNote.UserId))
+            .ReturnsAsync(telegramSettings);
+
+        _mockNoteRepository
+            .Setup(r => r.Get(updatedNote.Id))
+            .ReturnsAsync(existingNote);
+
+        // Act
+        await _telegramSyncNoteService.SyncEditNote(updatedNote, fullContent);
+
+        // Assert - Should enqueue UPDATE task since content changed
+        _mockSyncQueueService.Verify(s => s.EnqueueAsync<TelegramSyncPayload>("telegram",
+            It.Is<SyncTask<TelegramSyncPayload>>(t =>
+                t.Action == "UPDATE" &&
+                t.Payload.ChannelId == "-1001234567890" &&
+                t.Payload.FullContent == fullContent
+            )), Times.Once);
+    }
+
+    [Test]
+    public async Task SyncEditNote_WithChangedMarkdownSetting_ShouldEnqueueUpdateTasks()
+    {
+        // Arrange
+        var existingNote = new Note
+        {
+            Id = 123,
+            UserId = 1,
+            Content = "test content",
+            IsPrivate = false,
+            IsMarkdown = true, // Was markdown
+            TelegramMessageIds = "-1001234567890:100"
+        };
+
+        var updatedNote = new Note
+        {
+            Id = 123,
+            UserId = 1,
+            Content = "test content", // Same content
+            IsPrivate = false,
+            IsMarkdown = false, // Changed to non-markdown
+            TelegramMessageIds = "-1001234567890:100"
+        };
+
+        var fullContent = "test content";
+
+        var telegramSettings = new List<TelegramSettings>
+        {
+            new()
+            {
+                Id = 1, UserId = 1, ChannelId = "-1001234567890",
+                EncryptedToken = TextEncryptionHelper.Encrypt("bot_token", "test_key_1234567890123456"),
+                SyncType = TelegramSyncType.All
+            }
+        };
+
+        _mockTelegramSettingsCache
+            .Setup(s => s.GetAsync(updatedNote.UserId))
+            .ReturnsAsync(telegramSettings);
+
+        _mockNoteRepository
+            .Setup(r => r.Get(updatedNote.Id))
+            .ReturnsAsync(existingNote);
+
+        // Act
+        await _telegramSyncNoteService.SyncEditNote(updatedNote, fullContent);
+
+        // Assert - Should enqueue UPDATE task since markdown setting changed (affects rendering)
+        _mockSyncQueueService.Verify(s => s.EnqueueAsync<TelegramSyncPayload>("telegram",
+            It.Is<SyncTask<TelegramSyncPayload>>(t =>
+                t.Action == "UPDATE" &&
+                t.Payload.ChannelId == "-1001234567890" &&
+                t.Payload.IsMarkdown == false
+            )), Times.Once);
     }
 }

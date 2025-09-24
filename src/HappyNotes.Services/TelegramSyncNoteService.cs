@@ -63,6 +63,10 @@ public class TelegramSyncNoteService(
             var settings = await telegramSettingsCacheService.GetAsync(note.UserId);
             if (!settings.Any()) return;
 
+            // Get the existing note for content comparison
+            var existingNote = await noteRepository.Get(note.Id);
+            if (existingNote == null) return;
+
             var channelData = await _GetRequiredChannelData(note);
             var toBeSent = channelData.toBeSent;
 
@@ -82,9 +86,18 @@ public class TelegramSyncNoteService(
                 // For short messages, try to UPDATE existing ones
                 foreach (var channel in tobeUpdated)
                 {
-                    await EnqueueSyncTask(note, fullContent, string.Empty, channel.ChannelId, "UPDATE", channel.MessageId);
-                    logger.LogDebug("Queued UPDATE task for note {NoteId} to Telegram channel {ChannelId} (short content)",
-                        note.Id, channel.ChannelId);
+                    // Pre-check: Only queue UPDATE if content actually changed for Telegram
+                    if (_HasContentChanged(existingNote, note, fullContent))
+                    {
+                        await EnqueueSyncTask(note, fullContent, string.Empty, channel.ChannelId, "UPDATE", channel.MessageId);
+                        logger.LogDebug("Queued UPDATE task for note {NoteId} to Telegram channel {ChannelId} (content changed)",
+                            note.Id, channel.ChannelId);
+                    }
+                    else
+                    {
+                        logger.LogDebug("Skipped UPDATE task for note {NoteId} to Telegram channel {ChannelId} (no content change)",
+                            note.Id, channel.ChannelId);
+                    }
                 }
             }
             else
@@ -325,5 +338,34 @@ public class TelegramSyncNoteService(
 
         logger.LogInformation("Enqueued Telegram sync task {TaskId} for note {NoteId}, action: {Action}",
             task.Id, note.Id, action);
+    }
+
+    /// <summary>
+    /// Checks if the note content has changed in ways that matter for Telegram synchronization.
+    /// Only considers changes that would affect the actual message content in Telegram.
+    /// </summary>
+    /// <param name="existingNote">The original note from database</param>
+    /// <param name="newNote">The updated note</param>
+    /// <param name="newFullContent">The new full content to be synced</param>
+    /// <returns>True if content changed in ways that require Telegram update</returns>
+    private bool _HasContentChanged(Note existingNote, Note newNote, string newFullContent)
+    {
+        // 1. Check if the actual content changed
+        if (existingNote.Content != newFullContent)
+        {
+            return true;
+        }
+
+        // 2. Check if Markdown formatting changed (affects how Telegram renders the message)
+        if (existingNote.IsMarkdown != newNote.IsMarkdown)
+        {
+            return true;
+        }
+
+        // Note: IsPrivate, Tags, and other metadata changes don't affect the message content
+        // that's already posted to Telegram, so we don't check those here.
+        // Those changes only affect which channels the note should be synced to (handled by channel logic).
+
+        return false;
     }
 }
