@@ -142,8 +142,22 @@ public class RedisSyncQueueService : ISyncQueueService
 
         // Update failure stats
         var statsKey = GetQueueKey(service, "stats");
-        await _database.HashIncrementAsync(statsKey, "totalFailed");
-        await _database.HashSetAsync(statsKey, "lastFailedAt", DateTime.UtcNow.ToString("O"));
+        try
+        {
+            await _database.HashIncrementAsync(statsKey, "totalFailed");
+            await _database.HashSetAsync(statsKey, "lastFailedAt", DateTime.UtcNow.ToString("O"));
+        }
+        catch (StackExchange.Redis.RedisServerException ex) when (ex.Message.Contains("WRONGTYPE"))
+        {
+            _logger.LogWarning("Stats key {StatsKey} has wrong type, recreating as hash", statsKey);
+
+            // Delete corrupted key and recreate as hash
+            await _database.KeyDeleteAsync(statsKey);
+            await _database.HashIncrementAsync(statsKey, "totalFailed");
+            await _database.HashSetAsync(statsKey, "lastFailedAt", DateTime.UtcNow.ToString("O"));
+
+            _logger.LogInformation("Successfully recreated stats key {StatsKey} as hash", statsKey);
+        }
 
         _logger.LogWarning("Moved task {TaskId} to failed queue: {Error}", task.Id, error);
     }
@@ -268,8 +282,22 @@ public class RedisSyncQueueService : ISyncQueueService
         if (updateSuccessStats)
         {
             var statsKey = GetQueueKey(service, "stats");
-            await _database.HashIncrementAsync(statsKey, "totalProcessed");
-            await _database.HashSetAsync(statsKey, "lastProcessedAt", DateTime.UtcNow.ToString("O"));
+            try
+            {
+                await _database.HashIncrementAsync(statsKey, "totalProcessed");
+                await _database.HashSetAsync(statsKey, "lastProcessedAt", DateTime.UtcNow.ToString("O"));
+            }
+            catch (StackExchange.Redis.RedisServerException ex) when (ex.Message.Contains("WRONGTYPE"))
+            {
+                _logger.LogWarning("Stats key {StatsKey} has wrong type, recreating as hash", statsKey);
+
+                // Delete corrupted key and recreate as hash
+                await _database.KeyDeleteAsync(statsKey);
+                await _database.HashIncrementAsync(statsKey, "totalProcessed");
+                await _database.HashSetAsync(statsKey, "lastProcessedAt", DateTime.UtcNow.ToString("O"));
+
+                _logger.LogInformation("Successfully recreated stats key {StatsKey} as hash", statsKey);
+            }
         }
     }
 
@@ -305,12 +333,26 @@ public class RedisSyncQueueService : ISyncQueueService
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var batchLimit = 100; // Limit batch size to prevent overwhelming Redis
 
-        // Use Lua script for atomic batch processing with limit
-        var movedCount = (int)await _database.ScriptEvaluateAsync(
-            ProcessDelayedTasksScript,
-            new RedisKey[] { delayedKey, queueKey },
-            new RedisValue[] { now, batchLimit }
-        );
+        int movedCount;
+        try
+        {
+            // Use Lua script for atomic batch processing with limit
+            movedCount = (int)await _database.ScriptEvaluateAsync(
+                ProcessDelayedTasksScript,
+                new RedisKey[] { delayedKey, queueKey },
+                new RedisValue[] { now, batchLimit }
+            );
+        }
+        catch (StackExchange.Redis.RedisServerException ex) when (ex.Message.Contains("WRONGTYPE"))
+        {
+            _logger.LogWarning("Delayed queue {DelayedKey} has wrong type, recreating as sorted set", delayedKey);
+
+            // Delete corrupted delayed queue and recreate as sorted set
+            await _database.KeyDeleteAsync(delayedKey);
+
+            _logger.LogInformation("Successfully recreated delayed queue {DelayedKey} as sorted set", delayedKey);
+            return; // No tasks to process after recreation
+        }
 
         if (movedCount > 0)
         {

@@ -18,7 +18,7 @@ public class RedisOptions
 
 public class ProcessingOptions
 {
-    public int MaxConcurrentTasks { get; set; } = 10;
+    public int MaxConcurrentTasks { get; set; } = 1;
     public TimeSpan ProcessingTimeout { get; set; } = TimeSpan.FromMinutes(5);
     public TimeSpan PollingInterval { get; set; } = TimeSpan.FromSeconds(30);
     public TimeSpan VisibilityTimeout { get; set; } = TimeSpan.FromMinutes(15);
