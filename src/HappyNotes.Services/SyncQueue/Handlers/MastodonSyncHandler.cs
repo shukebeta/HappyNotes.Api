@@ -22,7 +22,7 @@ public class MastodonSyncHandler : ISyncHandler
     private readonly JwtConfig _jwtConfig;
     private readonly ILogger<MastodonSyncHandler> _logger;
 
-    public string ServiceName => "mastodon";
+    public string ServiceName => Constants.MastodonService;
 
     public int MaxRetryAttempts => _options.Handlers.TryGetValue(ServiceName, out var config)
         ? config.MaxRetries

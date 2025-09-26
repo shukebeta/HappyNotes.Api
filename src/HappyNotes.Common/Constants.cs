@@ -11,4 +11,14 @@ public static class Constants
     public const string TelegramSameTokenFlag = "the same token as the last setting";
     public const string MastodonAppName = "HappyNotes";
     public const string HappyNotesWebsite = "https://happynotes.shukebeta.com";
+
+    // Sync service names
+    public const string TelegramService = "telegram";
+    public const string MastodonService = "mastodon";
+    public const string ManticoreSearchService = "manticoresearch";
+
+    /// <summary>
+    /// All available sync services
+    /// </summary>
+    public static readonly string[] AllSyncServices = { TelegramService, MastodonService, ManticoreSearchService };
 }

@@ -23,7 +23,7 @@ public class TelegramSyncHandler : ISyncHandler
     private readonly JwtConfig _jwtConfig;
     private readonly ILogger<TelegramSyncHandler> _logger;
 
-    public string ServiceName => "telegram";
+    public string ServiceName => Constants.TelegramService;
 
     public int MaxRetryAttempts => _options.Handlers.TryGetValue(ServiceName, out var config)
         ? config.MaxRetries

@@ -1,5 +1,6 @@
 using HappyNotes.Services.SyncQueue.Interfaces;
 using HappyNotes.Services.SyncQueue.Models;
+using HappyNotes.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -48,7 +49,7 @@ public class SyncQueueAdminController : ControllerBase
     {
         try
         {
-            var services = new[] { "telegram", "mastodon", "manticore" }; // Could be made configurable
+            var services = Constants.AllSyncServices;
             var stats = new Dictionary<string, QueueStats>();
 
             foreach (var service in services)
@@ -131,7 +132,7 @@ public class SyncQueueAdminController : ControllerBase
     {
         try
         {
-            var services = new[] { "telegram", "mastodon", "manticore" };
+            var services = Constants.AllSyncServices;
             var healthStatus = new Dictionary<string, object>();
 
             foreach (var service in services)

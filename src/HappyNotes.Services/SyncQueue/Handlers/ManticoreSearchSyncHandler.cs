@@ -19,7 +19,7 @@ public class ManticoreSearchSyncHandler : ISyncHandler
     private readonly SyncQueueOptions _options;
     private readonly ILogger<ManticoreSearchSyncHandler> _logger;
 
-    public string ServiceName => "manticoresearch";
+    public string ServiceName => Constants.ManticoreSearchService;
 
     public int MaxRetryAttempts => _options.Handlers.TryGetValue(ServiceName, out var config)
         ? config.MaxRetries
