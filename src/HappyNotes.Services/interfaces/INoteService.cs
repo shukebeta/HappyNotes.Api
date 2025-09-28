@@ -24,6 +24,7 @@ public interface INoteService
 
     Task<PageData<Note>> GetUserTagNotes(long userId, int pageSize, int pageNumber, string tag);
     Task<PageData<Note>> GetUserKeywordNotes(long userId, int pageSize, int pageNumber, string keyword, NoteFilterType filter = NoteFilterType.Normal);
+    Task<PageData<Note>> SearchUserNotes(long userId, int pageSize, int pageNumber, string keyword, NoteFilterType filter = NoteFilterType.Normal);
 
     Task<PageData<Note>> GetLinkedNotes(long userId, long noteId);
     Task<IList<Note>> Memories(long userId, string localTimezone);

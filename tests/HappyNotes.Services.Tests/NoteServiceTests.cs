@@ -4,6 +4,7 @@ using Api.Framework.Extensions;
 using Api.Framework.Models;
 using AutoMapper;
 using HappyNotes.Common;
+using HappyNotes.Common.Enums;
 using HappyNotes.Entities;
 using HappyNotes.Models;
 using HappyNotes.Repositories.interfaces;
@@ -314,6 +315,314 @@ public class NoteServiceTests
         var ex = Assert.ThrowsAsync<Exception>(async () =>
             await _noteService.GetPublicNotes(pageSize, pageNumber));
         Assert.That(ex.Message, Does.Contain($"We only provide at most {Constants.PublicNotesMaxPage} page"));
+    }
+
+    [Test]
+    public async Task SearchUserNotes_EmptyKeyword_ReturnsEmptyResults()
+    {
+        // Arrange
+        var userId = 1L;
+        var pageSize = 10;
+        var pageNumber = 1;
+        var keyword = "";
+
+        // Act
+        var result = await _noteService.SearchUserNotes(userId, pageSize, pageNumber, keyword);
+
+        // Assert
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result.DataList, Is.Empty);
+        Assert.That(result.TotalCount, Is.EqualTo(0));
+        Assert.That(result.PageIndex, Is.EqualTo(pageNumber));
+        Assert.That(result.PageSize, Is.EqualTo(pageSize));
+    }
+
+    [Test]
+    public async Task SearchUserNotes_SingleCharacterKeyword_ReturnsEmptyResults()
+    {
+        // Arrange
+        var userId = 1L;
+        var pageSize = 10;
+        var pageNumber = 1;
+        var keyword = "a";
+
+        // Act
+        var result = await _noteService.SearchUserNotes(userId, pageSize, pageNumber, keyword);
+
+        // Assert
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result.DataList, Is.Empty);
+        Assert.That(result.TotalCount, Is.EqualTo(0));
+        Assert.That(result.PageIndex, Is.EqualTo(pageNumber));
+        Assert.That(result.PageSize, Is.EqualTo(pageSize));
+    }
+
+    [Test]
+    public async Task SearchUserNotes_ValidKeyword_ReturnsSearchResults()
+    {
+        // Arrange
+        var userId = 1L;
+        var pageSize = 10;
+        var pageNumber = 1;
+        var keyword = "test";
+        var searchResultNoteIds = new List<long> { 1, 2 };
+        var searchTotal = 2;
+        var notes = new List<Note>
+        {
+            new Note { Id = 1, Content = "Test note 1", UserId = userId },
+            new Note { Id = 2, Content = "Test note 2", UserId = userId }
+        };
+
+        _searchService.Setup(s => s.GetNoteIdsByKeywordAsync(userId, keyword, pageNumber, pageSize, NoteFilterType.Normal))
+            .ReturnsAsync((searchResultNoteIds, searchTotal));
+        _mockNoteRepository.Setup(r => r.GetListByIdsAsync(It.IsAny<long[]>()))
+            .ReturnsAsync(notes);
+
+        // Act
+        var result = await _noteService.SearchUserNotes(userId, pageSize, pageNumber, keyword);
+
+        // Assert
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result.DataList.Count, Is.EqualTo(2));
+        Assert.That(result.TotalCount, Is.EqualTo(searchTotal));
+        Assert.That(result.PageIndex, Is.EqualTo(pageNumber));
+        Assert.That(result.PageSize, Is.EqualTo(pageSize));
+        CollectionAssert.AreEqual(notes, result.DataList);
+    }
+
+    [Test]
+    public async Task SearchUserNotes_IntegerKeyword_FirstPage_UserOwnsNote_PrependsToResults()
+    {
+        // Arrange
+        var userId = 1L;
+        var pageSize = 10;
+        var pageNumber = 1;
+        var keyword = "123";
+        var noteId = 123L;
+        var searchResultNoteIds = new List<long> { 456, 789 };
+        var searchTotal = 2;
+        var userNote = new Note { Id = noteId, Content = "User's note", UserId = userId };
+        var searchNotes = new List<Note>
+        {
+            new Note { Id = 456, Content = "Search result 1", UserId = userId },
+            new Note { Id = 789, Content = "Search result 2", UserId = userId }
+        };
+        var allNotes = new List<Note> { userNote, searchNotes[0], searchNotes[1] };
+
+        _searchService.Setup(s => s.GetNoteIdsByKeywordAsync(userId, keyword, pageNumber, pageSize, NoteFilterType.Normal))
+            .ReturnsAsync((searchResultNoteIds, searchTotal));
+        _mockNoteRepository.Setup(r => r.GetFirstOrDefaultAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<Note, bool>>>(), null))
+            .ReturnsAsync(userNote);
+        _mockNoteRepository.Setup(r => r.GetListByIdsAsync(It.Is<long[]>(ids => ids.Length == 3 && ids[0] == noteId)))
+            .ReturnsAsync(allNotes);
+
+        // Act
+        var result = await _noteService.SearchUserNotes(userId, pageSize, pageNumber, keyword);
+
+        // Assert
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result.DataList.Count, Is.EqualTo(3));
+        Assert.That(result.DataList[0].Id, Is.EqualTo(noteId)); // User's note should be first
+        Assert.That(result.TotalCount, Is.EqualTo(searchTotal));
+    }
+
+    [Test]
+    public async Task SearchUserNotes_IntegerKeyword_FirstPage_UserDoesNotOwnNote_DoesNotPrepend()
+    {
+        // Arrange
+        var userId = 1L;
+        var pageSize = 10;
+        var pageNumber = 1;
+        var keyword = "123";
+        var searchResultNoteIds = new List<long> { 456, 789 };
+        var searchTotal = 2;
+        var notes = new List<Note>
+        {
+            new Note { Id = 456, Content = "Search result 1", UserId = userId },
+            new Note { Id = 789, Content = "Search result 2", UserId = userId }
+        };
+
+        _searchService.Setup(s => s.GetNoteIdsByKeywordAsync(userId, keyword, pageNumber, pageSize, NoteFilterType.Normal))
+            .ReturnsAsync((searchResultNoteIds, searchTotal));
+        _mockNoteRepository.Setup(r => r.GetFirstOrDefaultAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<Note, bool>>>(), null))
+            .ReturnsAsync(new Note { Id = 123, UserId = 2 }); // Different user
+        _mockNoteRepository.Setup(r => r.GetListByIdsAsync(It.IsAny<long[]>()))
+            .ReturnsAsync(notes);
+
+        // Act
+        var result = await _noteService.SearchUserNotes(userId, pageSize, pageNumber, keyword);
+
+        // Assert
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result.DataList.Count, Is.EqualTo(2)); // Should remain 2 notes
+        Assert.That(result.TotalCount, Is.EqualTo(searchTotal));
+        CollectionAssert.AreEqual(notes, result.DataList);
+    }
+
+    [Test]
+    public async Task SearchUserNotes_IntegerKeyword_SecondPage_DoesNotPrepend()
+    {
+        // Arrange
+        var userId = 1L;
+        var pageSize = 10;
+        var pageNumber = 2; // Not first page
+        var keyword = "123";
+        var searchResultNoteIds = new List<long> { 456, 789 };
+        var searchTotal = 2;
+        var notes = new List<Note>
+        {
+            new Note { Id = 456, Content = "Search result 1", UserId = userId },
+            new Note { Id = 789, Content = "Search result 2", UserId = userId }
+        };
+
+        _searchService.Setup(s => s.GetNoteIdsByKeywordAsync(userId, keyword, pageNumber, pageSize, NoteFilterType.Normal))
+            .ReturnsAsync((searchResultNoteIds, searchTotal));
+        _mockNoteRepository.Setup(r => r.GetListByIdsAsync(It.IsAny<long[]>()))
+            .ReturnsAsync(notes);
+
+        // Act
+        var result = await _noteService.SearchUserNotes(userId, pageSize, pageNumber, keyword);
+
+        // Assert
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result.DataList.Count, Is.EqualTo(2)); // Should remain 2 notes
+        Assert.That(result.TotalCount, Is.EqualTo(searchTotal));
+        CollectionAssert.AreEqual(notes, result.DataList);
+        // Verify database was not called since it's not first page
+        _mockNoteRepository.Verify(r => r.GetFirstOrDefaultAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<Note, bool>>>(), null), Times.Never);
+    }
+
+    [Test]
+    public async Task SearchUserNotes_IntegerKeyword_NoteNotFound_DoesNotPrepend()
+    {
+        // Arrange
+        var userId = 1L;
+        var pageSize = 10;
+        var pageNumber = 1;
+        var keyword = "123";
+        var searchResultNoteIds = new List<long> { 456, 789 };
+        var searchTotal = 2;
+        var notes = new List<Note>
+        {
+            new Note { Id = 456, Content = "Search result 1", UserId = userId },
+            new Note { Id = 789, Content = "Search result 2", UserId = userId }
+        };
+
+        _searchService.Setup(s => s.GetNoteIdsByKeywordAsync(userId, keyword, pageNumber, pageSize, NoteFilterType.Normal))
+            .ReturnsAsync((searchResultNoteIds, searchTotal));
+        _mockNoteRepository.Setup(r => r.GetFirstOrDefaultAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<Note, bool>>>(), null))
+            .ReturnsAsync((Note?)null); // Note not found
+        _mockNoteRepository.Setup(r => r.GetListByIdsAsync(It.IsAny<long[]>()))
+            .ReturnsAsync(notes);
+
+        // Act
+        var result = await _noteService.SearchUserNotes(userId, pageSize, pageNumber, keyword);
+
+        // Assert
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result.DataList.Count, Is.EqualTo(2)); // Should remain 2 notes
+        Assert.That(result.TotalCount, Is.EqualTo(searchTotal));
+        CollectionAssert.AreEqual(notes, result.DataList);
+    }
+
+    [Test]
+    public async Task SearchUserNotes_IntegerKeyword_NoteAlreadyInResults_DoesNotDuplicate()
+    {
+        // Arrange
+        var userId = 1L;
+        var pageSize = 10;
+        var pageNumber = 1;
+        var keyword = "123";
+        var noteId = 123L;
+        var searchResultNoteIds = new List<long> { 456, 123, 789 }; // 123 already in search results
+        var searchTotal = 3;
+        var userNote = new Note { Id = noteId, Content = "User's note", UserId = userId };
+        var allNotes = new List<Note>
+        {
+            userNote, // Should be first after reordering
+            new Note { Id = 456, Content = "Search result 1", UserId = userId },
+            new Note { Id = 789, Content = "Search result 2", UserId = userId }
+        };
+
+        _searchService.Setup(s => s.GetNoteIdsByKeywordAsync(userId, keyword, pageNumber, pageSize, NoteFilterType.Normal))
+            .ReturnsAsync((searchResultNoteIds, searchTotal));
+        _mockNoteRepository.Setup(r => r.GetFirstOrDefaultAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<Note, bool>>>(), null))
+            .ReturnsAsync(userNote);
+        _mockNoteRepository.Setup(r => r.GetListByIdsAsync(It.Is<long[]>(ids => ids.Length == 3 && ids[0] == noteId)))
+            .ReturnsAsync(allNotes);
+
+        // Act
+        var result = await _noteService.SearchUserNotes(userId, pageSize, pageNumber, keyword);
+
+        // Assert
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result.DataList.Count, Is.EqualTo(3)); // Should have 3 notes (no duplication)
+        Assert.That(result.DataList[0].Id, Is.EqualTo(noteId)); // User's note should be first
+        Assert.That(result.TotalCount, Is.EqualTo(searchTotal));
+    }
+
+    [Test]
+    public async Task SearchUserNotes_NonIntegerKeyword_DoesNotPrepend()
+    {
+        // Arrange
+        var userId = 1L;
+        var pageSize = 10;
+        var pageNumber = 1;
+        var keyword = "test search";
+        var searchResultNoteIds = new List<long> { 456, 789 };
+        var searchTotal = 2;
+        var notes = new List<Note>
+        {
+            new Note { Id = 456, Content = "Search result 1", UserId = userId },
+            new Note { Id = 789, Content = "Search result 2", UserId = userId }
+        };
+
+        _searchService.Setup(s => s.GetNoteIdsByKeywordAsync(userId, keyword, pageNumber, pageSize, NoteFilterType.Normal))
+            .ReturnsAsync((searchResultNoteIds, searchTotal));
+        _mockNoteRepository.Setup(r => r.GetListByIdsAsync(It.IsAny<long[]>()))
+            .ReturnsAsync(notes);
+
+        // Act
+        var result = await _noteService.SearchUserNotes(userId, pageSize, pageNumber, keyword);
+
+        // Assert
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result.DataList.Count, Is.EqualTo(2)); // Should remain 2 notes
+        Assert.That(result.TotalCount, Is.EqualTo(searchTotal));
+        CollectionAssert.AreEqual(notes, result.DataList);
+        // Verify database was not called since query is not an integer
+        _mockNoteRepository.Verify(r => r.GetFirstOrDefaultAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<Note, bool>>>(), null), Times.Never);
+    }
+
+    [Test]
+    public async Task SearchUserNotes_WithDeletedFilter_PassesFilterToSearchService()
+    {
+        // Arrange
+        var userId = 1L;
+        var pageSize = 10;
+        var pageNumber = 1;
+        var keyword = "test";
+        var filter = NoteFilterType.Deleted;
+        var searchResultNoteIds = new List<long> { 1 };
+        var searchTotal = 1;
+        var notes = new List<Note>
+        {
+            new Note { Id = 1, Content = "Deleted note", UserId = userId, DeletedAt = 123456 }
+        };
+
+        _searchService.Setup(s => s.GetNoteIdsByKeywordAsync(userId, keyword, pageNumber, pageSize, filter))
+            .ReturnsAsync((searchResultNoteIds, searchTotal));
+        _mockNoteRepository.Setup(r => r.GetListByIdsAsync(It.IsAny<long[]>()))
+            .ReturnsAsync(notes);
+
+        // Act
+        var result = await _noteService.SearchUserNotes(userId, pageSize, pageNumber, keyword, filter);
+
+        // Assert
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result.DataList.Count, Is.EqualTo(1));
+        Assert.That(result.TotalCount, Is.EqualTo(searchTotal));
+        _searchService.Verify(s => s.GetNoteIdsByKeywordAsync(userId, keyword, pageNumber, pageSize, filter), Times.Once);
     }
 
     [TestFixture]

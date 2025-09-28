@@ -2,7 +2,6 @@ using System.Net;
 using HappyNotes.Common.Enums;
 using HappyNotes.Entities;
 using HappyNotes.Services.interfaces;
-using HappyNotes.Repositories.interfaces;
 using Moq;
 using Moq.Protected;
 using SqlSugar;
@@ -13,14 +12,12 @@ namespace HappyNotes.Services.Tests;
 public class SearchServiceTests
 {
     private readonly Mock<IDatabaseClient> _mockDatabaseClient;
-    private readonly Mock<INoteRepository> _mockNoteRepository;
     private readonly SearchService _searchService;
     private readonly Mock<HttpMessageHandler> _mockHandler;
 
     public SearchServiceTests()
     {
         _mockDatabaseClient = new Mock<IDatabaseClient>();
-        _mockNoteRepository = new Mock<INoteRepository>();
         _mockHandler = new Mock<HttpMessageHandler>();
         _mockHandler.Protected()
             .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
@@ -31,7 +28,7 @@ public class SearchServiceTests
             });
         var httpClient = new HttpClient(_mockHandler.Object);
         var options = new ManticoreConnectionOptions { HttpEndpoint = "http://127.0.0.1:9308" };
-        _searchService = new SearchService(_mockDatabaseClient.Object, httpClient, options, _mockNoteRepository.Object);
+        _searchService = new SearchService(_mockDatabaseClient.Object, httpClient, options);
     }
 
     [SetUp]
@@ -39,7 +36,6 @@ public class SearchServiceTests
     {
         // Reset mock invocations before each test to avoid cross-test interference.
         _mockDatabaseClient.Reset();
-        _mockNoteRepository.Reset();
         _mockHandler.Reset();
         _mockHandler.Protected()
             .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
@@ -299,189 +295,5 @@ public class SearchServiceTests
                 req.Method == HttpMethod.Post &&
                 req.RequestUri.ToString().Contains("json/delete")),
             ItExpr.IsAny<CancellationToken>());
-    }
-
-    [Test]
-    public async Task GetNoteIdsByKeywordAsync_IntegerQuery_FirstPage_UserOwnsNote_PrependsToResults()
-    {
-        // Arrange
-        long userId = 1;
-        string query = "123";
-        int pageNumber = 1;
-        int pageSize = 10;
-
-        // Mock regular search results
-        _mockHandler.Protected()
-            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage
-            {
-                StatusCode = HttpStatusCode.OK,
-                Content = new StringContent("{\"took\":0,\"timed_out\":false,\"hits\":{\"total\":2,\"hits\":[{\"_id\":456,\"_source\":{\"id\":456}},{\"_id\":789,\"_source\":{\"id\":789}}]}}")
-            });
-
-        // Mock repository query to return user's note
-        _mockNoteRepository.Setup(x => x.GetFirstOrDefaultAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<Note, bool>>>(), null))
-            .ReturnsAsync(new Note { Id = 123, UserId = 1 });
-
-        // Act
-        var result = await _searchService.GetNoteIdsByKeywordAsync(userId, query, pageNumber, pageSize);
-
-        // Assert
-        Assert.IsNotNull(result);
-        Assert.That(result.Item1[0], Is.EqualTo(123)); // Note 123 should be first
-        Assert.That(result.Item1.Count, Is.EqualTo(3)); // Should have 3 notes total
-        CollectionAssert.AreEqual(new List<long> { 123, 456, 789 }, result.Item1);
-    }
-
-    [Test]
-    public async Task GetNoteIdsByKeywordAsync_IntegerQuery_FirstPage_UserDoesNotOwnNote_DoesNotPrepend()
-    {
-        // Arrange
-        long userId = 1;
-        string query = "123";
-        int pageNumber = 1;
-        int pageSize = 10;
-
-        // Mock regular search results
-        _mockHandler.Protected()
-            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage
-            {
-                StatusCode = HttpStatusCode.OK,
-                Content = new StringContent("{\"took\":0,\"timed_out\":false,\"hits\":{\"total\":2,\"hits\":[{\"_id\":456,\"_source\":{\"id\":456}},{\"_id\":789,\"_source\":{\"id\":789}}]}}")
-            });
-
-        // Mock repository query to return note owned by different user
-        _mockNoteRepository.Setup(x => x.GetFirstOrDefaultAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<Note, bool>>>(), null))
-            .ReturnsAsync(new Note { Id = 123, UserId = 2 }); // Different user
-
-        // Act
-        var result = await _searchService.GetNoteIdsByKeywordAsync(userId, query, pageNumber, pageSize);
-
-        // Assert
-        Assert.IsNotNull(result);
-        Assert.That(result.Item1.Count, Is.EqualTo(2)); // Should remain 2 notes
-        CollectionAssert.AreEqual(new List<long> { 456, 789 }, result.Item1);
-    }
-
-    [Test]
-    public async Task GetNoteIdsByKeywordAsync_IntegerQuery_SecondPage_DoesNotPrepend()
-    {
-        // Arrange
-        long userId = 1;
-        string query = "123";
-        int pageNumber = 2; // Not first page
-        int pageSize = 10;
-
-        // Mock regular search results
-        _mockHandler.Protected()
-            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage
-            {
-                StatusCode = HttpStatusCode.OK,
-                Content = new StringContent("{\"took\":0,\"timed_out\":false,\"hits\":{\"total\":2,\"hits\":[{\"_id\":456,\"_source\":{\"id\":456}},{\"_id\":789,\"_source\":{\"id\":789}}]}}")
-            });
-
-        // Act
-        var result = await _searchService.GetNoteIdsByKeywordAsync(userId, query, pageNumber, pageSize);
-
-        // Assert
-        Assert.IsNotNull(result);
-        Assert.That(result.Item1.Count, Is.EqualTo(2)); // Should remain 2 notes
-        CollectionAssert.AreEqual(new List<long> { 456, 789 }, result.Item1);
-        // Verify database was not called since it's not first page
-        _mockNoteRepository.Verify(x => x.GetFirstOrDefaultAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<Note, bool>>>(), null), Times.Never);
-    }
-
-    [Test]
-    public async Task GetNoteIdsByKeywordAsync_IntegerQuery_NoteNotFound_DoesNotPrepend()
-    {
-        // Arrange
-        long userId = 1;
-        string query = "123";
-        int pageNumber = 1;
-        int pageSize = 10;
-
-        // Mock regular search results
-        _mockHandler.Protected()
-            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage
-            {
-                StatusCode = HttpStatusCode.OK,
-                Content = new StringContent("{\"took\":0,\"timed_out\":false,\"hits\":{\"total\":2,\"hits\":[{\"_id\":456,\"_source\":{\"id\":456}},{\"_id\":789,\"_source\":{\"id\":789}}]}}")
-            });
-
-        // Mock repository query to return null (note not found)
-        _mockNoteRepository.Setup(x => x.GetFirstOrDefaultAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<Note, bool>>>(), null))
-            .ReturnsAsync((Note?)null);
-
-        // Act
-        var result = await _searchService.GetNoteIdsByKeywordAsync(userId, query, pageNumber, pageSize);
-
-        // Assert
-        Assert.IsNotNull(result);
-        Assert.That(result.Item1.Count, Is.EqualTo(2)); // Should remain 2 notes
-        CollectionAssert.AreEqual(new List<long> { 456, 789 }, result.Item1);
-    }
-
-    [Test]
-    public async Task GetNoteIdsByKeywordAsync_IntegerQuery_FirstPage_NoteAlreadyInResults_DoesNotDuplicate()
-    {
-        // Arrange
-        long userId = 1;
-        string query = "123";
-        int pageNumber = 1;
-        int pageSize = 10;
-
-        // Mock regular search results including the note ID we're searching for
-        _mockHandler.Protected()
-            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage
-            {
-                StatusCode = HttpStatusCode.OK,
-                Content = new StringContent("{\"took\":0,\"timed_out\":false,\"hits\":{\"total\":3,\"hits\":[{\"_id\":456,\"_source\":{\"id\":456}},{\"_id\":123,\"_source\":{\"id\":123}},{\"_id\":789,\"_source\":{\"id\":789}}]}}")
-            });
-
-        // Mock repository query to return user's note
-        _mockNoteRepository.Setup(x => x.GetFirstOrDefaultAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<Note, bool>>>(), null))
-            .ReturnsAsync(new Note { Id = 123, UserId = 1 });
-
-        // Act
-        var result = await _searchService.GetNoteIdsByKeywordAsync(userId, query, pageNumber, pageSize);
-
-        // Assert
-        Assert.IsNotNull(result);
-        Assert.That(result.Item1[0], Is.EqualTo(123)); // Note 123 should be first
-        Assert.That(result.Item1.Count, Is.EqualTo(3)); // Should have 3 notes total (no duplication)
-        CollectionAssert.AreEqual(new List<long> { 123, 456, 789 }, result.Item1);
-    }
-
-    [Test]
-    public async Task GetNoteIdsByKeywordAsync_NonIntegerQuery_DoesNotPrepend()
-    {
-        // Arrange
-        long userId = 1;
-        string query = "test search";
-        int pageNumber = 1;
-        int pageSize = 10;
-
-        // Mock regular search results
-        _mockHandler.Protected()
-            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage
-            {
-                StatusCode = HttpStatusCode.OK,
-                Content = new StringContent("{\"took\":0,\"timed_out\":false,\"hits\":{\"total\":2,\"hits\":[{\"_id\":456,\"_source\":{\"id\":456}},{\"_id\":789,\"_source\":{\"id\":789}}]}}")
-            });
-
-        // Act
-        var result = await _searchService.GetNoteIdsByKeywordAsync(userId, query, pageNumber, pageSize);
-
-        // Assert
-        Assert.IsNotNull(result);
-        Assert.That(result.Item1.Count, Is.EqualTo(2)); // Should remain 2 notes
-        CollectionAssert.AreEqual(new List<long> { 456, 789 }, result.Item1);
-        // Verify database was not called since query is not an integer
-        _mockNoteRepository.Verify(x => x.GetFirstOrDefaultAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<Note, bool>>>(), null), Times.Never);
     }
 }
