@@ -7,6 +7,7 @@ using HappyNotes.Common.Enums;
 using HappyNotes.Entities;
 using HappyNotes.Models.Search;
 using HappyNotes.Services.interfaces;
+using HappyNotes.Repositories.interfaces;
 using SqlSugar;
 
 namespace HappyNotes.Services;
@@ -15,11 +16,13 @@ public class SearchService : ISearchService
 {
     private readonly IDatabaseClient _client;
     private readonly HttpClient _httpClient;
+    private readonly INoteRepository _noteRepository;
 
-    public SearchService(IDatabaseClient client, HttpClient httpClient, ManticoreConnectionOptions options)
+    public SearchService(IDatabaseClient client, HttpClient httpClient, ManticoreConnectionOptions options, INoteRepository noteRepository)
     {
         _client = client;
         _httpClient = httpClient;
+        _noteRepository = noteRepository;
         _httpClient.BaseAddress = new Uri(options.HttpEndpoint);
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
     }
@@ -71,10 +74,7 @@ public class SearchService : ISearchService
         if (pageNumber == 1 && long.TryParse(query, out long noteId))
         {
             // Check if this note ID belongs to the current user
-            var notes = await _client.SqlQueryAsync<Note>(
-                "SELECT Id, UserId FROM Note WHERE Id = @noteId",
-                new { noteId });
-            var note = notes.FirstOrDefault();
+            var note = await _noteRepository.GetFirstOrDefaultAsync(n => n.Id == noteId);
 
             if (note != null && note.UserId == userId)
             {

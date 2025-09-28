@@ -2,6 +2,7 @@ using System.Net;
 using HappyNotes.Common.Enums;
 using HappyNotes.Entities;
 using HappyNotes.Services.interfaces;
+using HappyNotes.Repositories.interfaces;
 using Moq;
 using Moq.Protected;
 using SqlSugar;
@@ -12,12 +13,14 @@ namespace HappyNotes.Services.Tests;
 public class SearchServiceTests
 {
     private readonly Mock<IDatabaseClient> _mockDatabaseClient;
+    private readonly Mock<INoteRepository> _mockNoteRepository;
     private readonly SearchService _searchService;
     private readonly Mock<HttpMessageHandler> _mockHandler;
 
     public SearchServiceTests()
     {
         _mockDatabaseClient = new Mock<IDatabaseClient>();
+        _mockNoteRepository = new Mock<INoteRepository>();
         _mockHandler = new Mock<HttpMessageHandler>();
         _mockHandler.Protected()
             .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
@@ -28,7 +31,7 @@ public class SearchServiceTests
             });
         var httpClient = new HttpClient(_mockHandler.Object);
         var options = new ManticoreConnectionOptions { HttpEndpoint = "http://127.0.0.1:9308" };
-        _searchService = new SearchService(_mockDatabaseClient.Object, httpClient, options);
+        _searchService = new SearchService(_mockDatabaseClient.Object, httpClient, options, _mockNoteRepository.Object);
     }
 
     [SetUp]
@@ -36,6 +39,7 @@ public class SearchServiceTests
     {
         // Reset mock invocations before each test to avoid cross-test interference.
         _mockDatabaseClient.Reset();
+        _mockNoteRepository.Reset();
         _mockHandler.Reset();
         _mockHandler.Protected()
             .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
@@ -315,11 +319,9 @@ public class SearchServiceTests
                 Content = new StringContent("{\"took\":0,\"timed_out\":false,\"hits\":{\"total\":2,\"hits\":[{\"_id\":456,\"_source\":{\"id\":456}},{\"_id\":789,\"_source\":{\"id\":789}}]}}")
             });
 
-        // Mock database query to return user's note
-        _mockDatabaseClient.Setup(x => x.SqlQueryAsync<Note>(
-            It.IsAny<string>(),
-            It.IsAny<object>()))
-            .ReturnsAsync(new List<Note> { new Note { Id = 123, UserId = 1 } });
+        // Mock repository query to return user's note
+        _mockNoteRepository.Setup(x => x.GetFirstOrDefaultAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<Note, bool>>>(), null))
+            .ReturnsAsync(new Note { Id = 123, UserId = 1 });
 
         // Act
         var result = await _searchService.GetNoteIdsByKeywordAsync(userId, query, pageNumber, pageSize);
@@ -349,11 +351,9 @@ public class SearchServiceTests
                 Content = new StringContent("{\"took\":0,\"timed_out\":false,\"hits\":{\"total\":2,\"hits\":[{\"_id\":456,\"_source\":{\"id\":456}},{\"_id\":789,\"_source\":{\"id\":789}}]}}")
             });
 
-        // Mock database query to return note owned by different user
-        _mockDatabaseClient.Setup(x => x.SqlQueryAsync<Note>(
-            It.IsAny<string>(),
-            It.IsAny<object>()))
-            .ReturnsAsync(new List<Note> { new Note { Id = 123, UserId = 2 } }); // Different user
+        // Mock repository query to return note owned by different user
+        _mockNoteRepository.Setup(x => x.GetFirstOrDefaultAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<Note, bool>>>(), null))
+            .ReturnsAsync(new Note { Id = 123, UserId = 2 }); // Different user
 
         // Act
         var result = await _searchService.GetNoteIdsByKeywordAsync(userId, query, pageNumber, pageSize);
@@ -390,7 +390,7 @@ public class SearchServiceTests
         Assert.That(result.Item1.Count, Is.EqualTo(2)); // Should remain 2 notes
         CollectionAssert.AreEqual(new List<long> { 456, 789 }, result.Item1);
         // Verify database was not called since it's not first page
-        _mockDatabaseClient.Verify(x => x.SqlQueryAsync<Note>(It.IsAny<string>(), It.IsAny<object>()), Times.Never);
+        _mockNoteRepository.Verify(x => x.GetFirstOrDefaultAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<Note, bool>>>(), null), Times.Never);
     }
 
     [Test]
@@ -411,11 +411,9 @@ public class SearchServiceTests
                 Content = new StringContent("{\"took\":0,\"timed_out\":false,\"hits\":{\"total\":2,\"hits\":[{\"_id\":456,\"_source\":{\"id\":456}},{\"_id\":789,\"_source\":{\"id\":789}}]}}")
             });
 
-        // Mock database query to return empty list (note not found)
-        _mockDatabaseClient.Setup(x => x.SqlQueryAsync<Note>(
-            It.IsAny<string>(),
-            It.IsAny<object>()))
-            .ReturnsAsync(new List<Note>());
+        // Mock repository query to return null (note not found)
+        _mockNoteRepository.Setup(x => x.GetFirstOrDefaultAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<Note, bool>>>(), null))
+            .ReturnsAsync((Note?)null);
 
         // Act
         var result = await _searchService.GetNoteIdsByKeywordAsync(userId, query, pageNumber, pageSize);
@@ -444,11 +442,9 @@ public class SearchServiceTests
                 Content = new StringContent("{\"took\":0,\"timed_out\":false,\"hits\":{\"total\":3,\"hits\":[{\"_id\":456,\"_source\":{\"id\":456}},{\"_id\":123,\"_source\":{\"id\":123}},{\"_id\":789,\"_source\":{\"id\":789}}]}}")
             });
 
-        // Mock database query to return user's note
-        _mockDatabaseClient.Setup(x => x.SqlQueryAsync<Note>(
-            It.IsAny<string>(),
-            It.IsAny<object>()))
-            .ReturnsAsync(new List<Note> { new Note { Id = 123, UserId = 1 } });
+        // Mock repository query to return user's note
+        _mockNoteRepository.Setup(x => x.GetFirstOrDefaultAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<Note, bool>>>(), null))
+            .ReturnsAsync(new Note { Id = 123, UserId = 1 });
 
         // Act
         var result = await _searchService.GetNoteIdsByKeywordAsync(userId, query, pageNumber, pageSize);
@@ -486,6 +482,6 @@ public class SearchServiceTests
         Assert.That(result.Item1.Count, Is.EqualTo(2)); // Should remain 2 notes
         CollectionAssert.AreEqual(new List<long> { 456, 789 }, result.Item1);
         // Verify database was not called since query is not an integer
-        _mockDatabaseClient.Verify(x => x.SqlQueryAsync<Note>(It.IsAny<string>(), It.IsAny<object>()), Times.Never);
+        _mockNoteRepository.Verify(x => x.GetFirstOrDefaultAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<Note, bool>>>(), null), Times.Never);
     }
 }
