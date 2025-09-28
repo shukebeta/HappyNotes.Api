@@ -66,6 +66,25 @@ public class SearchService : ISearchService
             }
         }
 
+        // Enhancement: if query is an integer and this is the first page,
+        // check if the note ID belongs to the current user and prepend it to results
+        if (pageNumber == 1 && long.TryParse(query, out long noteId))
+        {
+            // Check if this note ID belongs to the current user
+            var notes = await _client.SqlQueryAsync<Note>(
+                "SELECT Id, UserId FROM Note WHERE Id = @noteId",
+                new { noteId });
+            var note = notes.FirstOrDefault();
+
+            if (note != null && note.UserId == userId)
+            {
+                // Remove the note from the list if it's already there to avoid duplication
+                noteIdList.RemoveAll(id => id == noteId);
+                // Prepend it to the beginning
+                noteIdList.Insert(0, noteId);
+            }
+        }
+
         return (noteIdList, (int)total);
     }
 
