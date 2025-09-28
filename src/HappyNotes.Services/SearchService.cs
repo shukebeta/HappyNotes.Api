@@ -1,20 +1,5 @@
 using System.Net.Http.Headers;
 using System.Text;
-using HappyNotes.Repositories.interfaces;
-.
-/private readonly IDatabaseClient _client;/c
-    private readonly IDatabaseClient _client;
-    private readonly INoteRepository _noteRepository;
-.
-/SearchService(IDatabaseClient client, HttpClient httpClient, ManticoreConnectionOptions options)/c
-    public SearchService(IDatabaseClient client, HttpClient httpClient, ManticoreConnectionOptions options, INoteRepository noteRepository)
-.
-/_client = client;/a
-        _noteRepository = noteRepository;
-.
-/var notes = await _client.SqlQueryAsync<Note>/,/var note = notes.FirstOrDefault();/c
-            // Check if this note ID belongs to the current user
-            var note = await _noteRepository.GetFirstOrDefaultAsync(n => n.Id == noteId);
 using System.Text.Json;
 using Api.Framework.Extensions;
 using HappyNotes.Common;
