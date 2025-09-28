@@ -1,16 +1,5 @@
 using System.Net.Http.Headers;
 using System.Text;
-using HappyNotes.Repositories.interfaces;
-.
-/private readonly HttpClient _httpClient;/a
-
-    private readonly INoteRepository _noteRepository;
-.
-/ManticoreConnectionOptions options)/c
-ManticoreConnectionOptions options, INoteRepository noteRepository)
-.
-/_httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application\/json"));/a
-        _noteRepository = noteRepository;
 using System.Text.Json;
 using Api.Framework.Extensions;
 using HappyNotes.Common;
