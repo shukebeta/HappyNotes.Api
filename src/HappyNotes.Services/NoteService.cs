@@ -184,51 +184,8 @@ public class NoteService(
 
     public async Task<PageData<Note>> SearchUserNotes(long userId, int pageSize, int pageNumber, string keyword, NoteFilterType filter = NoteFilterType.Normal)
     {
-        keyword = keyword?.Trim() ?? string.Empty;
-        if (keyword.Length == 0)
-        {
-            return new PageData<Note>()
-            {
-                DataList = [],
-                PageIndex = pageNumber,
-                PageSize = pageSize,
-                TotalCount = 0,
-            };
-        }
-
-        // Bigram indexing requires at least 2 characters to generate valid tokens
-        if (keyword.Length == 1)
-        {
-            return new PageData<Note>()
-            {
-                DataList = [],
-                PageIndex = pageNumber,
-                PageSize = pageSize,
-                TotalCount = 0,
-            };
-        }
-
-        // Get search results from SearchService
         var (noteIds, total) = await searchService.GetNoteIdsByKeywordAsync(userId, keyword, pageNumber, pageSize, filter);
-        var noteIdList = noteIds.ToList();
-
-        // Enhancement: if keyword is an integer and this is the first page,
-        // check if the note ID belongs to the current user and prepend it to results
-        if (pageNumber == 1 && long.TryParse(keyword, out long noteId))
-        {
-            // Check if this note ID belongs to the current user
-            var note = await noteRepository.GetFirstOrDefaultAsync(n => n.Id == noteId);
-
-            if (note != null && note.UserId == userId)
-            {
-                // Remove the note from the list if it's already there to avoid duplication
-                noteIdList.RemoveAll(id => id == noteId);
-                // Prepend it to the beginning
-                noteIdList.Insert(0, noteId);
-            }
-        }
-
-        var notes = await _GetNotesByIds(noteIdList);
+        var notes = await _GetNotesByIds(noteIds);
         return new PageData<Note>()
         {
             DataList = notes,
