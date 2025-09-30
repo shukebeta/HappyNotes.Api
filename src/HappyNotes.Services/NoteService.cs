@@ -21,7 +21,8 @@ public class NoteService(
     INoteRepository noteRepository,
     IRepositoryBase<LongNote> longNoteRepository,
     IMapper mapper,
-    ILogger<NoteService> logger
+    ILogger<NoteService> logger,
+    TimeProvider timeProvider
 ) : INoteService
 {
     public async Task<long> Post(long userId, PostNoteRequest request)
@@ -355,11 +356,11 @@ public class NoteService(
         await noteTagService.RemoveUnusedTags(note.Id, newTags);
     }
 
-    internal static long[] _GetTimestamps(long initialUnixTimestamp, string timeZoneId)
+    internal long[] _GetTimestamps(long initialUnixTimestamp, string timeZoneId)
     {
         var targetTimeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
         var startDate = initialUnixTimestamp.ToDateTimeOffset(targetTimeZone);
-        var today = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, targetTimeZone);
+        var today = TimeZoneInfo.ConvertTime(timeProvider.GetUtcNow(), targetTimeZone);
 
         var timestamps = new List<long>();
 

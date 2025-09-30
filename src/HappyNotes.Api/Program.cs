@@ -100,6 +100,9 @@ builder.Services.AddHttpClient("TelegramBotClient", client =>
 
 builder.Services.RegisterServices();
 
+// Add TimeProvider for time dependency injection
+builder.Services.AddSingleton(TimeProvider.System);
+
 // Add Sync Queue services
 builder.Services.AddSyncQueue(builder.Configuration);
 

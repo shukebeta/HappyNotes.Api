@@ -25,6 +25,7 @@ public class NoteServiceTests
     private Mock<IRepositoryBase<LongNote>> _mockLongNoteRepository;
     private Mock<IMapper> _mockMapper;
     private Mock<ILogger<NoteService>> _mockLogger;
+    private Mock<TimeProvider> _mockTimeProvider;
     private NoteService _noteService;
 
     [SetUp]
@@ -38,6 +39,7 @@ public class NoteServiceTests
         _mockLongNoteRepository = new Mock<IRepositoryBase<LongNote>>();
         _mockMapper = new Mock<IMapper>();
         _mockLogger = new Mock<ILogger<NoteService>>();
+        _mockTimeProvider = new Mock<TimeProvider>();
         _mockSyncNoteService.Setup(s => s.SyncNewNote(It.IsAny<Note>(), It.IsAny<string>()))
             .Returns(Task.CompletedTask);
         _mockSyncNoteService.Setup(s => s.SyncEditNote(It.IsAny<Note>(), It.IsAny<string>(), It.IsAny<Note>()))
@@ -54,7 +56,8 @@ public class NoteServiceTests
             _mockNoteRepository.Object,
             _mockLongNoteRepository.Object,
             _mockMapper.Object,
-            _mockLogger.Object
+            _mockLogger.Object,
+            _mockTimeProvider.Object
         );
     }
 
@@ -445,6 +448,48 @@ public class NoteServiceTests
     [TestFixture]
     public class GetTimestampsTests
     {
+        private Mock<ISearchService> _searchService;
+        private Mock<ISyncNoteService> _mockSyncNoteService;
+        private Mock<INoteTagService> _mockNoteTagService;
+        private Mock<INoteRepository> _mockNoteRepository;
+        private Mock<IRepositoryBase<LongNote>> _mockLongNoteRepository;
+        private Mock<IMapper> _mockMapper;
+        private Mock<ILogger<NoteService>> _mockLogger;
+        private Mock<TimeProvider> _mockTimeProvider;
+        private NoteService _noteService;
+
+        [SetUp]
+        public void Setup()
+        {
+            _searchService = new Mock<ISearchService>();
+            _mockSyncNoteService = new Mock<ISyncNoteService>();
+            var syncServices = new[] { _mockSyncNoteService.Object };
+            _mockNoteTagService = new Mock<INoteTagService>();
+            _mockNoteRepository = new Mock<INoteRepository>();
+            _mockLongNoteRepository = new Mock<IRepositoryBase<LongNote>>();
+            _mockMapper = new Mock<IMapper>();
+            _mockLogger = new Mock<ILogger<NoteService>>();
+            _mockTimeProvider = new Mock<TimeProvider>();
+            _mockSyncNoteService.Setup(s => s.SyncNewNote(It.IsAny<Note>(), It.IsAny<string>()))
+                .Returns(Task.CompletedTask);
+            _mockSyncNoteService.Setup(s => s.SyncEditNote(It.IsAny<Note>(), It.IsAny<string>(), It.IsAny<Note>()))
+                .Returns(Task.CompletedTask);
+            _mockSyncNoteService.Setup(s => s.SyncDeleteNote(It.IsAny<Note>()))
+                .Returns(Task.CompletedTask);
+            _mockSyncNoteService.Setup(s => s.SyncUndeleteNote(It.IsAny<Note>()))
+                .Returns(Task.CompletedTask);
+
+            _noteService = new NoteService(
+                _searchService.Object,
+                syncServices,
+                _mockNoteTagService.Object,
+                _mockNoteRepository.Object,
+                _mockLongNoteRepository.Object,
+                _mockMapper.Object,
+                _mockLogger.Object,
+                _mockTimeProvider.Object
+            );
+        }
         [Test]
         public void GetTimestamps_WithRecentStartDate_ReturnsExpectedCount()
         {
@@ -454,7 +499,7 @@ public class NoteServiceTests
             var startTimestamp = startDate.ToUnixTimeSeconds();
 
             // Act
-            var result = NoteService._GetTimestamps(startTimestamp, timeZone);
+            var result = _noteService._GetTimestamps(startTimestamp, timeZone);
 
             // Assert
             Assert.That(result.Length, Is.GreaterThanOrEqualTo(2), "Should include at least yesterday and today");
@@ -479,7 +524,7 @@ public class NoteServiceTests
             var startTimestamp = startDate.ToUnixTimeSeconds();
 
             // Act
-            var result = NoteService._GetTimestamps(startTimestamp, timeZone);
+            var result = _noteService._GetTimestamps(startTimestamp, timeZone);
 
             // Assert
             Assert.That(result.Length, Is.GreaterThanOrEqualTo(5),
@@ -507,7 +552,7 @@ public class NoteServiceTests
                 // Act & Assert
                 Assert.DoesNotThrow(() =>
                 {
-                    var result = NoteService._GetTimestamps(startTimestamp, timeZone);
+                    var result = _noteService._GetTimestamps(startTimestamp, timeZone);
                     Assert.That(result, Is.Not.Null);
                     Assert.That(result.Length, Is.GreaterThan(0));
                 }, $"Should handle timezone {timeZone} without throwing");
@@ -522,7 +567,7 @@ public class NoteServiceTests
             var startTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
             // Act
-            var result = NoteService._GetTimestamps(startTimestamp, timeZone);
+            var result = _noteService._GetTimestamps(startTimestamp, timeZone);
 
             // Assert
             Assert.That(result.Length, Is.GreaterThanOrEqualTo(2),
@@ -537,7 +582,7 @@ public class NoteServiceTests
             var futureStartTimestamp = DateTimeOffset.UtcNow.AddYears(1).ToUnixTimeSeconds();
 
             // Act
-            var result = NoteService._GetTimestamps(futureStartTimestamp, timeZone);
+            var result = _noteService._GetTimestamps(futureStartTimestamp, timeZone);
 
             // Assert
             Assert.That(result.Length, Is.GreaterThanOrEqualTo(2),
@@ -552,8 +597,8 @@ public class NoteServiceTests
             var startTimestamp = DateTimeOffset.UtcNow.AddMonths(-1).ToUnixTimeSeconds();
 
             // Act - Call multiple times
-            var result1 = NoteService._GetTimestamps(startTimestamp, timeZone);
-            var result2 = NoteService._GetTimestamps(startTimestamp, timeZone);
+            var result1 = _noteService._GetTimestamps(startTimestamp, timeZone);
+            var result2 = _noteService._GetTimestamps(startTimestamp, timeZone);
 
             // Assert - Results should be identical (within same second)
             Assert.That(result1.Length, Is.EqualTo(result2.Length));
@@ -567,49 +612,60 @@ public class NoteServiceTests
         [Test]
         public void GetTimestamps_AnniversaryDates_RespectHistoricalTimezoneOffsets()
         {
-            // Arrange - Use realistic dates and timezone
+            // Arrange - Use fixed dates to eliminate time-based race conditions
             var timeZone = "America/New_York";
-            // Use an old enough start date to ensure we get yearly anniversaries
-            var startDate = DateTimeOffset.UtcNow.AddYears(-5);
+            var fixedToday = new DateTimeOffset(2024, 3, 15, 10, 30, 0, TimeSpan.Zero); // Fixed "today"
+            var startDate = fixedToday.AddYears(-5); // Start date 5 years ago
             var startTimestamp = startDate.ToUnixTimeSeconds();
 
+            // Setup mock TimeProvider to return fixed time
+            _mockTimeProvider.Setup(tp => tp.GetUtcNow()).Returns(fixedToday);
+
             // Act
-            var result = NoteService._GetTimestamps(startTimestamp, timeZone);
+            var result = _noteService._GetTimestamps(startTimestamp, timeZone);
 
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(0));
 
-            // The method should return timestamps for today's month/day in previous years
-            var today = DateTimeOffset.UtcNow;
-            var currentMonth = today.Month;
-            var currentDay = today.Day;
+            // The method should return timestamps for "today's" month/day in previous years
+            var currentMonth = fixedToday.Month; // March
+            var currentDay = fixedToday.Day; // 15th
 
             // Find timestamps that match today's month/day from previous years
             var anniversaryTimestamps = result.Where(ts =>
             {
                 var nyTimeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZone);
                 var date = TimeZoneInfo.ConvertTime(DateTimeOffset.FromUnixTimeSeconds(ts), nyTimeZone);
-                return date.Month == currentMonth && date.Day == currentDay && date.Year < today.Year;
+                return date.Month == currentMonth && date.Day == currentDay && date.Year < fixedToday.Year;
             }).ToList();
 
-            // Should have at least one anniversary if start date is old enough
-            if (startDate.Year < today.Year)
-            {
-                Assert.That(anniversaryTimestamps.Count, Is.GreaterThanOrEqualTo(1),
-                    "Should contain anniversary dates for same month/day in previous years");
+            // Should have at least one anniversary (March 15th in years 2019-2023)
+            Assert.That(anniversaryTimestamps.Count, Is.GreaterThanOrEqualTo(1),
+                "Should contain anniversary dates for same month/day in previous years");
 
-                // Verify that anniversary dates are correctly set to start of day
-                foreach (var ts in anniversaryTimestamps)
-                {
-                    var nyTimeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZone);
-                    var date = TimeZoneInfo.ConvertTime(DateTimeOffset.FromUnixTimeSeconds(ts), nyTimeZone);
-                    Assert.That(date.Month, Is.EqualTo(currentMonth), $"Anniversary should be in month {currentMonth}, got {date:yyyy-MM-dd}");
-                    Assert.That(date.Day, Is.EqualTo(currentDay), $"Anniversary should be on day {currentDay}, got {date:yyyy-MM-dd}");
-                    Assert.That(date.Hour, Is.EqualTo(0), "Anniversary should be at start of day");
-                    Assert.That(date.Minute, Is.EqualTo(0), "Anniversary should be at start of day");
-                }
+            // Verify that anniversary dates are correctly set to start of day
+            foreach (var ts in anniversaryTimestamps)
+            {
+                var nyTimeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZone);
+                var date = TimeZoneInfo.ConvertTime(DateTimeOffset.FromUnixTimeSeconds(ts), nyTimeZone);
+                Assert.That(date.Month, Is.EqualTo(currentMonth), $"Anniversary should be in month {currentMonth}, got {date:yyyy-MM-dd}");
+                Assert.That(date.Day, Is.EqualTo(currentDay), $"Anniversary should be on day {currentDay}, got {date:yyyy-MM-dd}");
+                Assert.That(date.Hour, Is.EqualTo(0), "Anniversary should be at start of day");
+                Assert.That(date.Minute, Is.EqualTo(0), "Anniversary should be at start of day");
             }
+
+            // Verify we have the expected years (2019, 2020, 2021, 2022, 2023)
+            var expectedYears = new[] { 2019, 2020, 2021, 2022, 2023 };
+            var actualYears = anniversaryTimestamps.Select(ts =>
+            {
+                var nyTimeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZone);
+                var date = TimeZoneInfo.ConvertTime(DateTimeOffset.FromUnixTimeSeconds(ts), nyTimeZone);
+                return date.Year;
+            }).OrderBy(y => y).ToArray();
+
+            Assert.That(actualYears, Is.EqualTo(expectedYears),
+                $"Expected anniversary years {string.Join(", ", expectedYears)}, got {string.Join(", ", actualYears)}");
         }
 
         [Test]
@@ -666,7 +722,7 @@ public class NoteServiceTests
 
                 // Act - This would use the current system time, so we can't directly test this
                 // But we can test the AddMonths behavior that's problematic
-                var result = NoteService._GetTimestamps(startTimestamp, timeZone);
+                var result = _noteService._GetTimestamps(startTimestamp, timeZone);
 
                 // Assert - Just verify it doesn't throw and returns reasonable results
                 Assert.That(result, Is.Not.Null, $"Should not fail for {testCase.Description}");
@@ -767,7 +823,7 @@ public class NoteServiceTests
             var startTimestamp = DateTimeOffset.UtcNow.AddYears(-2).ToUnixTimeSeconds();
 
             // Act
-            var result = NoteService._GetTimestamps(startTimestamp, timeZone);
+            var result = _noteService._GetTimestamps(startTimestamp, timeZone);
 
             // Assert
             Assert.That(result, Is.Not.Null);
@@ -788,7 +844,7 @@ public class NoteServiceTests
             var startTimestamp = recentStartDate.ToUnixTimeSeconds();
 
             // Act
-            var result = NoteService._GetTimestamps(startTimestamp, timeZone);
+            var result = _noteService._GetTimestamps(startTimestamp, timeZone);
 
             // Assert
             Assert.That(result, Is.Not.Null);
