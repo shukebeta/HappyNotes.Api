@@ -42,7 +42,7 @@ public class RedisSyncQueueServiceTests
             });
             
             var logger = new LoggerFactory().CreateLogger<RedisSyncQueueService>();
-            _queueService = new RedisSyncQueueService(_redis, options, logger);
+            _queueService = new RedisSyncQueueService(_redis, options, logger, TimeProvider.System);
         }
         catch (Exception ex)
         {

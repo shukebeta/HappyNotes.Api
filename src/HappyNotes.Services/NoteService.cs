@@ -35,7 +35,7 @@ public class NoteService(
 
         var note = mapper.Map<PostNoteRequest, Note>(request);
         note.UserId = userId;
-        var now = DateTime.Now.ToUnixTimeSeconds();
+        var now = timeProvider.GetUtcNowUnixTimeSeconds();
         if (_IsPostingOrImportingOldNote(note, now)) // 5 mins
         {
             note.UpdatedAt = now;
@@ -106,7 +106,7 @@ public class NoteService(
         newNote.MastodonTootIds = existingNote.MastodonTootIds;
         newNote.TelegramMessageIds = existingNote.TelegramMessageIds;
         newNote.CreatedAt = existingNote.CreatedAt;
-        newNote.UpdatedAt = DateTime.UtcNow.ToUnixTimeSeconds();
+        newNote.UpdatedAt = timeProvider.GetUtcNowUnixTimeSeconds();
         newNote.DeletedAt = existingNote.DeletedAt;
 
         if (!_HasNoteChanged(existingNote, newNote, fullContent))
@@ -290,7 +290,7 @@ public class NoteService(
             return true;
         }
 
-        note.DeletedAt = DateTime.UtcNow.ToUnixTimeSeconds();
+        note.DeletedAt = timeProvider.GetUtcNowUnixTimeSeconds();
         foreach (var syncNoteService in syncNoteServices)
         {
             Task.Run(async () => await syncNoteService.SyncDeleteNote(note));
@@ -379,9 +379,16 @@ public class NoteService(
             }
         }
 
-        // Always add yesterday and today
-        timestamps.Add(today.AddDays(-1).GetDayStartTimestamp(targetTimeZone));
-        timestamps.Add(today.GetDayStartTimestamp(targetTimeZone));
+        // Add yesterday and today if they're within the user history period
+        var yesterday = today.AddDays(-1);
+        if (_IsWithinUserHistoryPeriod(yesterday, startDate))
+        {
+            timestamps.Add(yesterday.GetDayStartTimestamp(targetTimeZone));
+        }
+        if (_IsWithinUserHistoryPeriod(today, startDate))
+        {
+            timestamps.Add(today.GetDayStartTimestamp(targetTimeZone));
+        }
 
         return timestamps.ToArray();
     }

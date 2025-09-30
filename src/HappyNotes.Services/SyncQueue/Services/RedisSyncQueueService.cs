@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Api.Framework.Extensions;
 using HappyNotes.Common;
 using HappyNotes.Services.SyncQueue.Configuration;
 using HappyNotes.Services.SyncQueue.Interfaces;
@@ -14,6 +15,7 @@ public class RedisSyncQueueService : ISyncQueueService
     private readonly IDatabase _database;
     private readonly SyncQueueOptions _options;
     private readonly ILogger<RedisSyncQueueService> _logger;
+    private readonly TimeProvider _timeProvider;
     private readonly Dictionary<string, DateTime> _lastDelayedProcessTime = new();
 
     // Lua script for atomic RPOP + ZADD operation
@@ -53,11 +55,13 @@ public class RedisSyncQueueService : ISyncQueueService
     public RedisSyncQueueService(
         IConnectionMultiplexer redis,
         IOptions<SyncQueueOptions> options,
-        ILogger<RedisSyncQueueService> logger)
+        ILogger<RedisSyncQueueService> logger,
+        TimeProvider timeProvider)
     {
         _database = redis.GetDatabase(options.Value.Redis.Database);
         _options = options.Value;
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     public async Task EnqueueAsync<T>(string service, SyncTask<T> task)
@@ -79,7 +83,7 @@ public class RedisSyncQueueService : ISyncQueueService
         await ProcessDelayedTasksWithRateLimit(service);
 
         // Calculate lease expiry timestamp
-        var leaseExpiry = DateTimeOffset.UtcNow.Add(_options.Processing.VisibilityTimeout).ToUnixTimeSeconds();
+        var leaseExpiry = _timeProvider.GetUtcNow().Add(_options.Processing.VisibilityTimeout).ToUnixTimeSeconds();
 
         // Atomically RPOP from queue and ZADD to processing using Lua script
         var result = await _database.ScriptEvaluateAsync(
@@ -116,7 +120,7 @@ public class RedisSyncQueueService : ISyncQueueService
     public async Task ScheduleRetryAsync<T>(string service, SyncTask<T> task, TimeSpan delay)
     {
         task.AttemptCount++;
-        task.ScheduledFor = DateTime.UtcNow.Add(delay);
+        task.ScheduledFor = _timeProvider.GetUtcNow().DateTime.Add(delay);
 
         var key = GetQueueKey(service, "delayed");
         var json = JsonSerializer.Serialize(task, JsonSerializerConfig.Default);
@@ -130,7 +134,7 @@ public class RedisSyncQueueService : ISyncQueueService
     public async Task MoveToFailedAsync<T>(string service, SyncTask<T> task, string error)
     {
         task.Metadata["error"] = error;
-        task.Metadata["failedAt"] = DateTime.UtcNow;
+        task.Metadata["failedAt"] = _timeProvider.GetUtcNow().DateTime;
 
         var failedKey = GetQueueKey(service, "failed");
         var json = JsonSerializer.Serialize(task, JsonSerializerConfig.Default);
@@ -145,7 +149,7 @@ public class RedisSyncQueueService : ISyncQueueService
         try
         {
             await _database.HashIncrementAsync(statsKey, "totalFailed");
-            await _database.HashSetAsync(statsKey, "lastFailedAt", DateTime.UtcNow.ToString("O"));
+            await _database.HashSetAsync(statsKey, "lastFailedAt", _timeProvider.GetUtcNow().DateTime.ToString("O"));
         }
         catch (StackExchange.Redis.RedisServerException ex) when (ex.Message.Contains("WRONGTYPE"))
         {
@@ -154,7 +158,7 @@ public class RedisSyncQueueService : ISyncQueueService
             // Delete corrupted key and recreate as hash
             await _database.KeyDeleteAsync(statsKey);
             await _database.HashIncrementAsync(statsKey, "totalFailed");
-            await _database.HashSetAsync(statsKey, "lastFailedAt", DateTime.UtcNow.ToString("O"));
+            await _database.HashSetAsync(statsKey, "lastFailedAt", _timeProvider.GetUtcNow().DateTime.ToString("O"));
 
             _logger.LogInformation("Successfully recreated stats key {StatsKey} as hash", statsKey);
         }
@@ -252,7 +256,7 @@ public class RedisSyncQueueService : ISyncQueueService
     private async Task AddToProcessingWithLeaseAsync<T>(string service, SyncTask<T> task, string json)
     {
         var key = GetQueueKey(service, "processing");
-        var leaseExpiry = DateTimeOffset.UtcNow.Add(_options.Processing.VisibilityTimeout).ToUnixTimeSeconds();
+        var leaseExpiry = _timeProvider.GetUtcNow().Add(_options.Processing.VisibilityTimeout).ToUnixTimeSeconds();
 
         // Add to processing sorted set with lease expiry as score
         await _database.SortedSetAddAsync(key, json, leaseExpiry);
@@ -285,7 +289,7 @@ public class RedisSyncQueueService : ISyncQueueService
             try
             {
                 await _database.HashIncrementAsync(statsKey, "totalProcessed");
-                await _database.HashSetAsync(statsKey, "lastProcessedAt", DateTime.UtcNow.ToString("O"));
+                await _database.HashSetAsync(statsKey, "lastProcessedAt", _timeProvider.GetUtcNow().DateTime.ToString("O"));
             }
             catch (StackExchange.Redis.RedisServerException ex) when (ex.Message.Contains("WRONGTYPE"))
             {
@@ -294,7 +298,7 @@ public class RedisSyncQueueService : ISyncQueueService
                 // Delete corrupted key and recreate as hash
                 await _database.KeyDeleteAsync(statsKey);
                 await _database.HashIncrementAsync(statsKey, "totalProcessed");
-                await _database.HashSetAsync(statsKey, "lastProcessedAt", DateTime.UtcNow.ToString("O"));
+                await _database.HashSetAsync(statsKey, "lastProcessedAt", _timeProvider.GetUtcNow().DateTime.ToString("O"));
 
                 _logger.LogInformation("Successfully recreated stats key {StatsKey} as hash", statsKey);
             }
@@ -308,7 +312,7 @@ public class RedisSyncQueueService : ISyncQueueService
 
     private async Task ProcessDelayedTasksWithRateLimit(string service)
     {
-        var now = DateTime.UtcNow;
+        var now = _timeProvider.GetUtcNow().DateTime;
         var minInterval = TimeSpan.FromSeconds(30); // Rate limit: max once per 30 seconds per service
 
         lock (_lastDelayedProcessTime)
@@ -330,7 +334,7 @@ public class RedisSyncQueueService : ISyncQueueService
     {
         var delayedKey = GetQueueKey(service, "delayed");
         var queueKey = GetQueueKey(service, "queue");
-        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var now = _timeProvider.GetUtcNowUnixTimeSeconds();
         var batchLimit = 100; // Limit batch size to prevent overwhelming Redis
 
         int movedCount;
@@ -372,7 +376,7 @@ public class RedisSyncQueueService : ISyncQueueService
         try
         {
             var processingKey = GetQueueKey(service, "processing");
-            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var now = _timeProvider.GetUtcNowUnixTimeSeconds();
 
             // Get expired tasks (lease expiry < now) with timeout protection
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));

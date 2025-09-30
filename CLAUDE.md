@@ -9,6 +9,15 @@
 - Run single test class: `dotnet test --filter "FullyQualifiedName~NoteServiceTests"`
 - Run single test method: `dotnet test --filter "FullyQualifiedName~NoteServiceTests.Get_WithExistingPublicNote_ReturnsNote"`
 
+### ⚠️ dotnet test Command Format Reminder
+**CORRECT**: `dotnet test tests/ProjectName` or `dotnet test --filter "Pattern"`
+**WRONG**: `dotnet test tests/ProjectName/SpecificFile.cs` (❌ Cannot test individual .cs files)
+
+**Common Patterns**:
+- Single test: `dotnet test --filter "FullyQualifiedName~TestMethodName"`
+- Test class: `dotnet test --filter "FullyQualifiedName~TestClassName"`
+- Multiple runs: Use `for` loops with project-level commands, not file-level
+
 ### Integration Tests Setup
 - **Redis integration tests** require a Redis instance for sync queue functionality
 - Set `REDIS_CONNECTION_STRING` environment variable (defaults to `localhost:6379`)
