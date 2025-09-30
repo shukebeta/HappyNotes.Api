@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Api.Framework.Extensions;
 using HappyNotes.Common;
 using HappyNotes.Services.SyncQueue.Configuration;
 using HappyNotes.Services.SyncQueue.Interfaces;
@@ -334,7 +333,7 @@ public class RedisSyncQueueService : ISyncQueueService
     {
         var delayedKey = GetQueueKey(service, "delayed");
         var queueKey = GetQueueKey(service, "queue");
-        var now = _timeProvider.GetUtcNowUnixTimeSeconds();
+        var now = _timeProvider.GetUtcNow().ToUnixTimeSeconds();
         var batchLimit = 100; // Limit batch size to prevent overwhelming Redis
 
         int movedCount;
@@ -376,7 +375,7 @@ public class RedisSyncQueueService : ISyncQueueService
         try
         {
             var processingKey = GetQueueKey(service, "processing");
-            var now = _timeProvider.GetUtcNowUnixTimeSeconds();
+            var now = _timeProvider.GetUtcNow().ToUnixTimeSeconds();
 
             // Get expired tasks (lease expiry < now) with timeout protection
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));

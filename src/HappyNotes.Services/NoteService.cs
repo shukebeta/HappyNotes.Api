@@ -35,7 +35,7 @@ public class NoteService(
 
         var note = mapper.Map<PostNoteRequest, Note>(request);
         note.UserId = userId;
-        var now = timeProvider.GetUtcNowUnixTimeSeconds();
+        var now = timeProvider.GetUtcNow().ToUnixTimeSeconds();
         if (_IsPostingOrImportingOldNote(note, now)) // 5 mins
         {
             note.UpdatedAt = now;
@@ -106,7 +106,7 @@ public class NoteService(
         newNote.MastodonTootIds = existingNote.MastodonTootIds;
         newNote.TelegramMessageIds = existingNote.TelegramMessageIds;
         newNote.CreatedAt = existingNote.CreatedAt;
-        newNote.UpdatedAt = timeProvider.GetUtcNowUnixTimeSeconds();
+        newNote.UpdatedAt = timeProvider.GetUtcNow().ToUnixTimeSeconds();
         newNote.DeletedAt = existingNote.DeletedAt;
 
         if (!_HasNoteChanged(existingNote, newNote, fullContent))
@@ -290,7 +290,7 @@ public class NoteService(
             return true;
         }
 
-        note.DeletedAt = timeProvider.GetUtcNowUnixTimeSeconds();
+        note.DeletedAt = timeProvider.GetUtcNow().ToUnixTimeSeconds();
         foreach (var syncNoteService in syncNoteServices)
         {
             Task.Run(async () => await syncNoteService.SyncDeleteNote(note));

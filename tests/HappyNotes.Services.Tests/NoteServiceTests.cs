@@ -10,6 +10,7 @@ using HappyNotes.Models;
 using HappyNotes.Repositories.interfaces;
 using HappyNotes.Services.interfaces;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using EventId = HappyNotes.Common.Enums.EventId;
 
@@ -25,7 +26,7 @@ public class NoteServiceTests
     private Mock<IRepositoryBase<LongNote>> _mockLongNoteRepository;
     private Mock<IMapper> _mockMapper;
     private Mock<ILogger<NoteService>> _mockLogger;
-    private Mock<TimeProvider> _mockTimeProvider;
+    private FakeTimeProvider _fakeTimeProvider;
     private NoteService _noteService;
 
     [SetUp]
@@ -39,9 +40,7 @@ public class NoteServiceTests
         _mockLongNoteRepository = new Mock<IRepositoryBase<LongNote>>();
         _mockMapper = new Mock<IMapper>();
         _mockLogger = new Mock<ILogger<NoteService>>();
-        _mockTimeProvider = new Mock<TimeProvider>();
-        // Set up TimeProvider with a safe default time to avoid AddMonths overflow issues
-        _mockTimeProvider.Setup(tp => tp.GetUtcNow()).Returns(new DateTimeOffset(2024, 6, 15, 12, 0, 0, TimeSpan.Zero));
+        _fakeTimeProvider = new FakeTimeProvider(new DateTimeOffset(2024, 6, 15, 12, 0, 0, TimeSpan.Zero));
         _mockSyncNoteService.Setup(s => s.SyncNewNote(It.IsAny<Note>(), It.IsAny<string>()))
             .Returns(Task.CompletedTask);
         _mockSyncNoteService.Setup(s => s.SyncEditNote(It.IsAny<Note>(), It.IsAny<string>(), It.IsAny<Note>()))
@@ -59,7 +58,7 @@ public class NoteServiceTests
             _mockLongNoteRepository.Object,
             _mockMapper.Object,
             _mockLogger.Object,
-            _mockTimeProvider.Object
+            _fakeTimeProvider
         );
     }
 
@@ -457,7 +456,7 @@ public class NoteServiceTests
         private Mock<IRepositoryBase<LongNote>> _mockLongNoteRepository;
         private Mock<IMapper> _mockMapper;
         private Mock<ILogger<NoteService>> _mockLogger;
-        private Mock<TimeProvider> _mockTimeProvider;
+        private FakeTimeProvider _fakeTimeProvider;
         private NoteService _noteService;
 
         [SetUp]
@@ -471,9 +470,7 @@ public class NoteServiceTests
             _mockLongNoteRepository = new Mock<IRepositoryBase<LongNote>>();
             _mockMapper = new Mock<IMapper>();
             _mockLogger = new Mock<ILogger<NoteService>>();
-            _mockTimeProvider = new Mock<TimeProvider>();
-            // Set up TimeProvider with a safe default time to avoid AddMonths overflow issues
-            _mockTimeProvider.Setup(tp => tp.GetUtcNow()).Returns(new DateTimeOffset(2024, 6, 15, 12, 0, 0, TimeSpan.Zero));
+            _fakeTimeProvider = new FakeTimeProvider(new DateTimeOffset(2024, 6, 15, 12, 0, 0, TimeSpan.Zero));
             _mockSyncNoteService.Setup(s => s.SyncNewNote(It.IsAny<Note>(), It.IsAny<string>()))
                 .Returns(Task.CompletedTask);
             _mockSyncNoteService.Setup(s => s.SyncEditNote(It.IsAny<Note>(), It.IsAny<string>(), It.IsAny<Note>()))
@@ -491,7 +488,7 @@ public class NoteServiceTests
                 _mockLongNoteRepository.Object,
                 _mockMapper.Object,
                 _mockLogger.Object,
-                _mockTimeProvider.Object
+                _fakeTimeProvider
             );
         }
         [Test]
@@ -503,8 +500,8 @@ public class NoteServiceTests
             var startDate = fixedToday.AddMonths(-2);
             var startTimestamp = startDate.ToUnixTimeSeconds();
 
-            // Setup mock TimeProvider for this test to return consistent dates
-            _mockTimeProvider.Setup(tp => tp.GetUtcNow()).Returns(fixedToday);
+            // Set time for this test
+            _fakeTimeProvider.SetUtcNow(fixedToday);
 
             // Act
             var result = _noteService._GetTimestamps(startTimestamp, timeZone);
@@ -531,8 +528,8 @@ public class NoteServiceTests
                 12, 0, 0, TimeSpan.Zero);
             var startTimestamp = startDate.ToUnixTimeSeconds();
 
-            // Setup mock TimeProvider for this test to return consistent dates
-            _mockTimeProvider.Setup(tp => tp.GetUtcNow()).Returns(fixedToday);
+            // Set time for this test
+            _fakeTimeProvider.SetUtcNow(fixedToday);
 
             // Act
             var result = _noteService._GetTimestamps(startTimestamp, timeZone);
@@ -559,8 +556,8 @@ public class NoteServiceTests
             var fixedToday = new DateTimeOffset(2024, 6, 15, 12, 0, 0, TimeSpan.Zero);
             var startTimestamp = fixedToday.AddMonths(-6).ToUnixTimeSeconds();
 
-            // Setup mock TimeProvider for this test to return consistent dates
-            _mockTimeProvider.Setup(tp => tp.GetUtcNow()).Returns(fixedToday);
+            // Set time for this test
+            _fakeTimeProvider.SetUtcNow(fixedToday);
 
             foreach (var timeZone in timeZones)
             {
@@ -582,8 +579,8 @@ public class NoteServiceTests
             var fixedToday = new DateTimeOffset(2024, 6, 15, 12, 0, 0, TimeSpan.Zero);
             var startTimestamp = fixedToday.ToUnixTimeSeconds();
 
-            // Setup mock TimeProvider for this test to return consistent dates
-            _mockTimeProvider.Setup(tp => tp.GetUtcNow()).Returns(fixedToday);
+            // Set time for this test
+            _fakeTimeProvider.SetUtcNow(fixedToday);
 
             // Act
             var result = _noteService._GetTimestamps(startTimestamp, timeZone);
@@ -601,8 +598,8 @@ public class NoteServiceTests
             var fixedToday = new DateTimeOffset(2024, 6, 15, 12, 0, 0, TimeSpan.Zero);
             var futureStartTimestamp = fixedToday.AddYears(1).ToUnixTimeSeconds();
 
-            // Setup mock TimeProvider for this test to return consistent dates
-            _mockTimeProvider.Setup(tp => tp.GetUtcNow()).Returns(fixedToday);
+            // Set time for this test
+            _fakeTimeProvider.SetUtcNow(fixedToday);
 
             // Act
             var result = _noteService._GetTimestamps(futureStartTimestamp, timeZone);
@@ -637,12 +634,12 @@ public class NoteServiceTests
         {
             // Arrange - Use fixed dates to eliminate time-based race conditions
             var timeZone = "America/New_York";
-            var fixedToday = new DateTimeOffset(2024, 3, 15, 10, 30, 0, TimeSpan.Zero); // Fixed "today"
+            var fixedToday = new DateTimeOffset(2024, 7, 15, 10, 30, 0, TimeSpan.Zero); // Fixed "today" (after default)
             var startDate = fixedToday.AddYears(-5); // Start date 5 years ago
             var startTimestamp = startDate.ToUnixTimeSeconds();
 
-            // Setup mock TimeProvider to return fixed time
-            _mockTimeProvider.Setup(tp => tp.GetUtcNow()).Returns(fixedToday);
+            // Set time for this test (must be after the default time)
+            _fakeTimeProvider.SetUtcNow(fixedToday);
 
             // Act
             var result = _noteService._GetTimestamps(startTimestamp, timeZone);
@@ -652,7 +649,7 @@ public class NoteServiceTests
             Assert.That(result.Length, Is.GreaterThan(0));
 
             // The method should return timestamps for "today's" month/day in previous years
-            var currentMonth = fixedToday.Month; // March
+            var currentMonth = fixedToday.Month; // July
             var currentDay = fixedToday.Day; // 15th
 
             // Find timestamps that match today's month/day from previous years
@@ -663,7 +660,7 @@ public class NoteServiceTests
                 return date.Month == currentMonth && date.Day == currentDay && date.Year < fixedToday.Year;
             }).ToList();
 
-            // Should have at least one anniversary (March 15th in years 2019-2023)
+            // Should have at least one anniversary (July 15th in years 2019-2023)
             Assert.That(anniversaryTimestamps.Count, Is.GreaterThanOrEqualTo(1),
                 "Should contain anniversary dates for same month/day in previous years");
 
@@ -867,8 +864,8 @@ public class NoteServiceTests
             var recentStartDate = fixedToday.AddMonths(-2); // Only 2 months of history
             var startTimestamp = recentStartDate.ToUnixTimeSeconds();
 
-            // Setup mock TimeProvider for this test to return consistent dates
-            _mockTimeProvider.Setup(tp => tp.GetUtcNow()).Returns(fixedToday);
+            // Set time for this test
+            _fakeTimeProvider.SetUtcNow(fixedToday);
 
             // Act
             var result = _noteService._GetTimestamps(startTimestamp, timeZone);
