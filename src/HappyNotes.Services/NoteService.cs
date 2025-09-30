@@ -65,7 +65,20 @@ public class NoteService(
         // Sync to all targets asynchronously
         foreach (var syncNoteService in syncNoteServices)
         {
-            Task.Run(async () => await syncNoteService.SyncNewNote(note, fullContent));
+#pragma warning disable CS4014 // Fire-and-forget task execution is intentional
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await syncNoteService.SyncNewNote(note, fullContent);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to sync new note to service {ServiceType}, note ID: {NoteId}", 
+                        syncNoteService.GetType().Name, note.Id);
+                }
+            });
+#pragma warning restore CS4014
         }
         return note.Id;
     }
@@ -125,7 +138,20 @@ public class NoteService(
 
         foreach (var syncNoteService in syncNoteServices)
         {
-            Task.Run(async () => await syncNoteService.SyncEditNote(newNote, fullContent, existingNote));
+#pragma warning disable CS4014 // Fire-and-forget task execution is intentional
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await syncNoteService.SyncEditNote(newNote, fullContent, existingNote);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to sync edit note to service {ServiceType}, note ID: {NoteId}", 
+                        syncNoteService.GetType().Name, newNote.Id);
+                }
+            });
+#pragma warning restore CS4014
         }
         return await noteRepository.UpdateAsync(newNote);
     }
@@ -293,7 +319,20 @@ public class NoteService(
         note.DeletedAt = timeProvider.GetUtcNow().ToUnixTimeSeconds();
         foreach (var syncNoteService in syncNoteServices)
         {
-            Task.Run(async () => await syncNoteService.SyncDeleteNote(note));
+#pragma warning disable CS4014 // Fire-and-forget task execution is intentional
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await syncNoteService.SyncDeleteNote(note);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to sync delete note to service {ServiceType}, note ID: {NoteId}", 
+                        syncNoteService.GetType().Name, note.Id);
+                }
+            });
+#pragma warning restore CS4014
         }
         return await noteRepository.UpdateAsync(note);
     }
@@ -329,7 +368,20 @@ public class NoteService(
         {
             foreach (var syncNoteService in syncNoteServices)
             {
-                Task.Run(async () => await syncNoteService.SyncUndeleteNote(undeletedNote));
+#pragma warning disable CS4014 // Fire-and-forget task execution is intentional
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await syncNoteService.SyncUndeleteNote(undeletedNote);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Failed to sync undelete note to service {ServiceType}, note ID: {NoteId}", 
+                            syncNoteService.GetType().Name, undeletedNote.Id);
+                    }
+                });
+#pragma warning restore CS4014
             }
         }
 
@@ -369,7 +421,7 @@ public class NoteService(
 
         // Add periodic milestones (6 months, 3 months, 1 month ago)
         // Only include if the target month actually has the same day
-        var periodicOffsets = new[] { -6, -3, -1 };
+        int[] periodicOffsets = [-6, -3, -1,];
         foreach (var monthsOffset in periodicOffsets)
         {
             if (_TryGetExactMonthOffset(today, monthsOffset, out var targetDate) &&
