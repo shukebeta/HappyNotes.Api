@@ -15,7 +15,7 @@ public static class CustomExceptionHelper
     public static CustomException<TData> New<TData>(TData data, string errorMessage, params object[] extraObjects)
     {
         var message = string.Format(errorMessage, extraObjects);
-        return new CustomException<TData>
+        return new CustomException<TData>(message)
         {
             CustomData = ResultHelper.New(data, FrameworkConstants.DefaultErrorCode, message)
         };
@@ -33,7 +33,7 @@ public static class CustomExceptionHelper
     public static CustomException<TData> New<TData>(TData data, int errorCode, string errorMessage, params object[] extraObjects)
     {
         var message = string.Format(errorMessage, extraObjects);
-        return new CustomException<TData>
+        return new CustomException<TData>(message)
         {
             CustomData = ResultHelper.New(data, errorCode, message)
         };
