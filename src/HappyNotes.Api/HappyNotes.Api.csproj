@@ -28,7 +28,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Api.Framework\Api.Framework.csproj" />
+    <PackageReference Include="Shukebeta.Api.Framework" Version="1.0.0" />
     <ProjectReference Include="..\HappyNotes.Common\HappyNotes.Common.csproj" />
     <ProjectReference Include="..\HappyNotes.Dto\HappyNotes.Dto.csproj" />
     <ProjectReference Include="..\HappyNotes.Entities\HappyNotes.Entities.csproj" />
