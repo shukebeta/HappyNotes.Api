@@ -24,6 +24,8 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
 
         try
         {
+            // Remove note links (@123) from beginning and end before sending to Mastodon
+            text = text.RemoveNoteLinks();
             var fullText = _GetFullText(text, isMarkdown);
             if (fullText.Length > Constants.MastodonTootLength)
             {
@@ -66,6 +68,7 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
         logger.LogDebug("Converting long text to image for {InstanceUrl}, textLength: {TextLength}",
             instanceUrl, longText.Length);
 
+        // Note: longText has already been sanitized by RemoveNoteLinks() in the caller
         var client = new MastodonClient(instanceUrl, accessToken);
         var filePath = Path.GetTempFileName();
 
@@ -113,6 +116,8 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
 
         try
         {
+            // Remove note links (@123) from beginning and end before editing on Mastodon
+            newText = newText.RemoveNoteLinks();
             var fullText = _GetFullText(newText, isMarkdown);
             if (fullText.Length > Constants.MastodonTootLength)
             {
@@ -226,6 +231,7 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
         logger.LogDebug("Editing long toot as photo for {InstanceUrl}, tootId: {TootId}, textLength: {TextLength}",
             instanceUrl, tootId, longText.Length);
 
+        // Note: longText has already been sanitized by RemoveNoteLinks() in the caller
         try
         {
             var client = new MastodonClient(instanceUrl, accessToken);

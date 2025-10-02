@@ -11,6 +11,8 @@ public static partial class StringExtensions
     private static readonly Regex NoteId = _NoteId();
     private static readonly Regex ImagePattern = _ImagePattern();
     private static readonly Regex ImagesSuffixPattern = _ImagesSuffixPattern();
+    private static readonly Regex LeadingNoteLinks = _LeadingNoteLinks();
+    private static readonly Regex TrailingNoteLinks = _TrailingNoteLinks();
     private static readonly Converter MarkdownConverter = new();
 
     /// <summary>
@@ -30,6 +32,12 @@ public static partial class StringExtensions
 
     [GeneratedRegex(@"(?<=(?:^|[^\\]))@[1-9][0-9]{0,31}(?=[^\d]|$)", RegexOptions.Singleline)]
     private static partial Regex _NoteId();
+
+    [GeneratedRegex(@"^(?:@[1-9][0-9]{0,31}\s*)+", RegexOptions.Singleline)]
+    private static partial Regex _LeadingNoteLinks();
+
+    [GeneratedRegex(@"\s*(?:@[1-9][0-9]{0,31}\s*)+$", RegexOptions.Singleline)]
+    private static partial Regex _TrailingNoteLinks();
 
     public static bool IsLong(this string? str)
     {
@@ -130,6 +138,19 @@ public static partial class StringExtensions
             markdownInput = markdownInput.Replace(match.Value, " ").Trim();
         }
         return markdownInput;
+    }
+
+    public static string RemoveNoteLinks(this string? text)
+    {
+        if (text is null) return string.Empty;
+
+        // Remove leading note links (@123 @456 at the start)
+        text = LeadingNoteLinks.Replace(text, string.Empty);
+
+        // Remove trailing note links (@123 @456 at the end)
+        text = TrailingNoteLinks.Replace(text, string.Empty);
+
+        return text.Trim();
     }
 
     [GeneratedRegex(@"!\[(.*?)\]\((.*?)\)", RegexOptions.Compiled)]

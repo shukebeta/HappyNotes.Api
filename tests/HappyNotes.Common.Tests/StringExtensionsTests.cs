@@ -133,4 +133,28 @@ public class StringExtensionsTests
         Assert.That(result, Is.EqualTo(expected));
     }
 
+    [TestCase("@123 This is content", "This is content")]
+    [TestCase("@123 @456 This is content", "This is content")]
+    [TestCase("This is content @123", "This is content")]
+    [TestCase("This is content @123 @456", "This is content")]
+    [TestCase("@123 This is content @456", "This is content")]
+    [TestCase("@123 @456 This is content @789", "This is content")]
+    [TestCase("This is content", "This is content")]
+    [TestCase("@123", "")]
+    [TestCase("@123 @456 @789", "")]
+    [TestCase(null, "")]
+    [TestCase("", "")]
+    [TestCase("This @123 is content", "This @123 is content")]
+    [TestCase(@"\@123 This is content", @"\@123 This is content")]
+    [TestCase("@123\nThis is content", "This is content")]
+    [TestCase("This is content\n@123", "This is content")]
+    public void RemoveNoteLinksTest(string input, string expected)
+    {
+        // Act
+        var result = input.RemoveNoteLinks();
+
+        // Assert
+        Assert.That(result, Is.EqualTo(expected));
+    }
+
 }

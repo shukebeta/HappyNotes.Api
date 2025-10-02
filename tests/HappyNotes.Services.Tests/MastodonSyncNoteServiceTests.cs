@@ -95,4 +95,49 @@ public class MastodonSyncNoteServiceTests
             _mockSyncQueueService.Verify(s => s.EnqueueAsync(It.IsAny<string>(), It.IsAny<SyncTask<object>>()), Times.Never);
         }
     }
+
+    [TestCase("@123 This is content", "This is content")]
+    [TestCase("@123 @456 This is content", "This is content")]
+    [TestCase("This is content @123", "This is content")]
+    [TestCase("@123 This is content @456", "This is content")]
+    [TestCase("This @123 is content", "This @123 is content")]
+    public async Task SyncNewNote_WithNoteLinks_ShouldEnqueueWithOriginalContent(string fullContent, string expectedCleanContent)
+    {
+        // Arrange
+        var note = new Note
+        {
+            Id = 100,
+            UserId = 1,
+            IsPrivate = false,
+            TagList = []
+        };
+
+        var mastodonUserAccounts = new List<MastodonUserAccount>
+        {
+            new()
+            {
+                Id = 1,
+                UserId = 1,
+                AccessToken = TextEncryptionHelper.Encrypt("test token", "test_key"),
+                InstanceUrl = "https://mastodon.instance",
+                SyncType = MastodonSyncType.All
+            }
+        };
+
+        _mockMastodonUserAccountCacheService
+            .Setup(s => s.GetAsync(note.UserId))
+            .ReturnsAsync(mastodonUserAccounts);
+
+        // Act
+        await _mastodonSyncNoteService.SyncNewNote(note, fullContent);
+
+        // Assert - The original content should be enqueued (cleaning happens in MastodonTootService)
+        _mockSyncQueueService.Verify(s => s.EnqueueAsync("mastodon",
+            It.Is<SyncTask<MastodonSyncPayload>>(task =>
+                task.Action == "CREATE" &&
+                task.EntityId == note.Id &&
+                task.UserId == note.UserId &&
+                ((MastodonSyncPayload)task.Payload).FullContent == fullContent)),
+            Times.Once);
+    }
 }
