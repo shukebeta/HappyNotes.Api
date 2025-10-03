@@ -50,8 +50,15 @@ public class NoteRepository(ISqlSugarClient dbClient) : RepositoryBase<Note>(dbC
             n => n.CreatedAt, isAsc);
     }
 
-    public async Task<PageData<Note>> GetPublicNotes(int pageSize, int pageNumber, bool isAsc = false)
+    public async Task<PageData<Note>> GetPublicNotes(int pageSize, int pageNumber, bool isAsc = false, long? excludeUserId = null)
     {
+        if (excludeUserId.HasValue)
+        {
+            return await _GetPageDataAsync(pageSize, pageNumber,
+                n => n.DeletedAt == null && n.IsPrivate == false && n.UserId != excludeUserId.Value,
+                n => n.CreatedAt, isAsc);
+        }
+
         return await _GetPageDataAsync(pageSize, pageNumber,
             n => n.DeletedAt == null && n.IsPrivate == false,
             n => n.CreatedAt, isAsc);

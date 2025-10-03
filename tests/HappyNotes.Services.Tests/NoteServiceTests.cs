@@ -298,7 +298,7 @@ public class NoteServiceTests
             TotalCount = 1
         };
 
-        _mockNoteRepository.Setup(r => r.GetPublicNotes(pageSize, pageNumber, false))
+        _mockNoteRepository.Setup(r => r.GetPublicNotes(pageSize, pageNumber, false, It.IsAny<long?>()))
             .ReturnsAsync(expectedNotes);
 
         // Act

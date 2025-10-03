@@ -161,4 +161,28 @@ public static partial class StringExtensions
 
     [GeneratedRegex(@"<\s*(?!https?)([a-zA-Z]+)[^>]*>.*</\s*\1\s*>|<\s*(?!https?)([a-zA-Z]+)[^>]*/>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex HtmlTagPattern();
+
+    /// <summary>
+    /// Normalizes various newline formats to Unix-style LF (\n).
+    /// Handles Windows (CRLF), Unix (LF), old Mac (CR), and Unicode line separators.
+    /// </summary>
+    public static string NormalizeNewlines(this string? input)
+    {
+        if (string.IsNullOrEmpty(input))
+            return input ?? string.Empty;
+
+        // First, convert Windows CRLF (\r\n) to Unix LF (\n)
+        string result = input.Replace("\r\n", "\n");
+
+        // Then, convert any remaining CR (\r) to LF (\n) - handles old Mac format
+        result = result.Replace("\r", "\n");
+
+        // Replace Unicode Line Separator (U+2028) with a single newline (\n)
+        result = result.Replace("\u2028", "\n");
+
+        // Replace Unicode Paragraph Separator (U+2029) with a double newline (\n\n)
+        result = result.Replace("\u2029", "\n\n");
+
+        return result;
+    }
 }

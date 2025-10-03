@@ -157,4 +157,24 @@ public class StringExtensionsTests
         Assert.That(result, Is.EqualTo(expected));
     }
 
+
+    [TestCase(null, "")]
+    [TestCase("", "")]
+    [TestCase("Hello\nWorld", "Hello\nWorld")]  // Unix LF - unchanged
+    [TestCase("Hello\r\nWorld", "Hello\nWorld")]  // Windows CRLF → LF
+    [TestCase("Hello\rWorld", "Hello\nWorld")]  // Old Mac CR → LF
+    [TestCase("Hello\u2028World", "Hello\nWorld")]  // Unicode Line Separator → LF
+    [TestCase("Hello\u2029World", "Hello\n\nWorld")]  // Unicode Paragraph Separator → LF LF
+    [TestCase("Line1\r\nLine2\rLine3\nLine4", "Line1\nLine2\nLine3\nLine4")]  // Mixed formats
+    [TestCase("A\r\n\r\nB", "A\n\nB")]  // Multiple Windows line breaks
+    [TestCase("A\r\rB", "A\n\nB")]  // Multiple old Mac line breaks
+    [TestCase("Mixed\r\n\rformats\u2028here", "Mixed\n\nformats\nhere")]  // All types mixed
+    public void NormalizeNewlinesTest(string input, string expected)
+    {
+        // Act
+        var result = input.NormalizeNewlines();
+
+        // Assert
+        Assert.That(result, Is.EqualTo(expected));
+    }
 }

@@ -29,7 +29,9 @@ public class NotesController(IMapper mapper
     [EnforcePageSizeLimit(Constants.MaxPageSize)]
     public async Task<ApiResult<PageData<NoteDto>>> Latest(int pageSize, int pageNumber)
     {
-        var notes = await noteService.GetPublicNotes(pageSize, pageNumber);
+        // If the caller is authenticated currentUser.Id will be > 0; exclude their own notes to avoid showing them
+        long? excludeUserId = currentUser?.Id > 0 ? currentUser.Id : null;
+        var notes = await noteService.GetPublicNotes(pageSize, pageNumber, excludeUserId);
         return new SuccessfulResult<PageData<NoteDto>>(mapper.Map<PageData<NoteDto>>(notes));
     }
 

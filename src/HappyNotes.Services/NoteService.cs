@@ -27,7 +27,7 @@ public class NoteService(
 {
     public async Task<long> Post(long userId, PostNoteRequest request)
     {
-        var fullContent = request.Content?.Trim() ?? string.Empty;
+        var fullContent = request.Content?.NormalizeNewlines().Trim() ?? string.Empty;
         if (string.IsNullOrEmpty(request.Content))
         {
             throw new ArgumentException("Nothing was submitted");
@@ -74,7 +74,7 @@ public class NoteService(
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "Failed to sync new note to service {ServiceType}, note ID: {NoteId}", 
+                    logger.LogError(ex, "Failed to sync new note to service {ServiceType}, note ID: {NoteId}",
                         syncNoteService.GetType().Name, note.Id);
                 }
             });
@@ -97,7 +97,7 @@ public class NoteService(
         }
 
         var newNote = mapper.Map<PostNoteRequest, Note>(request);
-        var fullContent = request.Content ?? string.Empty;
+        var fullContent = (request.Content ?? string.Empty).NormalizeNewlines();
 
         // the following is a hack for user shukebeta only
         if (existingNote.UserId == 1 && fullContent.IsHtml())
@@ -147,7 +147,7 @@ public class NoteService(
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "Failed to sync edit note to service {ServiceType}, note ID: {NoteId}", 
+                    logger.LogError(ex, "Failed to sync edit note to service {ServiceType}, note ID: {NoteId}",
                         syncNoteService.GetType().Name, newNote.Id);
                 }
             });
@@ -174,7 +174,7 @@ public class NoteService(
         return await noteRepository.GetUserNotes(userId, pageSize, pageNumber, includePrivate);
     }
 
-    public async Task<PageData<Note>> GetPublicNotes(int pageSize, int pageNumber)
+    public async Task<PageData<Note>> GetPublicNotes(int pageSize, int pageNumber, long? excludeUserId = null)
     {
         if (pageNumber > Constants.PublicNotesMaxPage)
         {
@@ -182,7 +182,7 @@ public class NoteService(
                 $"We only provide at most {Constants.PublicNotesMaxPage} page of public notes at the moment");
         }
 
-        var notes = await noteRepository.GetPublicNotes(pageSize, pageNumber);
+        var notes = await noteRepository.GetPublicNotes(pageSize, pageNumber, false, excludeUserId);
         if (notes.TotalCount > Constants.PublicNotesMaxPage * pageSize)
         {
             notes.TotalCount = Constants.PublicNotesMaxPage * pageSize;
@@ -328,7 +328,7 @@ public class NoteService(
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "Failed to sync delete note to service {ServiceType}, note ID: {NoteId}", 
+                    logger.LogError(ex, "Failed to sync delete note to service {ServiceType}, note ID: {NoteId}",
                         syncNoteService.GetType().Name, note.Id);
                 }
             });
@@ -377,7 +377,7 @@ public class NoteService(
                     }
                     catch (Exception ex)
                     {
-                        logger.LogError(ex, "Failed to sync undelete note to service {ServiceType}, note ID: {NoteId}", 
+                        logger.LogError(ex, "Failed to sync undelete note to service {ServiceType}, note ID: {NoteId}",
                             syncNoteService.GetType().Name, undeletedNote.Id);
                     }
                 });
