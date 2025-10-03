@@ -27,7 +27,7 @@ public class NoteService(
 {
     public async Task<long> Post(long userId, PostNoteRequest request)
     {
-        var fullContent = request.Content?.NormalizeNewlines().Trim() ?? string.Empty;
+        var fullContent = request.Content?.Trim() ?? string.Empty;
         if (string.IsNullOrEmpty(request.Content))
         {
             throw new ArgumentException("Nothing was submitted");
@@ -97,7 +97,9 @@ public class NoteService(
         }
 
         var newNote = mapper.Map<PostNoteRequest, Note>(request);
-        var fullContent = (request.Content ?? string.Empty).NormalizeNewlines();
+        // Note: Unlike Post(), we intentionally do NOT trim here to allow users to 
+        // add leading/trailing whitespace through edits (e.g., blank lines before/after content)
+        var fullContent = request.Content ?? string.Empty;
 
         // the following is a hack for user shukebeta only
         if (existingNote.UserId == 1 && fullContent.IsHtml())

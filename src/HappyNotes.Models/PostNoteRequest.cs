@@ -1,8 +1,16 @@
+using HappyNotes.Common;
+
 namespace HappyNotes.Models;
 
 public class PostNoteRequest
 {
-    public string? Content { get; set; }
+    private string? _content;
+
+    public string? Content
+    {
+        get => _content;
+        set => _content = value?.NormalizeNewlines();
+    }
     public bool IsPrivate { get; set; } = true;
     public bool IsMarkdown { get; set; }
 
