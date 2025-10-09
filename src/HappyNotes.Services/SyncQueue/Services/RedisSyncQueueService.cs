@@ -346,6 +346,11 @@ public class RedisSyncQueueService : ISyncQueueService
                 new RedisValue[] { now, batchLimit }
             );
         }
+        catch (RedisTimeoutException ex)
+        {
+            _logger.LogWarning(ex, "Redis timeout during delayed tasks processing for service {Service} - skipping this cycle", service);
+            return; // Skip this cycle, will retry on next dequeue attempt
+        }
         catch (StackExchange.Redis.RedisServerException ex) when (ex.Message.Contains("WRONGTYPE"))
         {
             _logger.LogWarning("Delayed queue {DelayedKey} has wrong type, recreating as sorted set", delayedKey);

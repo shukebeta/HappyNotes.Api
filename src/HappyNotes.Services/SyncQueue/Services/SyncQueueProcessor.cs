@@ -77,71 +77,88 @@ public class SyncQueueProcessor : BackgroundService
         _logger.LogInformation("Started processing queue for service: {ServiceName}", serviceName);
 
         using var semaphore = new SemaphoreSlim(_options.Processing.MaxConcurrentTasks);
+        var exitReason = "normal";
 
-        while (!cancellationToken.IsCancellationRequested)
+        try
         {
-            try
+            while (!cancellationToken.IsCancellationRequested)
             {
-                await semaphore.WaitAsync(cancellationToken);
-
-                var task = await _queueService.DequeueAsync<object>(serviceName, cancellationToken);
-
-                if (task == null)
+                try
                 {
-                    semaphore.Release();
-                    await Task.Delay(_options.Processing.PollingInterval, cancellationToken);
-                    continue;
-                }
+                    await semaphore.WaitAsync(cancellationToken);
 
-                // Process task in background with fresh scope per task
-                _ = Task.Run(async () =>
-                {
-                    using var taskScope = _serviceProvider.CreateScope();
-                    try
-                    {
-                        // Resolve handler fresh for each task (with clean scoped dependencies)
-                        var handler = taskScope.ServiceProvider.GetServices<ISyncHandler>()
-                            .FirstOrDefault(h => h.ServiceName == serviceName);
+                    var task = await _queueService.DequeueAsync<object>(serviceName, cancellationToken);
 
-                        if (handler == null)
-                        {
-                            _logger.LogError("No handler found for service {ServiceName}", serviceName);
-                            return;
-                        }
-
-                        var syncTask = new SyncTask
-                        {
-                            Id = task.Id,
-                            Service = task.Service,
-                            Action = task.Action,
-                            EntityId = task.EntityId,
-                            UserId = task.UserId,
-                            Payload = task.Payload,
-                            AttemptCount = task.AttemptCount,
-                            CreatedAt = task.CreatedAt,
-                            ScheduledFor = task.ScheduledFor,
-                            Metadata = task.Metadata
-                        };
-                        await ProcessTask(handler, syncTask, cancellationToken);
-                    }
-                    finally
+                    if (task == null)
                     {
                         semaphore.Release();
+                        await Task.Delay(_options.Processing.PollingInterval, cancellationToken);
+                        continue;
                     }
-                }, cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error in queue processing loop for service {ServiceName}", serviceName);
-                await Task.Delay(TimeSpan.FromSeconds(10), cancellationToken);
+
+                    // Process task in background with fresh scope per task
+                    _ = Task.Run(async () =>
+                    {
+                        using var taskScope = _serviceProvider.CreateScope();
+                        try
+                        {
+                            // Resolve handler fresh for each task (with clean scoped dependencies)
+                            var handler = taskScope.ServiceProvider.GetServices<ISyncHandler>()
+                                .FirstOrDefault(h => h.ServiceName == serviceName);
+
+                            if (handler == null)
+                            {
+                                _logger.LogError("No handler found for service {ServiceName}", serviceName);
+                                return;
+                            }
+
+                            var syncTask = new SyncTask
+                            {
+                                Id = task.Id,
+                                Service = task.Service,
+                                Action = task.Action,
+                                EntityId = task.EntityId,
+                                UserId = task.UserId,
+                                Payload = task.Payload,
+                                AttemptCount = task.AttemptCount,
+                                CreatedAt = task.CreatedAt,
+                                ScheduledFor = task.ScheduledFor,
+                                Metadata = task.Metadata
+                            };
+                            await ProcessTask(handler, syncTask, cancellationToken);
+                        }
+                        finally
+                        {
+                            semaphore.Release();
+                        }
+                    }, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    exitReason = "cancelled";
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    semaphore.Release(); // Release semaphore to prevent deadlock
+                    _logger.LogError(ex, "Error in queue processing loop for service {ServiceName}", serviceName);
+                    await Task.Delay(TimeSpan.FromSeconds(10), cancellationToken);
+                }
             }
         }
-
-        _logger.LogInformation("Stopped processing queue for service: {ServiceName}", serviceName);
+        finally
+        {
+            if (exitReason == "cancelled")
+            {
+                _logger.LogWarning("Processing queue for service {ServiceName} was cancelled at {StopTime}",
+                    serviceName, DateTime.UtcNow);
+            }
+            else
+            {
+                _logger.LogInformation("Processing queue for service {ServiceName} stopped normally at {StopTime}",
+                    serviceName, DateTime.UtcNow);
+            }
+        }
     }
 
     private async Task ProcessTask(ISyncHandler handler, SyncTask task, CancellationToken cancellationToken)
