@@ -17,19 +17,21 @@ public class TelegramService : ITelegramService
         _httpClientFactory = httpClientFactory;
     }
 
-    public async Task<Message> SendMessageAsync(string botToken, string channelId, string message, bool isMarkdown)
+    public async Task<Message> SendMessageAsync(string botToken, string channelId, string message, bool isMarkdown,
+        CancellationToken cancellationToken = default)
     {
         var httpClient = _httpClientFactory.CreateClient("TelegramBotClient");
         var botClient = new TelegramBotClient(botToken, httpClient);
         return await botClient.SendTextMessageAsync(
             chatId: _GetChatId(channelId),
             text: message,
-            isMarkdown ? ParseMode.Markdown : null
+            parseMode: isMarkdown ? ParseMode.Markdown : null,
+            cancellationToken: cancellationToken
         );
     }
 
     public async Task<Message> SendLongMessageAsFileAsync(string botToken, string channelId, string message,
-        string extension = ".txt")
+        string extension = ".txt", CancellationToken cancellationToken = default)
     {
         // Create a temporary file in the system's temporary folder
         string tempFilePath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + extension);
@@ -37,11 +39,11 @@ public class TelegramService : ITelegramService
         try
         {
             // Write the message to the temporary file
-            await File.WriteAllTextAsync(tempFilePath, message);
+            await File.WriteAllTextAsync(tempFilePath, message, cancellationToken);
 
             // Send the file via Telegram
             var httpClient = _httpClientFactory.CreateClient("TelegramBotClient");
-            return await _SendFileAsync(botToken, channelId, tempFilePath, message, httpClient);
+            return await _SendFileAsync(botToken, channelId, tempFilePath, message, httpClient, cancellationToken);
         }
         finally
         {
@@ -54,7 +56,7 @@ public class TelegramService : ITelegramService
     }
 
     public async Task<Message> EditMessageAsync(string botToken, string chatId, int messageId, string newText,
-        bool isMarkdown)
+        bool isMarkdown, CancellationToken cancellationToken = default)
     {
         var httpClient = _httpClientFactory.CreateClient("TelegramBotClient");
         var botClient = new TelegramBotClient(botToken, httpClient);
@@ -63,24 +65,27 @@ public class TelegramService : ITelegramService
             chatId: _GetChatId(chatId),
             messageId: messageId,
             text: newText,
-            parseMode: isMarkdown ? ParseMode.Markdown : null
+            parseMode: isMarkdown ? ParseMode.Markdown : null,
+            cancellationToken: cancellationToken
         );
     }
 
-    public async Task DeleteMessageAsync(string botToken, string chatId, int messageId)
+    public async Task DeleteMessageAsync(string botToken, string chatId, int messageId,
+        CancellationToken cancellationToken = default)
     {
         var httpClient = _httpClientFactory.CreateClient("TelegramBotClient");
         var botClient = new TelegramBotClient(botToken, httpClient);
 
         await botClient.DeleteMessageAsync(
             chatId: _GetChatId(chatId),
-            messageId: messageId
+            messageId: messageId,
+            cancellationToken: cancellationToken
         );
     }
 
 
     private async Task<Message> _SendFileAsync(string botToken, string channelId, string filePath,
-        string message, HttpClient httpClient)
+        string message, HttpClient httpClient, CancellationToken cancellationToken)
     {
         var botClient = new TelegramBotClient(botToken, httpClient);
         await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
@@ -90,7 +95,8 @@ public class TelegramService : ITelegramService
             chatId: _GetChatId(channelId),
             document: inputOnlineFile,
             caption: _GetTelegramCaption(message),
-            parseMode: isMarkdown ? ParseMode.Markdown : null
+            parseMode: isMarkdown ? ParseMode.Markdown : null,
+            cancellationToken: cancellationToken
         );
     }
 

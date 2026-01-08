@@ -137,15 +137,15 @@ public class TelegramSyncHandler : ISyncHandler
         switch (payload.Action.ToUpperInvariant())
         {
             case "CREATE":
-                await ProcessCreateAction(payload, botToken, task);
+                await ProcessCreateAction(payload, botToken, task, cancellationToken);
                 break;
 
             case "UPDATE":
-                await ProcessUpdateAction(payload, botToken, task);
+                await ProcessUpdateAction(payload, botToken, task, cancellationToken);
                 break;
 
             case "DELETE":
-                await ProcessDeleteAction(payload, botToken, task);
+                await ProcessDeleteAction(payload, botToken, task, cancellationToken);
                 break;
 
             default:
@@ -153,9 +153,30 @@ public class TelegramSyncHandler : ISyncHandler
         }
     }
 
-    private async Task ProcessCreateAction(TelegramSyncPayload payload, string botToken, SyncTask task)
+    private async Task ProcessCreateAction(TelegramSyncPayload payload, string botToken, SyncTask task, CancellationToken cancellationToken)
     {
         _logger.LogDebug("Creating Telegram message in channel {ChannelId}", payload.ChannelId);
+
+        // Race condition handling: Check if this note already has a message in this channel
+        // This can happen when user edits quickly before initial CREATE completes
+        var existingMessageId = await GetExistingMessageIdForChannel(task.EntityId, payload.ChannelId);
+        if (existingMessageId.HasValue)
+        {
+            _logger.LogWarning("Note {NoteId} already has message {MessageId} in channel {ChannelId} - updating existing message instead of creating new one (likely race condition)",
+                task.EntityId, existingMessageId.Value, payload.ChannelId);
+
+            // Try to update existing message instead of delete+create
+            var updatePayload = new TelegramSyncPayload
+            {
+                Action = "UPDATE",
+                FullContent = payload.FullContent,
+                ChannelId = payload.ChannelId,
+                MessageId = existingMessageId.Value,
+                IsMarkdown = payload.IsMarkdown
+            };
+            await ProcessUpdateAction(updatePayload, botToken, task, cancellationToken);
+            return;
+        }
 
         int messageId;
         if (payload.FullContent.Length > 4096) // Telegram's text message limit
@@ -167,7 +188,8 @@ public class TelegramSyncHandler : ISyncHandler
                     botToken,
                     payload.ChannelId,
                     payload.FullContent,
-                    payload.IsMarkdown ? ".md" : ".txt");
+                    payload.IsMarkdown ? ".md" : ".txt",
+                    cancellationToken);
                 messageId = longMessage.MessageId;
 
                 _logger.LogDebug("Successfully created long message file {MessageId} in channel {ChannelId}",
@@ -185,7 +207,8 @@ public class TelegramSyncHandler : ISyncHandler
                         botToken,
                         payload.ChannelId,
                         payload.FullContent,
-                        ".txt");
+                        ".txt",
+                        cancellationToken);
                     messageId = longMessage.MessageId;
 
                     _logger.LogDebug("Successfully created long message file {MessageId} in channel {ChannelId} without Markdown",
@@ -206,7 +229,8 @@ public class TelegramSyncHandler : ISyncHandler
                     botToken,
                     payload.ChannelId,
                     payload.FullContent,
-                    payload.IsMarkdown);
+                    payload.IsMarkdown,
+                    cancellationToken);
                 messageId = message.MessageId;
 
                 _logger.LogDebug("Successfully created message {MessageId} in channel {ChannelId}",
@@ -224,7 +248,8 @@ public class TelegramSyncHandler : ISyncHandler
                         botToken,
                         payload.ChannelId,
                         payload.FullContent,
-                        false);
+                        false,
+                        cancellationToken);
                     messageId = message.MessageId;
 
                     _logger.LogDebug("Successfully created message {MessageId} in channel {ChannelId} without Markdown",
@@ -238,17 +263,20 @@ public class TelegramSyncHandler : ISyncHandler
         }
 
         // Update note with the new message ID
-        await AddMessageIdToNote(task.EntityId, payload.ChannelId, messageId);
+            await AddMessageIdToNote(task.EntityId, payload.ChannelId, messageId);
 
         _logger.LogDebug("Successfully added message {MessageId} to note {NoteId} TelegramMessageIds",
             messageId, task.EntityId);
     }
 
-    private async Task ProcessUpdateAction(TelegramSyncPayload payload, string botToken, SyncTask task)
+    private async Task ProcessUpdateAction(TelegramSyncPayload payload, string botToken, SyncTask task, CancellationToken cancellationToken)
     {
         if (!payload.MessageId.HasValue)
         {
-            throw new ArgumentException("MessageId is required for UPDATE action");
+            _logger.LogWarning("UPDATE action for note {NoteId} in channel {ChannelId} has no MessageId - falling back to CREATE (likely race condition: user edited before initial CREATE was processed)",
+                task.EntityId, payload.ChannelId);
+            await ProcessCreateAction(payload, botToken, task, cancellationToken);
+            return;
         }
 
         _logger.LogDebug("Updating Telegram message {MessageId} in channel {ChannelId}",
@@ -262,10 +290,10 @@ public class TelegramSyncHandler : ISyncHandler
                 payload.FullContent.Length);
 
             // Delete the old message and create a new one
-            await _telegramService.DeleteMessageAsync(botToken, payload.ChannelId, payload.MessageId.Value);
+            await _telegramService.DeleteMessageAsync(botToken, payload.ChannelId, payload.MessageId.Value, cancellationToken);
 
             // Create new message and update note with new messageId
-            await ProcessCreateAction(payload, botToken, task);
+            await ProcessCreateAction(payload, botToken, task, cancellationToken);
         }
         else
         {
@@ -277,7 +305,8 @@ public class TelegramSyncHandler : ISyncHandler
                     payload.ChannelId,
                     payload.MessageId.Value,
                     payload.FullContent,
-                    payload.IsMarkdown);
+                    payload.IsMarkdown,
+                    cancellationToken);
 
                 _logger.LogDebug("Successfully updated message {MessageId} in channel {ChannelId}",
                     payload.MessageId.Value, payload.ChannelId);
@@ -305,7 +334,8 @@ public class TelegramSyncHandler : ISyncHandler
                             payload.ChannelId,
                             payload.MessageId.Value,
                             payload.FullContent,
-                            false);
+                            false,
+                            cancellationToken);
 
                         _logger.LogDebug("Successfully updated message {MessageId} in channel {ChannelId} without Markdown",
                             payload.MessageId.Value, payload.ChannelId);
@@ -330,7 +360,7 @@ public class TelegramSyncHandler : ISyncHandler
         }
     }
 
-    private async Task ProcessDeleteAction(TelegramSyncPayload payload, string botToken, SyncTask task)
+    private async Task ProcessDeleteAction(TelegramSyncPayload payload, string botToken, SyncTask task, CancellationToken cancellationToken)
     {
         if (!payload.MessageId.HasValue)
         {
@@ -343,7 +373,7 @@ public class TelegramSyncHandler : ISyncHandler
         try
         {
             // Delete from Telegram first
-            await _telegramService.DeleteMessageAsync(botToken, payload.ChannelId, payload.MessageId.Value);
+            await _telegramService.DeleteMessageAsync(botToken, payload.ChannelId, payload.MessageId.Value, cancellationToken);
         }
         catch (ApiRequestException ex) when (ex.Message.Contains("message can't be deleted", StringComparison.OrdinalIgnoreCase) ||
                                              ex.Message.Contains("message to delete not found", StringComparison.OrdinalIgnoreCase))
@@ -434,6 +464,32 @@ public class TelegramSyncHandler : ISyncHandler
 
         _logger.LogDebug("Updated note {NoteId} TelegramMessageIds after removing {ChannelId}:{MessageId}",
             noteId, channelId, messageId);
+    }
+
+    private async Task<int?> GetExistingMessageIdForChannel(long noteId, string channelId)
+    {
+        var currentNote = await _noteRepository.GetFirstOrDefaultAsync(
+            n => n.Id == noteId,
+            orderBy: null);
+
+        if (currentNote == null || string.IsNullOrWhiteSpace(currentNote.TelegramMessageIds))
+        {
+            return null;
+        }
+
+        var messageIds = currentNote.TelegramMessageIds.Split(',');
+        var channelEntry = messageIds.FirstOrDefault(id => id.StartsWith($"{channelId}:"));
+
+        if (channelEntry != null)
+        {
+            var parts = channelEntry.Split(':');
+            if (parts.Length >= 2 && int.TryParse(parts[1], out var messageId))
+            {
+                return messageId;
+            }
+        }
+
+        return null;
     }
 
     private static bool IsRetryableException(ApiRequestException ex)

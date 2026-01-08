@@ -173,7 +173,31 @@ public class SyncQueueProcessor : BackgroundService
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts.CancelAfter(_options.Processing.ProcessingTimeout);
 
-            var result = await handler.ProcessAsync(task, timeoutCts.Token);
+            var handlerTask = handler.ProcessAsync(task, timeoutCts.Token);
+            SyncResult result;
+
+            try
+            {
+                result = await handlerTask.WaitAsync(_options.Processing.ProcessingTimeout, cancellationToken);
+            }
+            catch (TimeoutException)
+            {
+                timeoutCts.Cancel();
+                _logger.LogWarning("Task {TaskId} exceeded processing timeout of {Timeout}", taskId,
+                    _options.Processing.ProcessingTimeout);
+                await HandleFailedTask(handler, task,
+                    $"Task timed out after {_options.Processing.ProcessingTimeout}");
+                return;
+            }
+            catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested &&
+                                                     !cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogWarning("Task {TaskId} cancelled due to processing timeout ({Timeout})",
+                    taskId, _options.Processing.ProcessingTimeout);
+                await HandleFailedTask(handler, task,
+                    $"Task timed out after {_options.Processing.ProcessingTimeout}");
+                return;
+            }
 
             if (result.IsSuccess)
             {

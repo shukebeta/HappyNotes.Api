@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Threading;
 using Api.Framework.Helper;
 using Api.Framework.Models;
 using HappyNotes.Entities;
@@ -110,7 +111,7 @@ public class TelegramSyncHandlerTests
 
         SetupTelegramSettings(1, TestChannelId, TestBotToken);
         _mockTelegramService
-            .Setup(s => s.SendMessageAsync(TestBotToken, TestChannelId, payload.FullContent, payload.IsMarkdown))
+            .Setup(s => s.SendMessageAsync(TestBotToken, TestChannelId, payload.FullContent, payload.IsMarkdown, It.IsAny<CancellationToken>()))
             .ReturnsAsync(testMessage);
 
         var testNote = new Note { Id = 123, TelegramMessageIds = null };
@@ -123,7 +124,7 @@ public class TelegramSyncHandlerTests
 
         // Assert
         Assert.That(result.IsSuccess, Is.True);
-        _mockTelegramService.Verify(s => s.SendMessageAsync(TestBotToken, TestChannelId, payload.FullContent, payload.IsMarkdown), Times.Once);
+        _mockTelegramService.Verify(s => s.SendMessageAsync(TestBotToken, TestChannelId, payload.FullContent, payload.IsMarkdown, It.IsAny<CancellationToken>()), Times.Once);
         _mockNoteRepository.Verify(r => r.UpdateAsync(
             It.IsAny<System.Linq.Expressions.Expression<Func<Note, Note>>>(),
             It.IsAny<System.Linq.Expressions.Expression<Func<Note, bool>>>()
@@ -148,7 +149,7 @@ public class TelegramSyncHandlerTests
 
         SetupTelegramSettings(1, TestChannelId, TestBotToken);
         _mockTelegramService
-            .Setup(s => s.SendLongMessageAsFileAsync(TestBotToken, TestChannelId, longContent, ".md"))
+            .Setup(s => s.SendLongMessageAsFileAsync(TestBotToken, TestChannelId, longContent, ".md", It.IsAny<CancellationToken>()))
             .ReturnsAsync(testMessage);
 
         var testNote = new Note { Id = 123, TelegramMessageIds = null };
@@ -161,7 +162,7 @@ public class TelegramSyncHandlerTests
 
         // Assert
         Assert.That(result.IsSuccess, Is.True);
-        _mockTelegramService.Verify(s => s.SendLongMessageAsFileAsync(TestBotToken, TestChannelId, longContent, ".md"), Times.Once);
+        _mockTelegramService.Verify(s => s.SendLongMessageAsFileAsync(TestBotToken, TestChannelId, longContent, ".md", It.IsAny<CancellationToken>()), Times.Once);
         _mockNoteRepository.Verify(r => r.UpdateAsync(
             It.IsAny<System.Linq.Expressions.Expression<Func<Note, Note>>>(),
             It.IsAny<System.Linq.Expressions.Expression<Func<Note, bool>>>()
@@ -187,12 +188,12 @@ public class TelegramSyncHandlerTests
 
         // First call with Markdown fails
         _mockTelegramService
-            .Setup(s => s.SendMessageAsync(TestBotToken, TestChannelId, payload.FullContent, true))
+            .Setup(s => s.SendMessageAsync(TestBotToken, TestChannelId, payload.FullContent, true, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new ApiRequestException("Bad Request: can't parse entities", 400));
 
         // Second call with plain text succeeds
         _mockTelegramService
-            .Setup(s => s.SendMessageAsync(TestBotToken, TestChannelId, payload.FullContent, false))
+            .Setup(s => s.SendMessageAsync(TestBotToken, TestChannelId, payload.FullContent, false, It.IsAny<CancellationToken>()))
             .ReturnsAsync(testMessage);
 
         var testNote = new Note { Id = 123, TelegramMessageIds = null };
@@ -205,8 +206,8 @@ public class TelegramSyncHandlerTests
 
         // Assert
         Assert.That(result.IsSuccess, Is.True);
-        _mockTelegramService.Verify(s => s.SendMessageAsync(TestBotToken, TestChannelId, payload.FullContent, true), Times.Once);
-        _mockTelegramService.Verify(s => s.SendMessageAsync(TestBotToken, TestChannelId, payload.FullContent, false), Times.Once);
+        _mockTelegramService.Verify(s => s.SendMessageAsync(TestBotToken, TestChannelId, payload.FullContent, true, It.IsAny<CancellationToken>()), Times.Once);
+        _mockTelegramService.Verify(s => s.SendMessageAsync(TestBotToken, TestChannelId, payload.FullContent, false, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -229,12 +230,12 @@ public class TelegramSyncHandlerTests
 
         // First call with .md file fails
         _mockTelegramService
-            .Setup(s => s.SendLongMessageAsFileAsync(TestBotToken, TestChannelId, longContent, ".md"))
+            .Setup(s => s.SendLongMessageAsFileAsync(TestBotToken, TestChannelId, longContent, ".md", It.IsAny<CancellationToken>()))
             .ThrowsAsync(new ApiRequestException("Bad Request: can't parse entities", 400));
 
         // Second call with .txt file succeeds
         _mockTelegramService
-            .Setup(s => s.SendLongMessageAsFileAsync(TestBotToken, TestChannelId, longContent, ".txt"))
+            .Setup(s => s.SendLongMessageAsFileAsync(TestBotToken, TestChannelId, longContent, ".txt", It.IsAny<CancellationToken>()))
             .ReturnsAsync(testMessage);
 
         var testNote = new Note { Id = 123, TelegramMessageIds = null };
@@ -247,8 +248,8 @@ public class TelegramSyncHandlerTests
 
         // Assert
         Assert.That(result.IsSuccess, Is.True);
-        _mockTelegramService.Verify(s => s.SendLongMessageAsFileAsync(TestBotToken, TestChannelId, longContent, ".md"), Times.Once);
-        _mockTelegramService.Verify(s => s.SendLongMessageAsFileAsync(TestBotToken, TestChannelId, longContent, ".txt"), Times.Once);
+        _mockTelegramService.Verify(s => s.SendLongMessageAsFileAsync(TestBotToken, TestChannelId, longContent, ".md", It.IsAny<CancellationToken>()), Times.Once);
+        _mockTelegramService.Verify(s => s.SendLongMessageAsFileAsync(TestBotToken, TestChannelId, longContent, ".txt", It.IsAny<CancellationToken>()), Times.Once);
     }
 
     #endregion
@@ -272,7 +273,7 @@ public class TelegramSyncHandlerTests
 
         SetupTelegramSettings(1, TestChannelId, TestBotToken);
         _mockTelegramService
-            .Setup(s => s.EditMessageAsync(TestBotToken, TestChannelId, 100, payload.FullContent, payload.IsMarkdown))
+            .Setup(s => s.EditMessageAsync(TestBotToken, TestChannelId, 100, payload.FullContent, payload.IsMarkdown, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Message { MessageId = 100 });
 
         // Act
@@ -280,7 +281,7 @@ public class TelegramSyncHandlerTests
 
         // Assert
         Assert.That(result.IsSuccess, Is.True);
-        _mockTelegramService.Verify(s => s.EditMessageAsync(TestBotToken, TestChannelId, 100, payload.FullContent, payload.IsMarkdown), Times.Once);
+        _mockTelegramService.Verify(s => s.EditMessageAsync(TestBotToken, TestChannelId, 100, payload.FullContent, payload.IsMarkdown, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -302,10 +303,10 @@ public class TelegramSyncHandlerTests
 
         SetupTelegramSettings(1, TestChannelId, TestBotToken);
         _mockTelegramService
-            .Setup(s => s.DeleteMessageAsync(TestBotToken, TestChannelId, 100))
+            .Setup(s => s.DeleteMessageAsync(TestBotToken, TestChannelId, 100, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
         _mockTelegramService
-            .Setup(s => s.SendLongMessageAsFileAsync(TestBotToken, TestChannelId, longContent, ".txt"))
+            .Setup(s => s.SendLongMessageAsFileAsync(TestBotToken, TestChannelId, longContent, ".txt", It.IsAny<CancellationToken>()))
             .ReturnsAsync(newMessage);
 
         var testNote = new Note { Id = 123, TelegramMessageIds = null };
@@ -318,8 +319,8 @@ public class TelegramSyncHandlerTests
 
         // Assert
         Assert.That(result.IsSuccess, Is.True);
-        _mockTelegramService.Verify(s => s.DeleteMessageAsync(TestBotToken, TestChannelId, 100), Times.Once);
-        _mockTelegramService.Verify(s => s.SendLongMessageAsFileAsync(TestBotToken, TestChannelId, longContent, ".txt"), Times.Once);
+        _mockTelegramService.Verify(s => s.DeleteMessageAsync(TestBotToken, TestChannelId, 100, It.IsAny<CancellationToken>()), Times.Once);
+        _mockTelegramService.Verify(s => s.SendLongMessageAsFileAsync(TestBotToken, TestChannelId, longContent, ".txt", It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -341,12 +342,12 @@ public class TelegramSyncHandlerTests
 
         // First call with Markdown fails
         _mockTelegramService
-            .Setup(s => s.EditMessageAsync(TestBotToken, TestChannelId, 100, payload.FullContent, true))
+            .Setup(s => s.EditMessageAsync(TestBotToken, TestChannelId, 100, payload.FullContent, true, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new ApiRequestException("Bad Request: can't parse entities", 400));
 
         // Second call with plain text succeeds
         _mockTelegramService
-            .Setup(s => s.EditMessageAsync(TestBotToken, TestChannelId, 100, payload.FullContent, false))
+            .Setup(s => s.EditMessageAsync(TestBotToken, TestChannelId, 100, payload.FullContent, false, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Message { MessageId = 100 });
 
         // Act
@@ -354,30 +355,44 @@ public class TelegramSyncHandlerTests
 
         // Assert
         Assert.That(result.IsSuccess, Is.True);
-        _mockTelegramService.Verify(s => s.EditMessageAsync(TestBotToken, TestChannelId, 100, payload.FullContent, true), Times.Once);
-        _mockTelegramService.Verify(s => s.EditMessageAsync(TestBotToken, TestChannelId, 100, payload.FullContent, false), Times.Once);
+        _mockTelegramService.Verify(s => s.EditMessageAsync(TestBotToken, TestChannelId, 100, payload.FullContent, true, It.IsAny<CancellationToken>()), Times.Once);
+        _mockTelegramService.Verify(s => s.EditMessageAsync(TestBotToken, TestChannelId, 100, payload.FullContent, false, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
-    public async Task ProcessUpdateAction_WithoutMessageId_ShouldThrowException()
+    public async Task ProcessUpdateAction_WithoutMessageId_ShouldFallbackToCreate()
     {
-        // Arrange
+        // Arrange - This tests race condition handling: UPDATE triggered before CREATE completed
         var payload = new TelegramSyncPayload
         {
             Action = "UPDATE",
             FullContent = "Test content",
             ChannelId = TestChannelId,
-            MessageId = null // Missing MessageId
+            MessageId = null, // Missing MessageId (race condition)
+            IsMarkdown = false
         };
 
         var task = CreateSyncTask("UPDATE", payload);
+        var testMessage = new Message { MessageId = 100 };
 
         SetupTelegramSettings(1, TestChannelId, TestBotToken);
 
-        // Act & Assert
+        // Note has no existing message (simulating race condition)
+        var testNote = new Note { Id = 123, TelegramMessageIds = null };
+        _mockNoteRepository
+            .Setup(r => r.GetFirstOrDefaultAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Note, bool>>>(), null))
+            .ReturnsAsync(testNote);
+
+        _mockTelegramService
+            .Setup(s => s.SendMessageAsync(TestBotToken, TestChannelId, payload.FullContent, false, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(testMessage);
+
+        // Act
         var result = await _telegramSyncHandler.ProcessAsync(task, CancellationToken.None);
-        Assert.That(result.IsSuccess, Is.False);
-        Assert.That(result.ErrorMessage, Contains.Substring("MessageId is required for UPDATE action"));
+
+        // Assert - Should succeed by falling back to CREATE
+        Assert.That(result.IsSuccess, Is.True);
+        _mockTelegramService.Verify(s => s.SendMessageAsync(TestBotToken, TestChannelId, payload.FullContent, false, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     #endregion
@@ -399,7 +414,7 @@ public class TelegramSyncHandlerTests
 
         SetupTelegramSettings(1, TestChannelId, TestBotToken);
         _mockTelegramService
-            .Setup(s => s.DeleteMessageAsync(TestBotToken, TestChannelId, 100))
+            .Setup(s => s.DeleteMessageAsync(TestBotToken, TestChannelId, 100, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         var testNote = new Note { Id = 123, TelegramMessageIds = $"{TestChannelId}:100" };
@@ -412,7 +427,7 @@ public class TelegramSyncHandlerTests
 
         // Assert
         Assert.That(result.IsSuccess, Is.True);
-        _mockTelegramService.Verify(s => s.DeleteMessageAsync(TestBotToken, TestChannelId, 100), Times.Once);
+        _mockTelegramService.Verify(s => s.DeleteMessageAsync(TestBotToken, TestChannelId, 100, It.IsAny<CancellationToken>()), Times.Once);
         _mockNoteRepository.Verify(r => r.UpdateAsync(
             It.IsAny<System.Linq.Expressions.Expression<Func<Note, Note>>>(),
             It.IsAny<System.Linq.Expressions.Expression<Func<Note, bool>>>()
@@ -459,7 +474,7 @@ public class TelegramSyncHandlerTests
             .ReturnsAsync(testNote);
 
         // Setup DeleteMessageAsync to throw "message can't be deleted" exception
-        _mockTelegramService.Setup(s => s.DeleteMessageAsync(TestBotToken, TestChannelId, 100))
+        _mockTelegramService.Setup(s => s.DeleteMessageAsync(TestBotToken, TestChannelId, 100, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new ApiRequestException("Bad Request: message can't be deleted", 400));
 
         // Act
@@ -467,7 +482,7 @@ public class TelegramSyncHandlerTests
 
         // Assert
         Assert.That(result.IsSuccess, Is.True);
-        _mockTelegramService.Verify(s => s.DeleteMessageAsync(TestBotToken, TestChannelId, 100), Times.Once);
+        _mockTelegramService.Verify(s => s.DeleteMessageAsync(TestBotToken, TestChannelId, 100, It.IsAny<CancellationToken>()), Times.Once);
         _mockNoteRepository.Verify(r => r.UpdateAsync(
             It.IsAny<System.Linq.Expressions.Expression<Func<Note, Note>>>(),
             It.IsAny<System.Linq.Expressions.Expression<Func<Note, bool>>>()), Times.Once);
@@ -492,7 +507,7 @@ public class TelegramSyncHandlerTests
             .ReturnsAsync(testNote);
 
         // Setup DeleteMessageAsync to throw "message to delete not found" exception
-        _mockTelegramService.Setup(s => s.DeleteMessageAsync(TestBotToken, TestChannelId, 100))
+        _mockTelegramService.Setup(s => s.DeleteMessageAsync(TestBotToken, TestChannelId, 100, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new ApiRequestException("Bad Request: message to delete not found", 400));
 
         // Act
@@ -500,7 +515,7 @@ public class TelegramSyncHandlerTests
 
         // Assert
         Assert.That(result.IsSuccess, Is.True);
-        _mockTelegramService.Verify(s => s.DeleteMessageAsync(TestBotToken, TestChannelId, 100), Times.Once);
+        _mockTelegramService.Verify(s => s.DeleteMessageAsync(TestBotToken, TestChannelId, 100, It.IsAny<CancellationToken>()), Times.Once);
         _mockNoteRepository.Verify(r => r.UpdateAsync(
             It.IsAny<System.Linq.Expressions.Expression<Func<Note, Note>>>(),
             It.IsAny<System.Linq.Expressions.Expression<Func<Note, bool>>>()), Times.Once);
@@ -527,7 +542,7 @@ public class TelegramSyncHandlerTests
 
         SetupTelegramSettings(1, TestChannelId, TestBotToken);
         _mockTelegramService
-            .Setup(s => s.SendMessageAsync(TestBotToken, TestChannelId, payload.FullContent, false))
+            .Setup(s => s.SendMessageAsync(TestBotToken, TestChannelId, payload.FullContent, false, It.IsAny<CancellationToken>()))
             .ReturnsAsync(testMessage);
 
         var testNote = new Note { Id = 123, TelegramMessageIds = null };
@@ -564,7 +579,7 @@ public class TelegramSyncHandlerTests
 
         SetupTelegramSettings(1, TestChannelId, TestBotToken);
         _mockTelegramService
-            .Setup(s => s.SendMessageAsync(TestBotToken, TestChannelId, payload.FullContent, false))
+            .Setup(s => s.SendMessageAsync(TestBotToken, TestChannelId, payload.FullContent, false, It.IsAny<CancellationToken>()))
             .ReturnsAsync(testMessage);
 
         var testNote = new Note { Id = 123, TelegramMessageIds = "-1009876543210:150" };
@@ -599,7 +614,7 @@ public class TelegramSyncHandlerTests
 
         SetupTelegramSettings(1, TestChannelId, TestBotToken);
         _mockTelegramService
-            .Setup(s => s.DeleteMessageAsync(TestBotToken, TestChannelId, 100))
+            .Setup(s => s.DeleteMessageAsync(TestBotToken, TestChannelId, 100, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         var testNote = new Note { Id = 123, TelegramMessageIds = $"-1009876543210:150,{TestChannelId}:100" };
