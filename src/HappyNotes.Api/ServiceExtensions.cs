@@ -18,13 +18,17 @@ public static class ServiceExtensions
         services.AddScoped<INoteRepository, NoteRepository>();
         services.AddSingleton<ITelegramService, TelegramService>();
         services.AddSingleton<IMastodonTootService, MastodonTootService>();
+        services.AddSingleton<IFanfouStatusService, FanfouStatusService>();
+        services.AddSingleton<ITextToImageService, TextToImageService>();
         services.AddSingleton<IMemoryCache, MemoryCache>();
         services.AddScoped<ITelegramSettingsCacheService, TelegramSettingsCacheService>();
         services.AddScoped<IMastodonUserAccountCacheService, MastodonUserAccountCacheService>();
+        services.AddScoped<IFanfouUserAccountCacheService, FanfouUserAccountCacheService>();
         services.AddSingleton<IGeneralMemoryCacheService, GeneralMemoryCacheService>();
         services.AddScoped<ISyncNoteService, MastodonSyncNoteService>();
         services.AddScoped<ISyncNoteService, TelegramSyncNoteService>();
         services.AddScoped<ISyncNoteService, ManticoreSyncNoteService>();
+        services.AddScoped<ISyncNoteService, FanfouSyncNoteService>();
         services.AddScoped<ISearchService, SearchService>();
         services.AddScoped<IDatabaseClient, DatabaseClient>();
     }
