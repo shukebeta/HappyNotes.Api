@@ -1,4 +1,3 @@
-using CoreHtmlToImage;
 using HappyNotes.Common;
 using HappyNotes.Services.interfaces;
 using Markdig;
@@ -8,8 +7,10 @@ using Microsoft.Extensions.Logging;
 
 namespace HappyNotes.Services;
 
-public class MastodonTootService(ILogger<MastodonTootService> logger
-, IHttpClientFactory httpClientFactory) : IMastodonTootService
+public class MastodonTootService(
+    ILogger<MastodonTootService> logger,
+    IHttpClientFactory httpClientFactory,
+    ITextToImageService textToImageService) : IMastodonTootService
 {
     private const int MaxImages = 4;
 
@@ -188,14 +189,10 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
         return text;
     }
 
-    private static async Task<Attachment> _UploadLongTextAsMedia(MastodonClient client, string longText,
+    private async Task<Attachment> _UploadLongTextAsMedia(MastodonClient client, string longText,
         bool isMarkdown)
     {
-        var htmlContent = isMarkdown ? longText : longText.Replace("\n", "<br>");
-        htmlContent =
-            $"<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<link rel=\"stylesheet\" href=\"https://files.shukebeta.com/markdown.css?v2\" />\n</head>\n<body>\n{htmlContent}</body></html>";
-        var converter = new HtmlConverter();
-        var bytes = converter.FromHtmlString(htmlContent, width: 600);
+        var bytes = await textToImageService.GenerateImageAsync(longText, isMarkdown, width: 600);
         var memoryStream = new MemoryStream(bytes);
         var media = await client.UploadMedia(memoryStream, "long_text.jpg");
         return media;
