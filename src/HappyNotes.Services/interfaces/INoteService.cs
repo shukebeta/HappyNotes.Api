@@ -12,6 +12,7 @@ public interface INoteService
     Task<bool> Delete(long userId, long id);
     Task<bool> Undelete(long userId, long id);
     Task<bool> Update(long userId, long id, PostNoteRequest request);
+    Task<bool> SetIsPrivate(long userId, long id, bool isPrivate);
 
     Task<PageData<Note>> GetUserNotes(long userId, int pageSize, int pageNumber, bool includePrivate = false);
     /// <summary>

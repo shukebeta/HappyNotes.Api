@@ -200,6 +200,98 @@ public class NoteServiceTests
     }
 
     [Test]
+    public async Task SetIsPrivate_WithOwnedNote_DelegatesToUpdateFlow()
+    {
+        // Arrange
+        var userId = 1L;
+        var noteId = 1L;
+        var existingNote = new Note
+        {
+            Id = noteId,
+            Content = "Original content",
+            UserId = userId,
+            IsPrivate = true,
+            IsMarkdown = true
+        };
+        var updateRequest = new PostNoteRequest
+        {
+            Content = existingNote.Content,
+            IsMarkdown = existingNote.IsMarkdown,
+            IsPrivate = existingNote.IsPrivate
+        };
+        var updatedNote = new Note
+        {
+            Id = noteId,
+            Content = existingNote.Content,
+            UserId = userId,
+            IsPrivate = false,
+            IsMarkdown = true
+        };
+
+        _mockNoteRepository.SetupSequence(r => r.Get(noteId))
+            .ReturnsAsync(existingNote)
+            .ReturnsAsync(existingNote);
+        _mockMapper.Setup(m => m.Map<PostNoteRequest>(existingNote)).Returns(updateRequest);
+        _mockMapper.Setup(m => m.Map<PostNoteRequest, Note>(It.Is<PostNoteRequest>(r =>
+                r.Content == existingNote.Content &&
+                r.IsMarkdown == existingNote.IsMarkdown &&
+                r.IsPrivate == false)))
+            .Returns(updatedNote);
+        _mockNoteRepository.Setup(r => r.UpdateAsync(It.IsAny<Note>())).ReturnsAsync(true);
+
+        // Act
+        var result = await _noteService.SetIsPrivate(userId, noteId, false);
+
+        // Assert
+        Assert.That(result, Is.True);
+        _mockNoteRepository.Verify(r => r.UpdateAsync(It.Is<Note>(n => n.Id == noteId && n.IsPrivate == false)), Times.Once);
+    }
+
+    [Test]
+    public async Task SetIsPrivate_WithUnchangedValue_DoesNotUpdate()
+    {
+        // Arrange
+        var userId = 1L;
+        var noteId = 1L;
+        var existingNote = new Note
+        {
+            Id = noteId,
+            Content = "Original content",
+            UserId = userId,
+            IsPrivate = true
+        };
+        _mockNoteRepository.Setup(r => r.Get(noteId)).ReturnsAsync(existingNote);
+
+        // Act
+        var result = await _noteService.SetIsPrivate(userId, noteId, true);
+
+        // Assert
+        Assert.That(result, Is.True);
+        _mockNoteRepository.Verify(r => r.UpdateAsync(It.IsAny<Note>()), Times.Never);
+    }
+
+    [Test]
+    public void SetIsPrivate_WithNotOwnedNote_ThrowsException()
+    {
+        // Arrange
+        var userId = 1L;
+        var noteId = 1L;
+        var existingNote = new Note
+        {
+            Id = noteId,
+            Content = "Original content",
+            UserId = 2,
+            IsPrivate = true
+        };
+        _mockNoteRepository.Setup(r => r.Get(noteId)).ReturnsAsync(existingNote);
+
+        // Act & Assert
+        var ex = Assert.ThrowsAsync<CustomException<object>>(async () =>
+            await _noteService.SetIsPrivate(userId, noteId, false));
+        Assert.That(ex.CustomData!.ErrorCode, Is.EqualTo((int)EventId._00102_NoteIsNotYours));
+    }
+
+    [Test]
     public async Task Delete_WithOwnedNote_ReturnsTrue()
     {
         // Arrange

@@ -16,6 +16,7 @@ public class AutoMapperProfile : Profile
         CreateMap<User, UserDto>();
         CreateMap<UserSettings, UserSettingsDto>();
         CreateMap<Note, NoteDto>();
+        CreateMap<Note, PostNoteRequest>();
         CreateMap<PostMastodonApplicationRequest, MastodonApplication>();
         CreateMap<TelegramSettings, TelegramSettingsDto>();
         CreateMap<PostNoteRequest, Note>()

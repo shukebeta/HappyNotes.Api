@@ -66,4 +66,11 @@ public class NoteController(IMapper mapper
         await noteService.Update(currentUser.Id, noteId, request);
         return new SuccessfulResult<long>(noteId);
     }
+
+    [HttpPost("{noteId:long}/privacy")]
+    public async Task<ApiResult<long>> SetIsPrivate(long noteId, SetNotePrivacyRequest request)
+    {
+        var result = await noteService.SetIsPrivate(currentUser.Id, noteId, request.IsPrivate);
+        return result ? new SuccessfulResult<long>(noteId) : new FailedResult<long>(noteId, "0 rows updated");
+    }
 }

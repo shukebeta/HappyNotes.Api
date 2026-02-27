@@ -158,6 +158,29 @@ public class NoteService(
         return await noteRepository.UpdateAsync(newNote);
     }
 
+    public async Task<bool> SetIsPrivate(long userId, long id, bool isPrivate)
+    {
+        var existingNote = await noteRepository.Get(id);
+        if (existingNote == null)
+        {
+            throw ExceptionHelper.New(id, EventId._00100_NoteNotFound, id);
+        }
+
+        if (_NoteIsNotYours(userId, existingNote))
+        {
+            throw ExceptionHelper.New(id, EventId._00102_NoteIsNotYours, id);
+        }
+
+        if (existingNote.IsPrivate == isPrivate)
+        {
+            return true;
+        }
+
+        var updateRequest = mapper.Map<PostNoteRequest>(existingNote);
+        updateRequest.IsPrivate = isPrivate;
+        return await Update(userId, id, updateRequest);
+    }
+
     private bool _HasNoteChanged(Note originalNote, Note newNote, string fullContent)
     {
         return originalNote.Content != fullContent ||
