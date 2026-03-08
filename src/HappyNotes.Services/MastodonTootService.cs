@@ -296,6 +296,7 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
         }
 
         var successfulUploads = new List<(int index, Attachment attachment)>();
+        var failedIndexes = new HashSet<int>();
 
         try
         {
@@ -315,6 +316,7 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
                 }
                 else if (task.Status == TaskStatus.Faulted)
                 {
+                    failedIndexes.Add(i);
                     logger.LogError(task.Exception, $"Failed to upload image: {matches[i].ImgUrl}");
                 }
             }
@@ -356,6 +358,23 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
             markdownText = markdownText.Replace(
                 img.Match,
                 imageText
+            );
+        }
+
+        // Replace failed image uploads with "alt: url" format for readability
+        foreach (var failedIndex in failedIndexes)
+        {
+            var img = matches[failedIndex];
+            var altText = img.Alt;
+            altText = altText.Equals("image") ? string.Empty : altText;
+
+            var fallbackText = !string.IsNullOrWhiteSpace(altText)
+                ? $"{altText}: {img.ImgUrl}"
+                : img.ImgUrl;
+
+            markdownText = markdownText.Replace(
+                img.Match,
+                fallbackText
             );
         }
 
