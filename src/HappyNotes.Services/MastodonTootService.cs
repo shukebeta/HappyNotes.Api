@@ -365,16 +365,11 @@ public class MastodonTootService(ILogger<MastodonTootService> logger
         foreach (var failedIndex in failedIndexes)
         {
             var img = matches[failedIndex];
-            var altText = img.Alt;
-            altText = altText.Equals("image") ? string.Empty : altText;
-
-            var fallbackText = !string.IsNullOrWhiteSpace(altText)
-                ? $"{altText}: {img.ImgUrl}"
-                : img.ImgUrl;
-
-            markdownText = markdownText.Replace(
+            markdownText = MarkdownImageHelper.ReplaceFailedImage(
+                markdownText,
                 img.Match,
-                fallbackText
+                img.Alt,
+                img.ImgUrl
             );
         }
 
