@@ -1,6 +1,6 @@
+using HappyNotes.Common;
 using HappyNotes.Services.SyncQueue.Interfaces;
 using HappyNotes.Services.SyncQueue.Models;
-using HappyNotes.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;

@@ -21,7 +21,7 @@ public class RedisSyncQueueServiceTests
     public void Setup()
     {
         // Get Redis connection string from environment variable
-        _redisConnectionString = Environment.GetEnvironmentVariable("REDIS_CONNECTION_STRING") 
+        _redisConnectionString = Environment.GetEnvironmentVariable("REDIS_CONNECTION_STRING")
                                ?? Environment.GetEnvironmentVariable("TEST_REDIS_CONNECTION_STRING")
                                ?? "localhost:6379";
 
@@ -30,7 +30,7 @@ public class RedisSyncQueueServiceTests
         {
             _redis = ConnectionMultiplexer.Connect(_redisConnectionString);
             _database = _redis.GetDatabase(15); // Use database 15 for tests
-            
+
             var options = Options.Create(new SyncQueueOptions
             {
                 Redis = new RedisOptions
@@ -40,7 +40,7 @@ public class RedisSyncQueueServiceTests
                     KeyPrefix = "test:sync:"
                 }
             });
-            
+
             var logger = new LoggerFactory().CreateLogger<RedisSyncQueueService>();
             _queueService = new RedisSyncQueueService(_redis, options, logger, TimeProvider.System);
         }
@@ -69,7 +69,7 @@ public class RedisSyncQueueServiceTests
                     }
                 }
             }
-            
+
             _redis?.Dispose();
         }
         catch

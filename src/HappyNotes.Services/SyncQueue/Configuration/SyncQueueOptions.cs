@@ -3,7 +3,7 @@ namespace HappyNotes.Services.SyncQueue.Configuration;
 public class SyncQueueOptions
 {
     public const string SectionName = "SyncQueue";
-    
+
     public RedisOptions Redis { get; set; } = new();
     public ProcessingOptions Processing { get; set; } = new();
     public Dictionary<string, HandlerOptions> Handlers { get; set; } = new();
