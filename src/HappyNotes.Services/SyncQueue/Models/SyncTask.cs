@@ -40,8 +40,8 @@ public class SyncResult
     public TimeSpan? CustomRetryDelay { get; set; }
 
     public static SyncResult Success() => new() { IsSuccess = true };
-    
-    public static SyncResult Failure(string errorMessage, bool shouldRetry = true, TimeSpan? customRetryDelay = null) => 
+
+    public static SyncResult Failure(string errorMessage, bool shouldRetry = true, TimeSpan? customRetryDelay = null) =>
         new()
         {
             IsSuccess = false,

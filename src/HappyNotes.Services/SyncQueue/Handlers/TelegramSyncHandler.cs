@@ -263,7 +263,7 @@ public class TelegramSyncHandler : ISyncHandler
         }
 
         // Update note with the new message ID
-            await AddMessageIdToNote(task.EntityId, payload.ChannelId, messageId);
+        await AddMessageIdToNote(task.EntityId, payload.ChannelId, messageId);
 
         _logger.LogDebug("Successfully added message {MessageId} to note {NoteId} TelegramMessageIds",
             messageId, task.EntityId);
