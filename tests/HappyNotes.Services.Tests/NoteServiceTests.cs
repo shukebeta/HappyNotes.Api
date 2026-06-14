@@ -5,6 +5,7 @@ using Api.Framework.Models;
 using AutoMapper;
 using HappyNotes.Common;
 using HappyNotes.Common.Enums;
+using HappyNotes.Dto;
 using HappyNotes.Entities;
 using HappyNotes.Models;
 using HappyNotes.Repositories.interfaces;
@@ -245,6 +246,16 @@ public class NoteServiceTests
         // Assert
         Assert.That(result, Is.True);
         _mockNoteRepository.Verify(r => r.UpdateAsync(It.Is<Note>(n => n.Id == noteId && n.IsPrivate == false)), Times.Once);
+
+        // Fan-out is fire-and-forget Task.Run (NoteService.cs:141-157); allow it to complete
+        // before verifying the sync call. Pattern from Undelete_WithDeletedOwnedNote_ReturnsTrue.
+        await Task.Delay(100);
+        _mockSyncNoteService.Verify(
+            s => s.SyncEditNote(
+                It.Is<Note>(n => n.IsPrivate == false),
+                It.IsAny<string>(),
+                It.Is<Note>(n => n.IsPrivate == true)),
+            Times.Once);
     }
 
     [Test]
@@ -268,6 +279,11 @@ public class NoteServiceTests
         // Assert
         Assert.That(result, Is.True);
         _mockNoteRepository.Verify(r => r.UpdateAsync(It.IsAny<Note>()), Times.Never);
+        // No fan-out on the no-op path: SetIsPrivate returns early before Update is reached,
+        // so SyncEditNote must never be called.
+        _mockSyncNoteService.Verify(
+            s => s.SyncEditNote(It.IsAny<Note>(), It.IsAny<string>(), It.IsAny<Note>()),
+            Times.Never);
     }
 
     [Test]
@@ -1051,5 +1067,61 @@ public class NoteServiceTests
                 $"but got: {string.Join(", ", result.Select(ts => DateTimeOffset.FromUnixTimeSeconds(ts).ToString("yyyy-MM-dd HH:mm:ss zzz")))}");
         }
 
+    }
+
+    // Issue #15: lock the convention-based PostNoteRequest → Note IsPrivate mapping.
+    // The fan-out path in NoteService.SetIsPrivate (lines 179-181) feeds IsPrivate from
+    // the request into Update, which then carries it into SyncEditNote. If this map
+    // ever drops IsPrivate (e.g. someone refactors AutoMapperProfile), Telegram/Mastodon
+    // will silently desync — this test is the guard.
+    [TestFixture]
+    public class AutoMapperProfilePostNoteRequestToNoteTests
+    {
+        private IMapper _mapper;
+
+        [SetUp]
+        public void Setup()
+        {
+            // Skip AssertConfigurationIsValid: the production profile intentionally leaves
+            // several members (Id, UserId, Tags, …) to be assigned by the service layer.
+            // We only need the real convention-based PostNoteRequest → Note map to be
+            // executable; its IsPrivate pass-through is what this fixture locks down.
+            var config = new MapperConfiguration(cfg => cfg.AddProfile<AutoMapperProfile>());
+            _mapper = config.CreateMapper();
+        }
+
+        [Test]
+        public void PostNoteRequest_ToNote_IsPrivateTrue_IsPreserved()
+        {
+            // Arrange
+            var request = new PostNoteRequest
+            {
+                Content = "private note body",
+                IsPrivate = true
+            };
+
+            // Act
+            var note = _mapper.Map<PostNoteRequest, Note>(request);
+
+            // Assert
+            Assert.That(note.IsPrivate, Is.True);
+        }
+
+        [Test]
+        public void PostNoteRequest_ToNote_IsPrivateFalse_IsPreserved()
+        {
+            // Arrange
+            var request = new PostNoteRequest
+            {
+                Content = "public note body",
+                IsPrivate = false
+            };
+
+            // Act
+            var note = _mapper.Map<PostNoteRequest, Note>(request);
+
+            // Assert
+            Assert.That(note.IsPrivate, Is.False);
+        }
     }
 }
