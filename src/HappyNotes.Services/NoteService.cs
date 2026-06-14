@@ -445,26 +445,42 @@ public class NoteService(
         timestamps.AddRange(_GetYearlyAnniversaryTimestamps(startDate, today, targetTimeZone));
 
         // Add periodic milestones (6 months, 3 months, 1 month ago)
-        // Only include if the target month actually has the same day
+        // Only include if the target month actually has the same day.
+        // Use _TryCreateDate to build the day-start with the per-date zone offset —
+        // GetDayStartTimestamp round-trips through UTC and preserves the source
+        // DateTimeOffset's offset, which lands the wrong day when today and the
+        // target fall in different DST seasons (issue #8, southern-hemisphere
+        // +1; northern-hemisphere -1). See Api.Framework's GetDayStartTimestamp
+        // for the original round-trip path.
         int[] periodicOffsets = [-6, -3, -1,];
         foreach (var monthsOffset in periodicOffsets)
         {
-            if (_TryGetExactMonthOffset(today, monthsOffset, out var targetDate) &&
-                _IsWithinUserHistoryPeriod(targetDate, startDate))
+            if (!_TryGetExactMonthOffset(today, monthsOffset, out var targetDate) ||
+                !_IsWithinUserHistoryPeriod(targetDate, startDate))
             {
-                timestamps.Add(targetDate.GetDayStartTimestamp(targetTimeZone));
+                continue;
+            }
+            if (_TryCreateDate(targetDate.Year, targetDate.Month, targetDate.Day, targetTimeZone, out var milestoneTs))
+            {
+                timestamps.Add(milestoneTs);
             }
         }
 
-        // Add yesterday and today if they're within the user history period
+        // Add yesterday and today if they're within the user history period.
+        // All day-starts in this method go through _TryCreateDate so the
+        // per-date zone offset is honored — necessary across DST transitions
+        // where GetDayStartTimestamp's UTC round-trip preserves the source
+        // offset and lands the wrong day (or off by ±1h on the transition day).
         var yesterday = today.AddDays(-1);
-        if (_IsWithinUserHistoryPeriod(yesterday, startDate))
+        if (_IsWithinUserHistoryPeriod(yesterday, startDate) &&
+            _TryCreateDate(yesterday.Year, yesterday.Month, yesterday.Day, targetTimeZone, out var yTs))
         {
-            timestamps.Add(yesterday.GetDayStartTimestamp(targetTimeZone));
+            timestamps.Add(yTs);
         }
-        if (_IsWithinUserHistoryPeriod(today, startDate))
+        if (_IsWithinUserHistoryPeriod(today, startDate) &&
+            _TryCreateDate(today.Year, today.Month, today.Day, targetTimeZone, out var tTs))
         {
-            timestamps.Add(today.GetDayStartTimestamp(targetTimeZone));
+            timestamps.Add(tTs);
         }
 
         return timestamps.ToArray();
