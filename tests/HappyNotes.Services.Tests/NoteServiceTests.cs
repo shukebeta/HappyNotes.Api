@@ -1010,5 +1010,46 @@ public class NoteServiceTests
                 $"but got: {string.Join(", ", result.Select(ts => DateTimeOffset.FromUnixTimeSeconds(ts).ToString("yyyy-MM-dd HH:mm:ss zzz")))}");
         }
 
+        // Yesterday/today entries must also use the per-date zone offset
+        // (issue #8 follow-up). When `today` is the first day after a DST
+        // transition, `yesterday` straddles the boundary and the source
+        // offset is wrong; on the transition day itself `today`'s midnight
+        // is in the prior season. This test pins the spring-forward case
+        // (NYC 2025-03-10): yesterday must resolve to 2025-03-09, today
+        // to 2025-03-10. Unpatched yesterday → 2025-03-08 (RED).
+        [TestCase("America/New_York", 2025, 3, 9, 2025, 3, 10, TestName = "GetTimestamps_DstTransition_NycSpringForward_IncludesYesterdayAndToday")]
+        [TestCase("Europe/Berlin", 2025, 10, 25, 2025, 10, 26, TestName = "GetTimestamps_DstTransition_BerlinFallBack_IncludesYesterdayAndToday")]
+        [TestCase("Australia/Sydney", 2025, 10, 4, 2025, 10, 5, TestName = "GetTimestamps_DstTransition_SydneySpringForward_IncludesYesterdayAndToday")]
+        public void GetTimestamps_DstTransition_IncludesYesterdayAndToday(
+            string timeZoneId, int yYear, int yMonth, int yDay, int tYear, int tMonth, int tDay)
+        {
+            // Arrange - drive `today` to a time after the local transition so
+            // the source offset is the post-transition one.
+            var targetTimeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+            var todayLocal = new DateTimeOffset(tYear, tMonth, tDay, 12, 0, 0,
+                targetTimeZone.GetUtcOffset(new DateTime(tYear, tMonth, tDay, 0, 0, 0, DateTimeKind.Unspecified)));
+            _fakeTimeProvider.SetUtcNow(todayLocal);
+
+            var startTimestamp = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero).ToUnixTimeSeconds();
+
+            // Act
+            var result = _noteService._GetTimestamps(startTimestamp, timeZoneId);
+
+            // Assert
+            var yDayStart = new DateTimeOffset(yYear, yMonth, yDay, 0, 0, 0,
+                targetTimeZone.GetUtcOffset(new DateTime(yYear, yMonth, yDay, 0, 0, 0, DateTimeKind.Unspecified)))
+                .ToUnixTimeSeconds();
+            var tDayStart = new DateTimeOffset(tYear, tMonth, tDay, 0, 0, 0,
+                targetTimeZone.GetUtcOffset(new DateTime(tYear, tMonth, tDay, 0, 0, 0, DateTimeKind.Unspecified)))
+                .ToUnixTimeSeconds();
+
+            Assert.That(result, Does.Contain(yDayStart),
+                $"Expected yesterday day-start {yYear:0000}-{yMonth:00}-{yDay:00} in {timeZoneId} " +
+                $"but got: {string.Join(", ", result.Select(ts => DateTimeOffset.FromUnixTimeSeconds(ts).ToString("yyyy-MM-dd HH:mm:ss zzz")))}");
+            Assert.That(result, Does.Contain(tDayStart),
+                $"Expected today day-start {tYear:0000}-{tMonth:00}-{tDay:00} in {timeZoneId} " +
+                $"but got: {string.Join(", ", result.Select(ts => DateTimeOffset.FromUnixTimeSeconds(ts).ToString("yyyy-MM-dd HH:mm:ss zzz")))}");
+        }
+
     }
 }

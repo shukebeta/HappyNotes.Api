@@ -467,17 +467,20 @@ public class NoteService(
         }
 
         // Add yesterday and today if they're within the user history period.
-        // Both are at most one calendar day from `today`, so they fall in the
-        // same DST season as `today` and the GetDayStartTimestamp round-trip
-        // lands the correct day — no _TryCreateDate treatment needed.
+        // All day-starts in this method go through _TryCreateDate so the
+        // per-date zone offset is honored — necessary across DST transitions
+        // where GetDayStartTimestamp's UTC round-trip preserves the source
+        // offset and lands the wrong day (or off by ±1h on the transition day).
         var yesterday = today.AddDays(-1);
-        if (_IsWithinUserHistoryPeriod(yesterday, startDate))
+        if (_IsWithinUserHistoryPeriod(yesterday, startDate) &&
+            _TryCreateDate(yesterday.Year, yesterday.Month, yesterday.Day, targetTimeZone, out var yTs))
         {
-            timestamps.Add(yesterday.GetDayStartTimestamp(targetTimeZone));
+            timestamps.Add(yTs);
         }
-        if (_IsWithinUserHistoryPeriod(today, startDate))
+        if (_IsWithinUserHistoryPeriod(today, startDate) &&
+            _TryCreateDate(today.Year, today.Month, today.Day, targetTimeZone, out var tTs))
         {
-            timestamps.Add(today.GetDayStartTimestamp(targetTimeZone));
+            timestamps.Add(tTs);
         }
 
         return timestamps.ToArray();
