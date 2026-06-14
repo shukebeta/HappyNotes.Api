@@ -974,5 +974,41 @@ public class NoteServiceTests
                 "No timestamp should be earlier than the start date");
         }
 
+        // Issue #8: periodic milestone day-start off-by-one in southern-hemisphere DST zones.
+        // today = 2025-08-25 23:00 Australia/Sydney → unpatched resolves -6-month milestone to
+        // 2025-02-26; the correct calendar day is 2025-02-25. The +1 only reproduces in the
+        // southern hemisphere; fixed-offset zones (Asia/Shanghai) have no bug and act as a
+        // no-op guard against a false RED.
+        [TestCase("Australia/Sydney", 2025, 2, 25, TestName = "GetTimestamps_SouthernDst_SixMonthMilestone_ReturnsCorrectDay")]
+        [TestCase("Australia/Sydney", 2025, 5, 25, TestName = "GetTimestamps_SouthernDst_ThreeMonthMilestone_ReturnsCorrectDay")]
+        [TestCase("Australia/Sydney", 2025, 7, 25, TestName = "GetTimestamps_SouthernDst_OneMonthMilestone_ReturnsCorrectDay")]
+        [TestCase("Asia/Shanghai", 2025, 2, 25, TestName = "GetTimestamps_FixedOffset_SixMonthMilestone_NoOpGuard")]
+        [TestCase("Asia/Shanghai", 2025, 5, 25, TestName = "GetTimestamps_FixedOffset_ThreeMonthMilestone_NoOpGuard")]
+        [TestCase("Asia/Shanghai", 2025, 7, 25, TestName = "GetTimestamps_FixedOffset_OneMonthMilestone_NoOpGuard")]
+        public void GetTimestamps_PeriodicMilestone_ReturnsCalendarDayStart(
+            string timeZoneId, int expectedYear, int expectedMonth, int expectedDay)
+        {
+            // Arrange - today = 2025-08-25 23:00 in the target timezone.
+            var targetTimeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+            var todayLocal = new DateTimeOffset(2025, 8, 25, 23, 0, 0, targetTimeZone.GetUtcOffset(
+                new DateTime(2025, 8, 25, 0, 0, 0, DateTimeKind.Unspecified)));
+            _fakeTimeProvider.SetUtcNow(todayLocal);
+
+            // startDate well before the -6-month milestone so it isn't filtered out.
+            var startTimestamp = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero).ToUnixTimeSeconds();
+
+            // Act
+            var result = _noteService._GetTimestamps(startTimestamp, timeZoneId);
+
+            // Assert - find the periodic-milestone timestamp for the expected calendar day.
+            var expectedDayStart = new DateTimeOffset(expectedYear, expectedMonth, expectedDay, 0, 0, 0,
+                targetTimeZone.GetUtcOffset(new DateTime(expectedYear, expectedMonth, expectedDay, 0, 0, 0, DateTimeKind.Unspecified)))
+                .ToUnixTimeSeconds();
+
+            Assert.That(result, Does.Contain(expectedDayStart),
+                $"Expected -milestone day-start {expectedYear:0000}-{expectedMonth:00}-{expectedDay:00} in {timeZoneId} " +
+                $"but got: {string.Join(", ", result.Select(ts => DateTimeOffset.FromUnixTimeSeconds(ts).ToString("yyyy-MM-dd HH:mm:ss zzz")))}");
+        }
+
     }
 }

@@ -445,18 +445,31 @@ public class NoteService(
         timestamps.AddRange(_GetYearlyAnniversaryTimestamps(startDate, today, targetTimeZone));
 
         // Add periodic milestones (6 months, 3 months, 1 month ago)
-        // Only include if the target month actually has the same day
+        // Only include if the target month actually has the same day.
+        // Use _TryCreateDate to build the day-start with the per-date zone offset —
+        // GetDayStartTimestamp round-trips through UTC and preserves the source
+        // DateTimeOffset's offset, which lands the wrong day when today and the
+        // target fall in different DST seasons (issue #8, southern-hemisphere
+        // +1; northern-hemisphere -1). See Api.Framework's GetDayStartTimestamp
+        // for the original round-trip path.
         int[] periodicOffsets = [-6, -3, -1,];
         foreach (var monthsOffset in periodicOffsets)
         {
-            if (_TryGetExactMonthOffset(today, monthsOffset, out var targetDate) &&
-                _IsWithinUserHistoryPeriod(targetDate, startDate))
+            if (!_TryGetExactMonthOffset(today, monthsOffset, out var targetDate) ||
+                !_IsWithinUserHistoryPeriod(targetDate, startDate))
             {
-                timestamps.Add(targetDate.GetDayStartTimestamp(targetTimeZone));
+                continue;
+            }
+            if (_TryCreateDate(targetDate.Year, targetDate.Month, targetDate.Day, targetTimeZone, out var milestoneTs))
+            {
+                timestamps.Add(milestoneTs);
             }
         }
 
-        // Add yesterday and today if they're within the user history period
+        // Add yesterday and today if they're within the user history period.
+        // Both are at most one calendar day from `today`, so they fall in the
+        // same DST season as `today` and the GetDayStartTimestamp round-trip
+        // lands the correct day — no _TryCreateDate treatment needed.
         var yesterday = today.AddDays(-1);
         if (_IsWithinUserHistoryPeriod(yesterday, startDate))
         {
