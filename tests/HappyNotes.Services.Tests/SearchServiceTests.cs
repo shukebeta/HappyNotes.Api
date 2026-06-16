@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using HappyNotes.Common.Enums;
 using HappyNotes.Entities;
 using HappyNotes.Services.interfaces;
@@ -266,6 +267,60 @@ public class SearchServiceTests
                 req.Method == HttpMethod.Post &&
                 req.RequestUri.ToString().Contains("json/update")),
             ItExpr.IsAny<CancellationToken>());
+    }
+
+    [Test]
+    public async Task GetNoteIdsByKeywordAsync_MultiTokenQuery_SendsAndOperatorInMatchClauses()
+    {
+        // Regression test for phrase-matching fix: both Content and Tags "match" clauses must use
+        // operator:"and" so that multi-token CJK queries (e.g. "小菜园 浇水") require ALL
+        // tokens to appear rather than any one of them.
+        HttpRequestMessage? captured = null;
+        _mockHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>("SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Callback<HttpRequestMessage, CancellationToken>((req, _) => captured = req)
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent("{\"took\":0,\"timed_out\":false,\"hits\":{\"total\":0,\"hits\":[]}}")
+            });
+
+        await _searchService.GetNoteIdsByKeywordAsync(1, "小菜园 浇水", 1, 10, NoteFilterType.Normal);
+
+        Assert.IsNotNull(captured);
+        var body = await captured!.Content!.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(body);
+
+        // Walk all must clauses looking for the bool/should block (position may change as code evolves)
+        var must = doc.RootElement
+            .GetProperty("query")
+            .GetProperty("bool")
+            .GetProperty("must");
+
+        string? contentOperator = null;
+        string? tagsOperator = null;
+        foreach (var mustClause in must.EnumerateArray())
+        {
+            if (!mustClause.TryGetProperty("bool", out var boolClause)) continue;
+            if (!boolClause.TryGetProperty("should", out var should)) continue;
+            foreach (var shouldClause in should.EnumerateArray())
+            {
+                if (!shouldClause.TryGetProperty("match", out var match)) continue;
+                if (match.TryGetProperty("Content", out var contentClause) &&
+                    contentClause.TryGetProperty("operator", out var op))
+                    contentOperator = op.GetString();
+                if (match.TryGetProperty("Tags", out var tagsClause) &&
+                    tagsClause.TryGetProperty("operator", out var tagsOp))
+                    tagsOperator = tagsOp.GetString();
+            }
+        }
+
+        Assert.That(contentOperator, Is.EqualTo("and"),
+            "Content match clause must use operator:\"and\" to prevent OR-token relevance degradation");
+        Assert.That(tagsOperator, Is.EqualTo("and"),
+            "Tags match clause must also use operator:\"and\" for consistency with the Content fix");
     }
 
     [Test]
