@@ -270,9 +270,9 @@ public class SearchServiceTests
     }
 
     [Test]
-    public async Task GetNoteIdsByKeywordAsync_MultiTokenQuery_SendsAndOperatorInMatchClause()
+    public async Task GetNoteIdsByKeywordAsync_MultiTokenQuery_SendsAndOperatorInMatchClauses()
     {
-        // Regression test for phrase-matching fix: the Content "match" fallback must use
+        // Regression test for phrase-matching fix: both Content and Tags "match" clauses must use
         // operator:"and" so that multi-token CJK queries (e.g. "小菜园 浇水") require ALL
         // tokens to appear rather than any one of them.
         HttpRequestMessage? captured = null;
@@ -293,13 +293,14 @@ public class SearchServiceTests
         var body = await captured!.Content!.ReadAsStringAsync();
         using var doc = JsonDocument.Parse(body);
 
-        // Navigate into query.bool.must[0].bool.should to find the match clause
+        // Walk all must clauses looking for the bool/should block (position may change as code evolves)
         var must = doc.RootElement
             .GetProperty("query")
             .GetProperty("bool")
             .GetProperty("must");
 
-        string? foundOperator = null;
+        string? contentOperator = null;
+        string? tagsOperator = null;
         foreach (var mustClause in must.EnumerateArray())
         {
             if (!mustClause.TryGetProperty("bool", out var boolClause)) continue;
@@ -307,16 +308,19 @@ public class SearchServiceTests
             foreach (var shouldClause in should.EnumerateArray())
             {
                 if (!shouldClause.TryGetProperty("match", out var match)) continue;
-                if (!match.TryGetProperty("Content", out var contentClause)) continue;
-                if (contentClause.TryGetProperty("operator", out var op))
-                {
-                    foundOperator = op.GetString();
-                }
+                if (match.TryGetProperty("Content", out var contentClause) &&
+                    contentClause.TryGetProperty("operator", out var op))
+                    contentOperator = op.GetString();
+                if (match.TryGetProperty("Tags", out var tagsClause) &&
+                    tagsClause.TryGetProperty("operator", out var tagsOp))
+                    tagsOperator = tagsOp.GetString();
             }
         }
 
-        Assert.That(foundOperator, Is.EqualTo("and"),
+        Assert.That(contentOperator, Is.EqualTo("and"),
             "Content match clause must use operator:\"and\" to prevent OR-token relevance degradation");
+        Assert.That(tagsOperator, Is.EqualTo("and"),
+            "Tags match clause must also use operator:\"and\" for consistency with the Content fix");
     }
 
     [Test]

@@ -208,9 +208,18 @@ public class SearchService : ISearchService
                                         }
                                     }
                                 },
-                                new Dictionary<string, object> // Match in tags
+                                new Dictionary<string, object> // AND match in tags: all tokens must appear
                                 {
-                                    { "match", new Dictionary<string, string> { { "Tags", query } } }
+                                    { "match", new Dictionary<string, object>
+                                        {
+                                            { "Tags", new Dictionary<string, object>
+                                                {
+                                                    { "query", query },
+                                                    { "operator", "and" }
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         },
