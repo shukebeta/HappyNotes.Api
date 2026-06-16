@@ -243,13 +243,60 @@ public class NoteServiceTests
         // Act
         var result = await _noteService.SetIsPrivate(userId, noteId, false);
 
-        // Assert
+        // Assert - database delegation only; sync fan-out is in SetIsPrivate_WhenPrivacyFlipped_FansOutToSyncWithNewValue
         Assert.That(result, Is.True);
         _mockNoteRepository.Verify(r => r.UpdateAsync(It.Is<Note>(n => n.Id == noteId && n.IsPrivate == false)), Times.Once);
+    }
 
-        // Fan-out is fire-and-forget Task.Run (NoteService.cs:141-157); allow it to complete
-        // before verifying the sync call. Pattern from Undelete_WithDeletedOwnedNote_ReturnsTrue.
-        await Task.Delay(100);
+    [Test]
+    public async Task SetIsPrivate_WhenPrivacyFlipped_FansOutToSyncWithNewValue()
+    {
+        // Arrange
+        var userId = 1L;
+        var noteId = 1L;
+        var existingNote = new Note
+        {
+            Id = noteId,
+            Content = "Original content",
+            UserId = userId,
+            IsPrivate = true,
+            IsMarkdown = true
+        };
+        var updateRequest = new PostNoteRequest
+        {
+            Content = existingNote.Content,
+            IsMarkdown = existingNote.IsMarkdown,
+            IsPrivate = existingNote.IsPrivate
+        };
+        var updatedNote = new Note
+        {
+            Id = noteId,
+            Content = existingNote.Content,
+            UserId = userId,
+            IsPrivate = false,
+            IsMarkdown = true
+        };
+
+        _mockNoteRepository.SetupSequence(r => r.Get(noteId))
+            .ReturnsAsync(existingNote)
+            .ReturnsAsync(existingNote);
+        _mockMapper.Setup(m => m.Map<PostNoteRequest>(existingNote)).Returns(updateRequest);
+        _mockMapper.Setup(m => m.Map<PostNoteRequest, Note>(It.Is<PostNoteRequest>(r => r.IsPrivate == false)))
+            .Returns(updatedNote);
+        _mockNoteRepository.Setup(r => r.UpdateAsync(It.IsAny<Note>())).ReturnsAsync(true);
+
+        // Intercept the fire-and-forget fan-out deterministically via a TCS callback.
+        var syncCalledTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _mockSyncNoteService
+            .Setup(s => s.SyncEditNote(It.IsAny<Note>(), It.IsAny<string>(), It.IsAny<Note>()))
+            .Callback<Note, string, Note>((_, _, _) => syncCalledTcs.TrySetResult(true))
+            .Returns(Task.CompletedTask);
+
+        // Act
+        await _noteService.SetIsPrivate(userId, noteId, false);
+
+        // Assert - wait for the Task.Run continuation to invoke SyncEditNote, then verify shape
+        await syncCalledTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
         _mockSyncNoteService.Verify(
             s => s.SyncEditNote(
                 It.Is<Note>(n => n.IsPrivate == false),
@@ -943,12 +990,10 @@ public class NoteServiceTests
         [Test]
         public void GetTimestamps_SkipsNonExistentMonthlyDates()
         {
-            // This test verifies that the monthly milestones improvement works
-            // We can't easily test the exact behavior since _GetTimestamps uses current time,
-            // but we can verify the method doesn't crash and returns reasonable results
-
+            // Fake time is 2024-06-15 12:00 UTC; use a fixed start 2 years prior so it
+            // stays within the fake time window regardless of when tests run.
             var timeZone = "UTC";
-            var startTimestamp = DateTimeOffset.UtcNow.AddYears(-2).ToUnixTimeSeconds();
+            var startTimestamp = new DateTimeOffset(2022, 6, 15, 12, 0, 0, TimeSpan.Zero).ToUnixTimeSeconds();
 
             // Act
             var result = _noteService._GetTimestamps(startTimestamp, timeZone);
@@ -1026,6 +1071,48 @@ public class NoteServiceTests
                 $"but got: {string.Join(", ", result.Select(ts => DateTimeOffset.FromUnixTimeSeconds(ts).ToString("yyyy-MM-dd HH:mm:ss zzz")))}");
         }
 
+        // Issue #17: the periodic-milestone path must honor the per-date zone offset even when
+        // today and the target date fall in different DST seasons.
+        // Case A (southern hemisphere): today = 2025-10-08 +11 (AEDT, post-DST-start),
+        //   -6 month = 2025-04-08 +10 (AEST, post-DST-end).  Buggy path returns +11 midnight.
+        // Case B (northern hemisphere): today = 2025-04-01 -04 (EDT, post-spring-forward),
+        //   -1 month = 2025-03-01 -05 (EST, pre-spring-forward).  Buggy path returns -04 midnight.
+        [TestCase("Australia/Sydney", 2025, 10, 8, 12, 2025, 4, 8,
+            TestName = "GetTimestamps_PeriodicMilestone_SydneyCrossDstSeason_ReturnsCorrectDayStart")]
+        [TestCase("America/New_York", 2025, 4, 1, 12, 2025, 3, 1,
+            TestName = "GetTimestamps_PeriodicMilestone_NewYorkCrossDstSeason_ReturnsCorrectDayStart")]
+        public void GetTimestamps_PeriodicMilestone_CrossDstSeason_ReturnsCalendarDayStart(
+            string timeZoneId,
+            int todayYear, int todayMonth, int todayDay, int todayHour,
+            int expectedYear, int expectedMonth, int expectedDay)
+        {
+            var targetTz = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+            var todayOffset = targetTz.GetUtcOffset(new DateTime(todayYear, todayMonth, todayDay, 0, 0, 0, DateTimeKind.Unspecified));
+            var todayLocal = new DateTimeOffset(todayYear, todayMonth, todayDay, todayHour, 0, 0, todayOffset);
+            _fakeTimeProvider.SetUtcNow(todayLocal);
+
+            var startTimestamp = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero).ToUnixTimeSeconds();
+
+            var result = _noteService._GetTimestamps(startTimestamp, timeZoneId);
+
+            var expectedDate = new DateTime(expectedYear, expectedMonth, expectedDay, 0, 0, 0, DateTimeKind.Unspecified);
+            var correctOffset = targetTz.GetUtcOffset(expectedDate);
+            var correctDayStart = new DateTimeOffset(expectedDate, correctOffset).ToUnixTimeSeconds();
+            var wrongDayStart = new DateTimeOffset(expectedDate, todayOffset).ToUnixTimeSeconds();
+
+            Assert.That(result, Does.Contain(correctDayStart),
+                $"Expected {expectedYear:0000}-{expectedMonth:00}-{expectedDay:00} 00:00 {correctOffset} " +
+                $"but got: {string.Join(", ", result.Select(ts => DateTimeOffset.FromUnixTimeSeconds(ts).ToString("yyyy-MM-dd HH:mm:ss zzz")))}");
+
+            if (wrongDayStart != correctDayStart)
+            {
+                Assert.That(result, Does.Not.Contain(wrongDayStart),
+                    $"Bug regressed: result contains wrong-offset midnight {expectedYear:0000}-{expectedMonth:00}-{expectedDay:00} 00:00 {todayOffset}");
+            }
+
+            CollectionAssert.AllItemsAreUnique(result, "Timestamps must be unique — duplicate implies a wrong-offset twin appeared alongside the correct one");
+        }
+
         // Yesterday/today entries must also use the per-date zone offset
         // (issue #8 follow-up). When `today` is the first day after a DST
         // transition, `yesterday` straddles the boundary and the source
@@ -1069,59 +1156,4 @@ public class NoteServiceTests
 
     }
 
-    // Issue #15: lock the convention-based PostNoteRequest → Note IsPrivate mapping.
-    // The fan-out path in NoteService.SetIsPrivate (lines 179-181) feeds IsPrivate from
-    // the request into Update, which then carries it into SyncEditNote. If this map
-    // ever drops IsPrivate (e.g. someone refactors AutoMapperProfile), Telegram/Mastodon
-    // will silently desync — this test is the guard.
-    [TestFixture]
-    public class AutoMapperProfilePostNoteRequestToNoteTests
-    {
-        private IMapper _mapper;
-
-        [SetUp]
-        public void Setup()
-        {
-            // Skip AssertConfigurationIsValid: the production profile intentionally leaves
-            // several members (Id, UserId, Tags, …) to be assigned by the service layer.
-            // We only need the real convention-based PostNoteRequest → Note map to be
-            // executable; its IsPrivate pass-through is what this fixture locks down.
-            var config = new MapperConfiguration(cfg => cfg.AddProfile<AutoMapperProfile>());
-            _mapper = config.CreateMapper();
-        }
-
-        [Test]
-        public void PostNoteRequest_ToNote_IsPrivateTrue_IsPreserved()
-        {
-            // Arrange
-            var request = new PostNoteRequest
-            {
-                Content = "private note body",
-                IsPrivate = true
-            };
-
-            // Act
-            var note = _mapper.Map<PostNoteRequest, Note>(request);
-
-            // Assert
-            Assert.That(note.IsPrivate, Is.True);
-        }
-
-        [Test]
-        public void PostNoteRequest_ToNote_IsPrivateFalse_IsPreserved()
-        {
-            // Arrange
-            var request = new PostNoteRequest
-            {
-                Content = "public note body",
-                IsPrivate = false
-            };
-
-            // Act
-            var note = _mapper.Map<PostNoteRequest, Note>(request);
-
-            // Assert
-            Assert.That(note.IsPrivate, Is.False);
-        }
-    }
 }
