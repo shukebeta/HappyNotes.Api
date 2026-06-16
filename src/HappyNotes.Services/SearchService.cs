@@ -195,9 +195,18 @@ public class SearchService : ISearchService
                                         }
                                     }
                                 },
-                                new Dictionary<string, object> // Regular match as fallback
+                                new Dictionary<string, object> // AND match: all tokens must appear
                                 {
-                                    { "match", new Dictionary<string, string> { { "Content", query } } }
+                                    { "match", new Dictionary<string, object>
+                                        {
+                                            { "Content", new Dictionary<string, object>
+                                                {
+                                                    { "query", query },
+                                                    { "operator", "and" }
+                                                }
+                                            }
+                                        }
+                                    }
                                 },
                                 new Dictionary<string, object> // Match in tags
                                 {
