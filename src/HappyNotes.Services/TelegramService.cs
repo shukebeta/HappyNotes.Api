@@ -3,7 +3,6 @@ using HappyNotes.Services.interfaces;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-using Telegram.Bot.Types.InputFiles;
 using File = System.IO.File;
 
 namespace HappyNotes.Services;
@@ -17,37 +16,34 @@ public class TelegramService : ITelegramService
         _httpClientFactory = httpClientFactory;
     }
 
-    public async Task<Message> SendMessageAsync(string botToken, string channelId, string message, bool isMarkdown,
+    public async Task<int> SendMessageAsync(string botToken, string channelId, string message, bool isMarkdown,
         CancellationToken cancellationToken = default)
     {
         var httpClient = _httpClientFactory.CreateClient("TelegramBotClient");
         var botClient = new TelegramBotClient(botToken, httpClient);
-        return await botClient.SendTextMessageAsync(
+        var result = await botClient.SendMessage(
             chatId: _GetChatId(channelId),
             text: message,
-            parseMode: isMarkdown ? ParseMode.Markdown : null,
+            parseMode: isMarkdown ? ParseMode.Markdown : ParseMode.None,
             cancellationToken: cancellationToken
         );
+        return result.MessageId;
     }
 
-    public async Task<Message> SendLongMessageAsFileAsync(string botToken, string channelId, string message,
+    public async Task<int> SendLongMessageAsFileAsync(string botToken, string channelId, string message,
         string extension = ".txt", CancellationToken cancellationToken = default)
     {
-        // Create a temporary file in the system's temporary folder
         string tempFilePath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + extension);
 
         try
         {
-            // Write the message to the temporary file
             await File.WriteAllTextAsync(tempFilePath, message, cancellationToken);
 
-            // Send the file via Telegram
             var httpClient = _httpClientFactory.CreateClient("TelegramBotClient");
             return await _SendFileAsync(botToken, channelId, tempFilePath, message, httpClient, cancellationToken);
         }
         finally
         {
-            // Ensure the temporary file is deleted after use
             if (File.Exists(tempFilePath))
             {
                 File.Delete(tempFilePath);
@@ -55,17 +51,17 @@ public class TelegramService : ITelegramService
         }
     }
 
-    public async Task<Message> EditMessageAsync(string botToken, string chatId, int messageId, string newText,
+    public async Task EditMessageAsync(string botToken, string chatId, int messageId, string newText,
         bool isMarkdown, CancellationToken cancellationToken = default)
     {
         var httpClient = _httpClientFactory.CreateClient("TelegramBotClient");
         var botClient = new TelegramBotClient(botToken, httpClient);
 
-        return await botClient.EditMessageTextAsync(
+        await botClient.EditMessageText(
             chatId: _GetChatId(chatId),
             messageId: messageId,
             text: newText,
-            parseMode: isMarkdown ? ParseMode.Markdown : null,
+            parseMode: isMarkdown ? ParseMode.Markdown : ParseMode.None,
             cancellationToken: cancellationToken
         );
     }
@@ -76,28 +72,28 @@ public class TelegramService : ITelegramService
         var httpClient = _httpClientFactory.CreateClient("TelegramBotClient");
         var botClient = new TelegramBotClient(botToken, httpClient);
 
-        await botClient.DeleteMessageAsync(
+        await botClient.DeleteMessage(
             chatId: _GetChatId(chatId),
             messageId: messageId,
             cancellationToken: cancellationToken
         );
     }
 
-
-    private async Task<Message> _SendFileAsync(string botToken, string channelId, string filePath,
+    private async Task<int> _SendFileAsync(string botToken, string channelId, string filePath,
         string message, HttpClient httpClient, CancellationToken cancellationToken)
     {
         var botClient = new TelegramBotClient(botToken, httpClient);
         await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-        var inputOnlineFile = new InputOnlineFile(fileStream, Path.GetFileName(filePath));
+        var inputFile = InputFile.FromStream(fileStream, Path.GetFileName(filePath));
         var isMarkdown = filePath.EndsWith(".md");
-        return await botClient.SendDocumentAsync(
+        var result = await botClient.SendDocument(
             chatId: _GetChatId(channelId),
-            document: inputOnlineFile,
+            document: inputFile,
             caption: _GetTelegramCaption(message),
-            parseMode: isMarkdown ? ParseMode.Markdown : null,
+            parseMode: isMarkdown ? ParseMode.Markdown : ParseMode.None,
             cancellationToken: cancellationToken
         );
+        return result.MessageId;
     }
 
     private static string _GetTelegramCaption(string? message)

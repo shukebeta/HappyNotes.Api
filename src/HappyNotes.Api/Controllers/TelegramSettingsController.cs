@@ -170,14 +170,14 @@ public class TelegramSettingsController(
             throw new Exception("token or channelId is empty, cannot test.");
         }
         var token = TextEncryptionHelper.Decrypt(existingSetting.EncryptedToken, _jwtConfig.SymmetricSecurityKey);
-        var message = await telegramService.SendMessageAsync(token, existingSetting.ChannelId, "Hello *world!*", true);
-        if (message.MessageId > 0)
+        var messageId = await telegramService.SendMessageAsync(token, existingSetting.ChannelId, "Hello *world!*", true);
+        if (messageId > 0)
         {
             existingSetting.Status = existingSetting.Status.Add(TelegramSettingStatus.Tested);
             await telegramSyncSettingsRepository.UpdateAsync(existingSetting);
             // delete test message to avoid confusing
-            await telegramService.DeleteMessageAsync(token, existingSetting.ChannelId, message.MessageId);
+            await telegramService.DeleteMessageAsync(token, existingSetting.ChannelId, messageId);
         }
-        return message.MessageId > 0 ? new SuccessfulResult<bool>(true) : new FailedResult<bool>(false, "test failed.");
+        return messageId > 0 ? new SuccessfulResult<bool>(true) : new FailedResult<bool>(false, "test failed.");
     }
 }

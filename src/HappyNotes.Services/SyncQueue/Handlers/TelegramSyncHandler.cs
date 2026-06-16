@@ -184,13 +184,12 @@ public class TelegramSyncHandler : ISyncHandler
             // For long messages, send as file with Markdown fallback
             try
             {
-                var longMessage = await _telegramService.SendLongMessageAsFileAsync(
+                messageId = await _telegramService.SendLongMessageAsFileAsync(
                     botToken,
                     payload.ChannelId,
                     payload.FullContent,
                     payload.IsMarkdown ? ".md" : ".txt",
                     cancellationToken);
-                messageId = longMessage.MessageId;
 
                 _logger.LogDebug("Successfully created long message file {MessageId} in channel {ChannelId}",
                     messageId, payload.ChannelId);
@@ -203,13 +202,12 @@ public class TelegramSyncHandler : ISyncHandler
                 if (payload.IsMarkdown)
                 {
                     // Fallback: retry sending long message as plain text file
-                    var longMessage = await _telegramService.SendLongMessageAsFileAsync(
+                    messageId = await _telegramService.SendLongMessageAsFileAsync(
                         botToken,
                         payload.ChannelId,
                         payload.FullContent,
                         ".txt",
                         cancellationToken);
-                    messageId = longMessage.MessageId;
 
                     _logger.LogDebug("Successfully created long message file {MessageId} in channel {ChannelId} without Markdown",
                         messageId, payload.ChannelId);
@@ -225,13 +223,12 @@ public class TelegramSyncHandler : ISyncHandler
             // For short messages, try Markdown first, fallback to plain text
             try
             {
-                var message = await _telegramService.SendMessageAsync(
+                messageId = await _telegramService.SendMessageAsync(
                     botToken,
                     payload.ChannelId,
                     payload.FullContent,
                     payload.IsMarkdown,
                     cancellationToken);
-                messageId = message.MessageId;
 
                 _logger.LogDebug("Successfully created message {MessageId} in channel {ChannelId}",
                     messageId, payload.ChannelId);
@@ -244,13 +241,12 @@ public class TelegramSyncHandler : ISyncHandler
                 if (payload.IsMarkdown)
                 {
                     // Fallback: retry sending without markdown
-                    var message = await _telegramService.SendMessageAsync(
+                    messageId = await _telegramService.SendMessageAsync(
                         botToken,
                         payload.ChannelId,
                         payload.FullContent,
                         false,
                         cancellationToken);
-                    messageId = message.MessageId;
 
                     _logger.LogDebug("Successfully created message {MessageId} in channel {ChannelId} without Markdown",
                         messageId, payload.ChannelId);

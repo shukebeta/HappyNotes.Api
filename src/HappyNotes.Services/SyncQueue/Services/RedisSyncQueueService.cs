@@ -396,7 +396,7 @@ public class RedisSyncQueueService : ISyncQueueService
             {
                 try
                 {
-                    var task = JsonSerializer.Deserialize<SyncTask<object>>(taskJson!, JsonSerializerConfig.Default);
+                    var task = JsonSerializer.Deserialize<SyncTask<object>>((string)taskJson!, JsonSerializerConfig.Default);
                     if (task == null) continue;
 
                     // Remove from processing queue first

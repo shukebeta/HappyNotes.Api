@@ -7,40 +7,28 @@ namespace Api.Framework.Tests;
 public class CustomExceptionTests
 {
     [Test]
-    public void CustomException_WithMessage_SetsCorrectExceptionMessage()
+    public void CustomException_ViaHelper_SetsCustomDataMessage()
     {
         // Arrange
         const string expectedMessage = "Test error message";
 
         // Act
-        var exception = new CustomException<object>(expectedMessage);
+        var exception = CustomExceptionHelper.New<object>(new object(), expectedMessage);
 
         // Assert
-        Assert.That(exception.Message, Is.EqualTo(expectedMessage));
+        Assert.That(exception.CustomData?.Message, Is.EqualTo(expectedMessage));
     }
 
     [Test]
-    public void CustomException_WithNullMessage_UsesDefaultMessage()
-    {
-        // Arrange & Act
-        var exception = new CustomException<object>();
-
-        // Assert
-        Assert.That(exception.Message, Is.EqualTo("A custom exception happened"));
-    }
-
-    [Test]
-    public void CustomException_WithInnerExceptionButNoMessage_UsesInnerExceptionMessage()
+    public void CustomException_WrapsInnerException_ExposesInnerException()
     {
         // Arrange
-        const string innerMessage = "Inner exception message";
-        var innerException = new InvalidOperationException(innerMessage);
+        var innerException = new InvalidOperationException("Inner exception message");
 
         // Act
-        var exception = new CustomException<object>(null, innerException);
+        var exception = new CustomException<object>(innerException);
 
         // Assert
-        Assert.That(exception.Message, Is.EqualTo(innerMessage));
         Assert.That(exception.InnerException, Is.EqualTo(innerException));
     }
 
@@ -56,7 +44,6 @@ public class CustomExceptionTests
         var exception = CustomExceptionHelper.New("test data", errorMessage, noteId);
 
         // Assert
-        Assert.That(exception.Message, Is.EqualTo(expectedMessage));
         Assert.That(exception.CustomData?.Message, Is.EqualTo(expectedMessage));
     }
 
@@ -74,7 +61,6 @@ public class CustomExceptionTests
         var exception = CustomExceptionHelper.New("test data", errorCode, errorMessage, userName, noteCount);
 
         // Assert
-        Assert.That(exception.Message, Is.EqualTo(expectedMessage));
         Assert.That(exception.CustomData?.Message, Is.EqualTo(expectedMessage));
         Assert.That(exception.CustomData?.ErrorCode, Is.EqualTo(errorCode));
     }

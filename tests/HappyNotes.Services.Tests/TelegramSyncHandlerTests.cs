@@ -12,7 +12,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using Telegram.Bot.Exceptions;
-using Telegram.Bot.Types;
 
 namespace HappyNotes.Services.Tests;
 
@@ -107,12 +106,11 @@ public class TelegramSyncHandlerTests
         };
 
         var task = CreateSyncTask("CREATE", payload);
-        var testMessage = new Message { MessageId = 100 };
 
         SetupTelegramSettings(1, TestChannelId, TestBotToken);
         _mockTelegramService
             .Setup(s => s.SendMessageAsync(TestBotToken, TestChannelId, payload.FullContent, payload.IsMarkdown, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(testMessage);
+            .ReturnsAsync(100);
 
         var testNote = new Note { Id = 123, TelegramMessageIds = null };
         _mockNoteRepository
@@ -145,12 +143,11 @@ public class TelegramSyncHandlerTests
         };
 
         var task = CreateSyncTask("CREATE", payload);
-        var testMessage = new Message { MessageId = 200 };
 
         SetupTelegramSettings(1, TestChannelId, TestBotToken);
         _mockTelegramService
             .Setup(s => s.SendLongMessageAsFileAsync(TestBotToken, TestChannelId, longContent, ".md", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(testMessage);
+            .ReturnsAsync(200);
 
         var testNote = new Note { Id = 123, TelegramMessageIds = null };
         _mockNoteRepository
@@ -182,7 +179,6 @@ public class TelegramSyncHandlerTests
         };
 
         var task = CreateSyncTask("CREATE", payload);
-        var testMessage = new Message { MessageId = 300 };
 
         SetupTelegramSettings(1, TestChannelId, TestBotToken);
 
@@ -194,7 +190,7 @@ public class TelegramSyncHandlerTests
         // Second call with plain text succeeds
         _mockTelegramService
             .Setup(s => s.SendMessageAsync(TestBotToken, TestChannelId, payload.FullContent, false, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(testMessage);
+            .ReturnsAsync(300);
 
         var testNote = new Note { Id = 123, TelegramMessageIds = null };
         _mockNoteRepository
@@ -224,7 +220,6 @@ public class TelegramSyncHandlerTests
         };
 
         var task = CreateSyncTask("CREATE", payload);
-        var testMessage = new Message { MessageId = 400 };
 
         SetupTelegramSettings(1, TestChannelId, TestBotToken);
 
@@ -236,7 +231,7 @@ public class TelegramSyncHandlerTests
         // Second call with .txt file succeeds
         _mockTelegramService
             .Setup(s => s.SendLongMessageAsFileAsync(TestBotToken, TestChannelId, longContent, ".txt", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(testMessage);
+            .ReturnsAsync(400);
 
         var testNote = new Note { Id = 123, TelegramMessageIds = null };
         _mockNoteRepository
@@ -274,7 +269,7 @@ public class TelegramSyncHandlerTests
         SetupTelegramSettings(1, TestChannelId, TestBotToken);
         _mockTelegramService
             .Setup(s => s.EditMessageAsync(TestBotToken, TestChannelId, 100, payload.FullContent, payload.IsMarkdown, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Message { MessageId = 100 });
+            .Returns(Task.CompletedTask);
 
         // Act
         var result = await _telegramSyncHandler.ProcessAsync(task, CancellationToken.None);
@@ -299,7 +294,6 @@ public class TelegramSyncHandlerTests
         };
 
         var task = CreateSyncTask("UPDATE", payload);
-        var newMessage = new Message { MessageId = 500 };
 
         SetupTelegramSettings(1, TestChannelId, TestBotToken);
         _mockTelegramService
@@ -307,7 +301,7 @@ public class TelegramSyncHandlerTests
             .Returns(Task.CompletedTask);
         _mockTelegramService
             .Setup(s => s.SendLongMessageAsFileAsync(TestBotToken, TestChannelId, longContent, ".txt", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(newMessage);
+            .ReturnsAsync(500);
 
         var testNote = new Note { Id = 123, TelegramMessageIds = null };
         _mockNoteRepository
@@ -348,7 +342,7 @@ public class TelegramSyncHandlerTests
         // Second call with plain text succeeds
         _mockTelegramService
             .Setup(s => s.EditMessageAsync(TestBotToken, TestChannelId, 100, payload.FullContent, false, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Message { MessageId = 100 });
+            .Returns(Task.CompletedTask);
 
         // Act
         var result = await _telegramSyncHandler.ProcessAsync(task, CancellationToken.None);
@@ -373,7 +367,6 @@ public class TelegramSyncHandlerTests
         };
 
         var task = CreateSyncTask("UPDATE", payload);
-        var testMessage = new Message { MessageId = 100 };
 
         SetupTelegramSettings(1, TestChannelId, TestBotToken);
 
@@ -385,7 +378,7 @@ public class TelegramSyncHandlerTests
 
         _mockTelegramService
             .Setup(s => s.SendMessageAsync(TestBotToken, TestChannelId, payload.FullContent, false, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(testMessage);
+            .ReturnsAsync(100);
 
         // Act
         var result = await _telegramSyncHandler.ProcessAsync(task, CancellationToken.None);
@@ -538,12 +531,11 @@ public class TelegramSyncHandlerTests
         };
 
         var task = CreateSyncTask("CREATE", payload);
-        var testMessage = new Message { MessageId = 100 };
 
         SetupTelegramSettings(1, TestChannelId, TestBotToken);
         _mockTelegramService
             .Setup(s => s.SendMessageAsync(TestBotToken, TestChannelId, payload.FullContent, false, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(testMessage);
+            .ReturnsAsync(100);
 
         var testNote = new Note { Id = 123, TelegramMessageIds = null };
         _mockNoteRepository
@@ -575,12 +567,11 @@ public class TelegramSyncHandlerTests
         };
 
         var task = CreateSyncTask("CREATE", payload);
-        var testMessage = new Message { MessageId = 200 };
 
         SetupTelegramSettings(1, TestChannelId, TestBotToken);
         _mockTelegramService
             .Setup(s => s.SendMessageAsync(TestBotToken, TestChannelId, payload.FullContent, false, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(testMessage);
+            .ReturnsAsync(200);
 
         var testNote = new Note { Id = 123, TelegramMessageIds = "-1009876543210:150" };
         _mockNoteRepository
