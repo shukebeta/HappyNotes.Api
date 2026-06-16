@@ -11,56 +11,113 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy:
-    # Our previously created self-hosted runner
-    runs-on: ARM64
+  build-and-deploy:
+    runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        dotnet: ["8.0.x"]
-
-    # A sequence of tasks that will execute as part of the job
     steps:
-      # Checks out repository so our job can access it
       - uses: actions/checkout@v4
 
-      - name: Fetch Git Commit Hash
-        id: get_commit
-        run: |
-          echo "::set-output name=commit_hash::$(git rev-parse --short HEAD)"
-          echo "::set-output name=build_date::$(date '+%Y-%b-%d')"
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
 
-      - name: Install dependencies
+      - name: Restore dependencies
         run: dotnet restore
 
       - name: Build
         run: dotnet build --configuration Release --no-restore
 
-      - name: Clean deployment directory
-        run: rm -rf /var/www/HappyNotes.Api/*
-
-      - name: Publish
-        run: dotnet publish -c Release --self-contained true --runtime linux-arm64 --property:PublishDir=/var/www/HappyNotes.Api
-
-      - name: Replace placeholders with actual information
+      # Framework-dependent publish: the staging host already has the .NET 10
+      # runtime installed, so we ship portable IL (no --self-contained / --runtime).
+      - name: Publish and replace placeholders
         run: |
-          pwd
           set -ex
-          sed -i "s/password-placeholder/${{ secrets.STAGING_MYSQL_PASSWORD }}/g" /var/www/HappyNotes.Api/appsettings.json
-          sed -i "s/symmetric-security-key-placeholder/${{ secrets.STAGING_SYMMETRIC_SECURITY_KEY }}/g" /var/www/HappyNotes.Api/appsettings.json
-          COMMIT_HASH=${{ steps.get_commit.outputs.commit_hash }}
-          BUILD_DATE=${{ steps.get_commit.outputs.build_date }}
+          dotnet publish src/HappyNotes.Api/HappyNotes.Api.csproj \
+            --configuration Release --no-build --output ./publish
+          APPSETTINGS=./publish/appsettings.json
+          sed -i "s/password-placeholder/${{ secrets.STAGING_MYSQL_PASSWORD }}/g" "$APPSETTINGS"
+          sed -i "s/symmetric-security-key-placeholder/${{ secrets.STAGING_SYMMETRIC_SECURITY_KEY }}/g" "$APPSETTINGS"
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          BUILD_DATE=$(date '+%Y-%b-%d')
           VERSION_INFO="$COMMIT_HASH ($BUILD_DATE)"
-          sed -i "s/VERSION_PLACEHOLDER/$VERSION_INFO/" /var/www/HappyNotes.Api/appsettings.json
-          sed -i "s/default_mysql_server/127.0.0.1/" /var/www/HappyNotes.Api/appsettings.json
-          sed -i "s/default_manticore_server/sydney.shukebeta.eu.org/" /var/www/HappyNotes.Api/appsettings.json
-          sed -i "s/seq-api-key-placeholder/${{ secrets.STAGING_SEQ_API_KEY }}/g" /var/www/HappyNotes.Api/appsettings.json
-          sed -i $'s@seq-server-url-placeholder@'${{ secrets.STAGING_SEQ_SERVER_URL }}'@g' /var/www/HappyNotes.Api/appsettings.json
-          sed -i 's@redis-connection-placeholder@arm.shukebeta.eu.org:6380@g' /var/www/HappyNotes.Api/appsettings.json
-          echo 'Successful!'
+          sed -i "s/VERSION_PLACEHOLDER/$VERSION_INFO/" "$APPSETTINGS"
+          sed -i "s/default_mysql_server/127.0.0.1/" "$APPSETTINGS"
+          sed -i "s/default_manticore_server/sydney.shukebeta.eu.org/" "$APPSETTINGS"
+          sed -i "s/seq-api-key-placeholder/${{ secrets.STAGING_SEQ_API_KEY }}/g" "$APPSETTINGS"
+          sed -i $'s@seq-server-url-placeholder@'${{ secrets.STAGING_SEQ_SERVER_URL }}'@g' "$APPSETTINGS"
+          sed -i 's@redis-connection-placeholder@arm.shukebeta.eu.org:6380@g' "$APPSETTINGS"
+          echo 'Placeholders replaced.'
 
-      - name: Restart the app
+      - name: Create SSH key file
         run: |
-          echo $XDG_RUNTIME_DIR
-          export XDG_RUNTIME_DIR=/run/user/$(id -u)
-          systemctl --user restart HappyNotes.Api.service
+          mkdir -p $HOME/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > $HOME/.ssh/id_ed25519
+          chmod 600 $HOME/.ssh/id_ed25519
+          ssh-keyscan -p ${{ secrets.SSH_PORT }} -H ${{ secrets.SSH_HOST }} >> $HOME/.ssh/known_hosts
+
+      # Stop the service and clean the deploy directory so stale files (e.g. the
+      # old self-contained runtime) don't linger after switching to framework-dependent.
+      - name: Stop service and clean deploy directory
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key_path: /home/runner/.ssh/id_ed25519
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            export XDG_RUNTIME_DIR=/run/user/$(id -u)
+            systemctl --user stop HappyNotes.Api.service || true
+            rm -rf "${{ secrets.DEPLOY_PATH }}"/*
+            mkdir -p "${{ secrets.DEPLOY_PATH }}"
+
+      - name: Copy files to staging host
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key_path: /home/runner/.ssh/id_ed25519
+          port: ${{ secrets.SSH_PORT }}
+          source: "publish/*"
+          target: ${{ secrets.DEPLOY_PATH }}
+          strip_components: 1
+
+      - name: Install user systemd unit and restart service
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key_path: /home/runner/.ssh/id_ed25519
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            set -e
+            export XDG_RUNTIME_DIR=/run/user/$(id -u)
+            # Keep the per-user systemd manager alive without an active login session.
+            loginctl enable-linger "$USER" || true
+            # Resolve the dotnet runtime: prefer the per-user install, fall back to PATH.
+            DOTNET_BIN="$HOME/.dotnet/dotnet"
+            [ -x "$DOTNET_BIN" ] || DOTNET_BIN="$(command -v dotnet)"
+            mkdir -p "$HOME/.config/systemd/user"
+            printf "%s\n" \
+              "[Unit]" \
+              "Description=HappyNotes.Api" \
+              "After=network.target" \
+              "" \
+              "[Service]" \
+              "Type=simple" \
+              "WorkingDirectory=${{ secrets.DEPLOY_PATH }}" \
+              "ExecStart=$DOTNET_BIN ${{ secrets.DEPLOY_PATH }}/HappyNotes.Api.dll --urls \"http://127.0.0.1:5012\"" \
+              "Restart=always" \
+              "RestartSec=10" \
+              "KillSignal=SIGINT" \
+              "SyslogIdentifier=happy-notes-api-log" \
+              "Environment=ASPNETCORE_ENVIRONMENT=Staging" \
+              "Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false" \
+              "" \
+              "[Install]" \
+              "WantedBy=default.target" > "$HOME/.config/systemd/user/HappyNotes.Api.service"
+            systemctl --user daemon-reload
+            systemctl --user enable HappyNotes.Api.service
+            systemctl --user restart HappyNotes.Api.service
+            sleep 3
+            systemctl --user status HappyNotes.Api.service --no-pager || true
