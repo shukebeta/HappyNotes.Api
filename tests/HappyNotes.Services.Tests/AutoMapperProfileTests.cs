@@ -2,7 +2,6 @@ using AutoMapper;
 using HappyNotes.Dto;
 using HappyNotes.Entities;
 using HappyNotes.Models;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace HappyNotes.Services.Tests;
 
@@ -20,7 +19,7 @@ public class AutoMapperProfileTests
     {
         // Skip AssertConfigurationIsValid: the production profile intentionally leaves
         // several members (Id, UserId, Tags, …) to be assigned by the service layer.
-        var config = new MapperConfiguration(cfg => cfg.AddProfile<AutoMapperProfile>(), NullLoggerFactory.Instance);
+        var config = new MapperConfiguration(cfg => cfg.AddProfile<AutoMapperProfile>());
         _mapper = config.CreateMapper();
     }
 
