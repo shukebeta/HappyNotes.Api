@@ -49,13 +49,6 @@ jobs:
           sed -i 's@redis-connection-placeholder@arm.shukebeta.eu.org:6380@g' "$APPSETTINGS"
           echo 'Placeholders replaced.'
 
-      - name: Create SSH key file
-        run: |
-          mkdir -p $HOME/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > $HOME/.ssh/id_ed25519
-          chmod 600 $HOME/.ssh/id_ed25519
-          ssh-keyscan -p ${{ secrets.SSH_PORT }} -H ${{ secrets.SSH_HOST }} >> $HOME/.ssh/known_hosts
-
       # Stop the service and clean the deploy directory so stale files (e.g. the
       # old self-contained runtime) don't linger after switching to framework-dependent.
       - name: Stop service and clean deploy directory
@@ -63,7 +56,7 @@ jobs:
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
-          key_path: /home/runner/.ssh/id_ed25519
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script: |
             export XDG_RUNTIME_DIR=/run/user/$(id -u)
@@ -76,7 +69,7 @@ jobs:
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
-          key_path: /home/runner/.ssh/id_ed25519
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
           source: "publish/*"
           target: ${{ secrets.DEPLOY_PATH }}
@@ -87,16 +80,21 @@ jobs:
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
-          key_path: /home/runner/.ssh/id_ed25519
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script: |
             set -e
             export XDG_RUNTIME_DIR=/run/user/$(id -u)
             # Keep the per-user systemd manager alive without an active login session.
             loginctl enable-linger "$USER" || true
-            # Resolve the dotnet runtime: prefer the per-user install, fall back to PATH.
-            DOTNET_BIN="$HOME/.dotnet/dotnet"
-            [ -x "$DOTNET_BIN" ] || DOTNET_BIN="$(command -v dotnet)"
+            # Resolve the dotnet runtime. On the arm host it lives at ~/dotnet/dotnet
+            # (no dot); also try the dotnet-install location and PATH / common system paths.
+            DOTNET_BIN=""
+            for c in "$HOME/dotnet/dotnet" "$HOME/.dotnet/dotnet" "$(command -v dotnet || true)" /usr/bin/dotnet /usr/share/dotnet/dotnet; do
+              if [ -n "$c" ] && [ -x "$c" ]; then DOTNET_BIN="$c"; break; fi
+            done
+            if [ -z "$DOTNET_BIN" ]; then echo "dotnet runtime not found on host" >&2; exit 1; fi
+            echo "Using dotnet at: $DOTNET_BIN"
             mkdir -p "$HOME/.config/systemd/user"
             printf "%s\n" \
               "[Unit]" \
